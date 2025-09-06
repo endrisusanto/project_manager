@@ -1,75 +1,103 @@
 <?php
 include 'config.php';
 
-// Inisialisasi variabel untuk menghindari error jika tabel kosong
-$stats = [
-    'total' => 0, 'new' => 0, 'ongoing' => 0, 'submitted' => 0, 
-    'approved' => 0, 'cancelled' => 0, 'delay' => 0, 'ontime' => 0
-];
-$pic_distribution = [];
-$weekly_data = [];
-$all_pics = [];
+// --- PENGATURAN DATA ---
 
-// Fetch all tasks
-$tasks_result = $conn->query("SELECT * FROM gba_tasks");
+// Ambil semua task dari database
+$tasks_result = $conn->query("SELECT * FROM gba_tasks WHERE request_date IS NOT NULL ORDER BY request_date ASC");
 $all_tasks = [];
+$available_years = [];
 if ($tasks_result && $tasks_result->num_rows > 0) {
     while($row = $tasks_result->fetch_assoc()) {
         $all_tasks[] = $row;
+        // Kumpulkan tahun-tahun yang tersedia untuk filter
+        $year = date('Y', strtotime($row['request_date']));
+        if (!in_array($year, $available_years)) {
+            $available_years[] = $year;
+        }
     }
 }
+sort($available_years);
+
+// Inisialisasi variabel
+$stats = ['total' => 0, 'new' => 0, 'ongoing' => 0, 'submitted' => 0, 'approved' => 0, 'cancelled' => 0, 'delay' => 0, 'ontime' => 0];
+$weekly_pic_distribution = [];
+$weekly_data = [];
+$all_pics = [];
 
 if (!empty($all_tasks)) {
-    // Hitung statistik
-    $stats['total'] = count($all_tasks);
+    // --- 1. LOGIKA UNTUK DONUT CHART MINGGUAN (Rabu - Selasa) ---
+
+    // Tentukan rentang minggu ini (Rabu s/d Selasa berikutnya)
+    $today = new DateTime();
+    $day_of_week = $today->format('w'); // 0 (Minggu) - 6 (Sabtu)
+    // Hitung mundur ke hari Rabu terakhir (w=3)
+    $days_to_subtract = ($day_of_week < 3) ? (7 + $day_of_week - 3) : ($day_of_week - 3);
+    $start_of_week = (new DateTime())->modify("-$days_to_subtract days");
+    $end_of_week = (clone $start_of_week)->modify("+6 days");
+
+    // Filter tasks untuk minggu ini saja
+    $tasks_this_week = array_filter($all_tasks, function($task) use ($start_of_week, $end_of_week) {
+        $request_dt = new DateTime($task['request_date']);
+        return $request_dt >= $start_of_week && $request_dt <= $end_of_week;
+    });
+
+    // Hitung distribusi PIC untuk donut chart berdasarkan data minggu ini
+    foreach ($tasks_this_week as $task) {
+        $pic = !empty($task['pic_email']) ? $task['pic_email'] : 'Unassigned';
+        if (!isset($weekly_pic_distribution[$pic])) {
+            $weekly_pic_distribution[$pic] = 0;
+        }
+        $weekly_pic_distribution[$pic]++;
+    }
+    arsort($weekly_pic_distribution);
+
+
+    // --- 2. LOGIKA UNTUK CHART TAHUNAN DENGAN FILTER ---
+
+    // Tentukan tahun yang akan ditampilkan
+    $current_year = date('Y');
+    $selected_year = isset($_GET['year']) && in_array($_GET['year'], $available_years) ? $_GET['year'] : end($available_years);
+
+    // Filter tasks berdasarkan tahun yang dipilih
+    $tasks_for_yearly_chart = array_filter($all_tasks, function($task) use ($selected_year) {
+        return date('Y', strtotime($task['request_date'])) == $selected_year;
+    });
+
+    // Hitung statistik keseluruhan berdasarkan semua task
     foreach ($all_tasks as $task) {
         if ($task['progress_status'] == 'Task Baru') $stats['new']++;
         if ($task['progress_status'] == 'Test Ongoing') $stats['ongoing']++;
         if ($task['progress_status'] == 'Submitted') $stats['submitted']++;
         if ($task['progress_status'] == 'Approved') $stats['approved']++;
         if ($task['progress_status'] == 'Batal') $stats['cancelled']++;
-
-        // Kalkulasi ontime submission
         if ($task['submission_date']) {
             $request_dt = new DateTime($task['request_date']);
             $submission_dt = new DateTime($task['submission_date']);
-            if ($submission_dt->diff($request_dt)->days > 5) {
-                $stats['delay']++;
-            } else {
-                $stats['ontime']++;
-            }
+            if ($submission_dt->diff($request_dt)->days > 7) $stats['delay']++; else $stats['ontime']++;
         }
-        
-        // Kalkulasi distribusi PIC
-        $pic = !empty($task['pic_email']) ? $task['pic_email'] : 'Unassigned';
-        if (!isset($pic_distribution[$pic])) {
-            $pic_distribution[$pic] = 0;
-        }
-        $pic_distribution[$pic]++;
     }
+    $stats['total'] = count($all_tasks);
 
-    // Persiapan data Chart Mingguan
+
+    // Siapkan data untuk chart tahunan
+    $all_pics = array_unique(array_column($all_tasks, 'pic_email'));
     $weekly_summary = [];
-    $all_pics = array_keys($pic_distribution);
-    
-    // Inisialisasi data untuk 12 minggu terakhir
-    for ($i = 11; $i >= 0; $i--) {
-        $date = new DateTime();
-        $date->modify("-$i week");
-        $week_number = $date->format("W");
-        $year = $date->format("Y");
-        $week_key = "$year-W$week_number";
+
+    // Inisialisasi 52 minggu untuk tahun yang dipilih
+    $year_start_date = new DateTime("{$selected_year}-01-01");
+    for ($i = 0; $i < 52; $i++) {
+        $week_date = (clone $year_start_date)->modify("+$i week");
+        $week_key = $week_date->format("Y-W");
         $weekly_summary[$week_key] = ['total' => 0];
         foreach ($all_pics as $pic) {
-            $weekly_summary[$week_key][$pic] = 0;
+            if(!empty($pic)) $weekly_summary[$week_key][$pic] = 0;
         }
     }
 
-    foreach ($all_tasks as $task) {
+    foreach ($tasks_for_yearly_chart as $task) {
         $request_dt = new DateTime($task['request_date']);
-        $week_number = $request_dt->format("W");
-        $year = $request_dt->format("Y");
-        $week_key = "$year-W$week_number";
+        $week_key = $request_dt->format("Y-W");
         $pic = !empty($task['pic_email']) ? $task['pic_email'] : 'Unassigned';
 
         if (isset($weekly_summary[$week_key])) {
@@ -79,31 +107,19 @@ if (!empty($all_tasks)) {
             }
         }
     }
-    
-    $weekly_data = [
-        'labels' => array_keys($weekly_summary),
-        'datasets' => []
-    ];
-    // Garis total
-    $weekly_data['datasets'][] = [
-        'label' => 'Overall Tasks',
-        'data' => array_column($weekly_summary, 'total'),
-        'type' => 'line',
-        'borderColor' => '#3b82f6',
-        'backgroundColor' => 'transparent',
-        'tension' => 0.3,
-        'yAxisID' => 'y',
-    ];
-    // Batang per PIC
+
+    $weekly_data = ['labels' => array_keys($weekly_summary), 'datasets' => []];
+    $weekly_data['datasets'][] = ['label' => 'Total Tasks', 'data' => array_column($weekly_summary, 'total'), 'type' => 'line', 'borderColor' => '#3b82f6', 'backgroundColor' => 'transparent', 'tension' => 0.4, 'yAxisID' => 'y', 'order' => 0, 'pointRadius' => 0, 'borderWidth' => 2];
+
+    $pic_colors = [];
+    $color_palette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#0ea5e9', '#8b5cf6', '#ec4899', '#f43f5e', '#fb923c', '#facc15', '#4ade80', '#38bdf8', '#a855f7', '#f87171', '#fbbf24', '#fde047', '#86efad', '#7dd3fc', '#c084fc', '#e879f9'];
+    $color_index = 0;
     foreach ($all_pics as $pic) {
-        $color_hash = crc32($pic);
-        $weekly_data['datasets'][] = [
-            'label' => $pic,
-            'data' => array_column($weekly_summary, $pic),
-            'type' => 'bar',
-            'backgroundColor' => 'hsla(' . ($color_hash % 360) . ', 70%, 50%, 0.7)',
-            'yAxisID' => 'y',
-        ];
+        if(empty($pic)) continue;
+        $color = $color_palette[$color_index % count($color_palette)];
+        $pic_colors[$pic] = $color;
+        $weekly_data['datasets'][] = ['label' => $pic, 'data' => array_column($weekly_summary, $pic), 'type' => 'bar', 'backgroundColor' => $color, 'yAxisID' => 'y', 'order' => 1, 'barPercentage' => 0.7, 'categoryPercentage' => 0.8];
+        $color_index++;
     }
 }
 ?>
@@ -115,32 +131,34 @@ if (!empty($all_tasks)) {
     <title>GBA Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.6); --glass-border: rgba(51, 65, 85, 0.6); --text-header: #ffffff; --text-icon: #94a3b8;
+            --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.6); --glass-border: rgba(51, 65, 85, 0.6); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7);
         }
         html.light {
-            --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.6); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569;
+            --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.7); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff;
         }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
         #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        .glass-container { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border); }
-        .glassmorphism { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); }
-        .themed-text { color: var(--text-primary); }
-        .themed-text-muted { color: var(--text-secondary); }
-        .text-header { color: var(--text-header); }
-        .text-icon { color: var(--text-icon); }
+        .glass-header { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--glass-border); }
+        .bento-item { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 1.5rem; padding: 1.5rem; transition: transform 0.3s, box-shadow 0.3s; }
+        .bento-item:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         .nav-link { color: var(--text-secondary); transition: color 0.2s, border-color 0.2s; border-bottom: 2px solid transparent; }
-        .nav-link:hover { color: var(--text-primary); }
         .nav-link-active { color: var(--text-primary) !important; font-weight: 500; border-bottom: 2px solid #3b82f6; }
+        html, body { height: 100%; overflow: hidden; }
+        main { height: calc(100% - 64px); overflow-y: auto; }
+        .grid-container { height: 100%; grid-template-rows: auto 1fr 1fr; }
+        .chart-card { min-height: 0; }
+        .chart-card > div { flex-grow: 1; min-height: 0; }
+        .chart-card canvas { max-height: 100%; }
+        .year-picker { background-color: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-primary); }
     </style>
 </head>
 <body class="min-h-screen">
     <canvas id="neural-canvas"></canvas>
 
-    <!-- Header Aplikasi -->
-    <header class="glass-container sticky top-0 z-10 shadow-sm">
+    <header class="glass-header sticky top-0 z-10 shadow-sm">
         <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center space-x-3">
@@ -161,38 +179,54 @@ if (!empty($all_tasks)) {
             </div>
         </div>
     </header>
-    
-    <main class="pt-24 pb-8">
-        <div class="max-w-screen-2xl mx-auto p-4 md:p-6 space-y-6">
-            <!-- Stat Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold"><?= $stats['total'] ?></p><p class="text-sm themed-text-muted">Total Task</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-blue-400"><?= $stats['new'] ?></p><p class="text-sm themed-text-muted">Task Baru</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-yellow-400"><?= $stats['ongoing'] ?></p><p class="text-sm themed-text-muted">Ongoing</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-purple-400"><?= $stats['submitted'] ?></p><p class="text-sm themed-text-muted">Submitted</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-green-400"><?= $stats['approved'] ?></p><p class="text-sm themed-text-muted">Approved</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-gray-400"><?= $stats['cancelled'] ?></p><p class="text-sm themed-text-muted">Batal</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-red-400"><?= $stats['delay'] ?></p><p class="text-sm themed-text-muted">Delay</p></div>
-                <div class="glassmorphism p-4 rounded-lg text-center"><p class="text-2xl font-bold text-teal-400"><?= $stats['ontime'] ?></p><p class="text-sm themed-text-muted">Ontime</p></div>
-            </div>
 
-            <!-- Charts & Clocks -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Pie Chart & World Clocks -->
-                <div class="lg:col-span-1 space-y-6">
-                    <div class="glassmorphism p-4 rounded-lg">
-                        <h3 class="font-semibold mb-2 themed-text">Distribusi Task per PIC</h3>
+    <main class="py-8">
+        <div class="max-w-screen-2xl h-full mx-auto px-4 md:px-6">
+            <div class="grid grid-cols-12 grid-rows-[auto_1fr_1fr] gap-6 h-full grid-container">
+                <div class="col-span-12 row-span-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                    <div class="bento-item text-center"><p class="text-3xl font-bold"><?= $stats['total'] ?></p><p class="text-sm text-secondary">Total Task</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-blue-400"><?= $stats['new'] ?></p><p class="text-sm text-secondary">Task Baru</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-yellow-400"><?= $stats['ongoing'] ?></p><p class="text-sm text-secondary">Ongoing</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-purple-400"><?= $stats['submitted'] ?></p><p class="text-sm text-secondary">Submitted</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-green-400"><?= $stats['approved'] ?></p><p class="text-sm text-secondary">Approved</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-gray-400"><?= $stats['cancelled'] ?></p><p class="text-sm text-secondary">Batal</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-red-400"><?= $stats['delay'] ?></p><p class="text-sm text-secondary">Delay</p></div>
+                    <div class="bento-item text-center"><p class="text-3xl font-bold text-teal-400"><?= $stats['ontime'] ?></p><p class="text-sm text-secondary">Ontime</p></div>
+                </div>
+
+                <div class="col-span-12 lg:col-span-8 row-span-2 bento-item flex flex-col chart-card">
+                     <div class="flex justify-between items-center mb-4">
+                         <h3 class="font-semibold text-lg text-header">Aktivitas Task Tahunan</h3>
+                         <form method="GET" action="">
+                            <select name="year" onchange="this.form.submit()" class="year-picker rounded-lg px-3 py-1 text-sm">
+                                <?php if (empty($available_years)): ?>
+                                    <option>No Data</option>
+                                <?php else: ?>
+                                    <?php foreach ($available_years as $year): ?>
+                                        <option value="<?= $year ?>" <?= ($year == $selected_year) ? 'selected' : '' ?>><?= $year ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                         </form>
+                     </div>
+                     <div class="flex-grow">
+                        <canvas id="weeklyTaskChart"></canvas>
+                     </div>
+                </div>
+
+                <div class="col-span-12 sm:col-span-6 lg:col-span-4 row-span-1 bento-item flex flex-col chart-card">
+                    <h3 class="font-semibold text-lg mb-2 text-header">Distribusi Task Mingguan</h3>
+                    <p class="text-xs text-secondary mb-4">
+                        (<?= $start_of_week->format('d M Y') ?> - <?= $end_of_week->format('d M Y') ?>)
+                    </p>
+                    <div class="flex-grow flex items-center justify-center">
                         <canvas id="picPieChart"></canvas>
                     </div>
-                    <div class="glassmorphism p-4 rounded-lg">
-                        <h3 class="font-semibold mb-4 themed-text">World Time Comparison</h3>
-                        <div id="world-clocks" class="space-y-3 text-sm"></div>
-                    </div>
                 </div>
-                <!-- Weekly Chart -->
-                <div class="lg:col-span-2 glassmorphism p-4 rounded-lg">
-                     <h3 class="font-semibold mb-2 themed-text">Aktivitas Task Mingguan</h3>
-                     <canvas id="weeklyTaskChart" style="min-height: 300px;"></canvas>
+
+                <div class="col-span-12 sm:col-span-6 lg:col-span-4 row-span-1 bento-item">
+                    <h3 class="font-semibold text-lg mb-4 text-header">World Time Comparison</h3>
+                    <div id="world-clocks" class="space-y-4 text-sm"></div>
                 </div>
             </div>
         </div>
@@ -200,142 +234,106 @@ if (!empty($all_tasks)) {
 
     <script>
         // --- ANIMATION LOGIC ---
-        const canvas = document.getElementById('neural-canvas');
-        const ctx = canvas.getContext('2d');
-        let particles = []; let hue = 0;
-        function setCanvasSize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        setCanvasSize();
-        class Particle { constructor(x, y) { this.x = x || Math.random() * canvas.width; this.y = y || Math.random() * canvas.height; this.vx = (Math.random() - 0.5) * 0.5; this.vy = (Math.random() - 0.5) * 0.5; this.size = Math.random() * 1.5 + 1; } update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > canvas.width) this.vx *= -1; if (this.y < 0 || this.y > canvas.height) this.vy *= -1; } draw() { ctx.fillStyle = `hsl(${hue}, 100%, 70%)`; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } }
+        const canvas = document.getElementById('neural-canvas'); const ctx = canvas.getContext('2d');
+        let particles = []; let hue = 0; function setCanvasSize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        setCanvasSize(); class Particle { constructor(x, y) { this.x = x || Math.random() * canvas.width; this.y = y || Math.random() * canvas.height; this.vx = (Math.random() - 0.5) * 0.5; this.vy = (Math.random() - 0.5) * 0.5; this.size = Math.random() * 1.5 + 1; } update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > canvas.width) this.vx *= -1; if (this.y < 0 || this.y > canvas.height) this.vy *= -1; } draw() { ctx.fillStyle = `hsl(${hue}, 100%, 70%)`; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } }
         function init(num) { particles = []; for (let i = 0; i < num; i++) { particles.push(new Particle()); } }
         function handleParticles() { for (let i = 0; i < particles.length; i++) { particles[i].update(); particles[i].draw(); for (let j = i; j < particles.length; j++) { const dx = particles[i].x - particles[j].x; const dy = particles[i].y - particles[j].y; const distance = Math.sqrt(dx * dx + dy * dy); if (distance < 100) { ctx.beginPath(); ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${1 - distance / 100})`; ctx.lineWidth = 0.5; ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y); ctx.stroke(); ctx.closePath(); } } } }
         function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); hue = (hue + 0.5) % 360; ctx.shadowColor = `hsl(${hue}, 100%, 50%)`; ctx.shadowBlur = 10; handleParticles(); requestAnimationFrame(animate); }
-        init(window.innerWidth > 768 ? 100 : 50); animate();
-        window.addEventListener('resize', () => { setCanvasSize(); init(window.innerWidth > 768 ? 100 : 50); });
+        init(window.innerWidth > 768 ? 100 : 50); animate(); window.addEventListener('resize', () => { setCanvasSize(); init(window.innerWidth > 768 ? 100 : 50); renderCharts(); });
 
-        // --- THEME LOGIC ---
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        const darkIcon = document.getElementById('theme-toggle-dark-icon');
-        const lightIcon = document.getElementById('theme-toggle-light-icon');
+        // --- THEME & CHART LOGIC ---
+        const themeToggleBtn = document.getElementById('theme-toggle'); const darkIcon = document.getElementById('theme-toggle-dark-icon'); const lightIcon = document.getElementById('theme-toggle-light-icon');
         let currentTheme = 'dark';
-        function applyTheme(isLight) { 
-            currentTheme = isLight ? 'light' : 'dark';
-            if (isLight) { 
-                document.documentElement.classList.add('light'); 
-                lightIcon.classList.remove('hidden'); darkIcon.classList.add('hidden'); 
-            } else { 
-                document.documentElement.classList.remove('light'); 
-                lightIcon.classList.add('hidden'); darkIcon.classList.remove('hidden'); 
+
+        const weeklyPicData = <?= json_encode($weekly_pic_distribution) ?>;
+        const yearlyChartData = <?= json_encode($weekly_data) ?>;
+        const picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
+
+        function getChartColors() { return { ticksColor: currentTheme === 'light' ? '#475569' : '#94a3b8', gridColor: currentTheme === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.1)', borderColor: currentTheme === 'light' ? '#fff' : 'var(--bg-primary)' }; }
+
+        function createPicDoughnutChart() {
+            const ctx = document.getElementById('picPieChart');
+            if (!ctx) return;
+            if (window.picDoughnutChart instanceof Chart) window.picDoughnutChart.destroy();
+            
+            const labels = Object.keys(weeklyPicData);
+            const data = Object.values(weeklyPicData);
+
+            if (labels.length === 0) {
+                ctx.style.display = 'none';
+                const placeholder = document.createElement('p');
+                placeholder.textContent = 'Tidak ada data task untuk minggu ini.';
+                placeholder.className = 'text-center text-secondary';
+                ctx.parentNode.appendChild(placeholder);
+                return;
             }
-            // Re-render charts on theme change
-            if(window.picPieChart) window.picPieChart.destroy();
-            if(window.weeklyTaskChart) window.weeklyTaskChart.destroy();
-            createPicPieChart();
-            createWeeklyTaskChart();
+
+            ctx.style.display = 'block';
+            const existingPlaceholder = ctx.parentNode.querySelector('p');
+            if (existingPlaceholder) existingPlaceholder.remove();
+
+            window.picDoughnutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Tasks', data: data, backgroundColor: Object.values(picColors), borderColor: getChartColors().borderColor, borderWidth: 4 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: getChartColors().ticksColor, padding: 20, usePointStyle: true } } } }
+            });
         }
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) { applyTheme(savedTheme === 'light'); } else { applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? false : true); }
-        themeToggleBtn.addEventListener('click', () => { 
-            const isCurrentlyLight = document.documentElement.classList.contains('light');
-            localStorage.setItem('theme', isCurrentlyLight ? 'dark' : 'light');
-            applyTheme(!isCurrentlyLight);
-        });
 
-        // --- CHART & CLOCKS LOGIC ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const picData = <?= json_encode($pic_distribution) ?>;
-            const weeklyChartData = <?= json_encode($weekly_data) ?>;
-            
-            // Helper function to get theme-aware colors for charts
-            function getChartColors() { 
-                return { 
-                    ticksColor: currentTheme === 'light' ? '#475569' : '#94a3b8', 
-                    gridColor: currentTheme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)' 
-                }; 
-            }
-
-            // Function to generate a color from a string
-            const crc32 = (function() {
-                let table = new Uint32Array(256);
-                for (let i = 0; i < 256; i++) {
-                    let c = i;
-                    for (let k = 0; k < 8; k++) {
-                        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-                    }
-                    table[i] = c;
+        function createYearlyTaskChart() {
+            const ctx = document.getElementById('weeklyTaskChart');
+            if (!ctx || !yearlyChartData.labels || yearlyChartData.labels.length === 0) return;
+            if (window.yearlyTaskChart instanceof Chart) window.yearlyTaskChart.destroy();
+            window.yearlyTaskChart = new Chart(ctx, {
+                type: 'bar',
+                data: yearlyChartData,
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { x: { stacked: false, ticks: { color: getChartColors().ticksColor }, grid: { color: getChartColors().gridColor } }, y: { stacked: false, beginAtZero: true, ticks: { color: getChartColors().ticksColor }, grid: { color: getChartColors().gridColor } } },
+                    plugins: { legend: { position: 'top', labels: { color: getChartColors().ticksColor } }, tooltip: { mode: 'index', intersect: false } },
+                    interaction: { mode: 'index', intersect: false }
                 }
-                return function(str) {
-                    let crc = -1;
-                    for (let i = 0; i < str.length; i++) {
-                        crc = (crc >>> 8) ^ table[(crc ^ str.charCodeAt(i)) & 0xFF];
-                    }
-                    return (crc ^ -1) >>> 0;
-                };
-            })();
+            });
+        }
 
-            // Create Pie Chart
-            window.createPicPieChart = function() {
-                const ctx = document.getElementById('picPieChart');
-                if (!ctx || !picData || Object.keys(picData).length === 0) return;
-                window.picPieChart = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: Object.keys(picData),
-                        datasets: [{
-                            label: 'Tasks',
-                            data: Object.values(picData),
-                            backgroundColor: Object.keys(picData).map(pic => `hsla(${crc32(pic) % 360}, 70%, 60%, 0.8)`),
-                            borderColor: currentTheme === 'light' ? '#fff' : '#1f2937', borderWidth: 2
-                        }]
-                    },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: getChartColors().ticksColor } } } }
-                });
-            }
-            
-            // Create Weekly Chart
-            window.createWeeklyTaskChart = function() {
-                const ctx = document.getElementById('weeklyTaskChart');
-                if (!ctx || !weeklyChartData.labels || weeklyChartData.labels.length === 0) return;
-                window.weeklyTaskChart = new Chart(ctx, {
-                    type: 'bar', 
-                    data: weeklyChartData,
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false, 
-                        scales: { 
-                            x: { stacked: true, ticks: { color: getChartColors().ticksColor }, grid: { color: getChartColors().gridColor } }, 
-                            y: { stacked: true, ticks: { color: getChartColors().ticksColor }, grid: { color: getChartColors().gridColor } } 
-                        }, 
-                        plugins: { legend: { position: 'top', labels: { color: getChartColors().ticksColor } } } 
-                    }
-                });
-            }
+        function renderCharts() { createPicDoughnutChart(); createYearlyTaskChart(); }
 
-            // --- WORLD CLOCKS ---
-            const clocksContainer = document.getElementById('world-clocks');
-            const timezones = [ { name: 'Indonesia (WIB)', tz: 'Asia/Jakarta' }, { name: 'Korea Selatan', tz: 'Asia/Seoul' }, { name: 'Vietnam', tz: 'Asia/Ho_Chi_Minh' }, { name: 'India', tz: 'Asia/Kolkata' }, { name: 'China', tz: 'Asia/Shanghai' }, { name: 'Brazil', tz: 'America/Sao_Paulo' }, ];
-            function updateClocks() { 
-                if (!clocksContainer) return;
-                let clocksHTML = ''; 
-                const now = new Date(); 
-                timezones.forEach(zone => { 
-                    try {
-                        const time = now.toLocaleTimeString('en-US', { timeZone: zone.tz, hour: '2-digit', minute: '2-digit', hour12: false }); 
-                        const date = now.toLocaleDateString('en-GB', { timeZone: zone.tz, weekday: 'short', day: 'numeric', month: 'short' }); 
-                        clocksHTML += `<div class="flex justify-between items-center"><span class="themed-text-muted">${zone.name}</span><span class="font-mono font-semibold themed-text">${time} <span class="text-xs themed-text-muted">${date}</span></span></div>`; 
-                    } catch(e) {
-                        console.error("Could not format time for timezone: ", zone.tz);
-                    }
-                }); 
-                clocksContainer.innerHTML = clocksHTML; 
-            }
+        function applyTheme(isLight) {
+            currentTheme = isLight ? 'light' : 'dark';
+            if (isLight) { document.documentElement.classList.add('light'); lightIcon.classList.remove('hidden'); darkIcon.classList.add('hidden'); } else { document.documentElement.classList.remove('light'); lightIcon.classList.add('hidden'); darkIcon.classList.remove('hidden'); }
+            renderCharts();
+        }
+        
+        themeToggleBtn.addEventListener('click', () => { const isCurrentlyLight = document.documentElement.classList.contains('light'); localStorage.setItem('theme', isCurrentlyLight ? 'dark' : 'light'); applyTheme(!isCurrentlyLight); });
 
-            // Initial Calls
-            createPicPieChart(); 
-            createWeeklyTaskChart();
-            updateClocks(); 
-            setInterval(updateClocks, 1000); // Update every second
+        // --- WORLD CLOCKS LOGIC ---
+        const clocksContainer = document.getElementById('world-clocks');
+        const timezones = [{ name: 'Indonesia (WIB)', tz: 'Asia/Jakarta' }, { name: 'Korea Selatan', tz: 'Asia/Seoul' }, { name: 'Vietnam', tz: 'Asia/Ho_Chi_Minh' }, { name: 'China', tz: 'Asia/Shanghai' }, { name: 'Brazil', tz: 'America/Sao_Paulo' }];
+        function pad(n) { return n < 10 ? '0' + n : n; }
+        function updateClocks() {
+            if (!clocksContainer) return;
+            let clocksHTML = ''; const now = new Date();
+            timezones.forEach(zone => {
+                try {
+                    const localTime = new Date(now.toLocaleString('en-US', { timeZone: zone.tz }));
+                    const time = `${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`;
+                    const date = localTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    clocksHTML += `<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`;
+                } catch(e) { console.error("Could not format time for timezone: ", zone.tz); }
+            });
+            clocksContainer.innerHTML = clocksHTML;
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(savedTheme ? savedTheme === 'light' : !prefersDark);
+            updateClocks(); setInterval(updateClocks, 1000);
         });
     </script>
 </body>
 </html>
-

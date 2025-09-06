@@ -1,5 +1,4 @@
 <div class="space-y-4">
-    <!-- Baris 1: Model, PIC -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="model_name" class="form-label block mb-1 text-sm font-medium">Model Name</label>
@@ -11,7 +10,6 @@
         </div>
     </div>
 
-    <!-- Baris 2: AP, CP, CSC -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
             <label for="ap" class="form-label block mb-1 text-sm font-medium">AP</label>
@@ -27,7 +25,6 @@
         </div>
     </div>
     
-    <!-- Baris 3: QB USER, QB ENG -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="qb_user" class="form-label block mb-1 text-sm font-medium">QB USER</label>
@@ -49,7 +46,6 @@
         </div>
     </div>
 
-    <!-- Baris 4: Test Plan, Status -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="test_plan_type" class="form-label block mb-1 text-sm font-medium">Type Test Plan</label>
@@ -76,7 +72,6 @@
         </div>
     </div>
 
-    <!-- Baris 5: Tanggal-tanggal -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
             <label for="request_date" class="form-label block mb-1 text-sm font-medium">Request Date</label>
@@ -96,7 +91,6 @@
         </div>
     </div>
     
-    <!-- Baris 6: Submission ID -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
             <label for="base_submission_id" class="form-label block mb-1 text-sm font-medium">Base Submission ID</label>
@@ -112,21 +106,20 @@
         </div>
     </div>
     
-    <!-- Baris 7: Checklist -->
     <div>
         <label class="form-label block mb-1 text-sm font-medium">Test Items Checklist</label>
-        <div class="glassmorphism p-4 rounded-lg">
-            <div id="checklist-placeholder" class="text-sm themed-text-muted">Pilih Tipe Test Plan untuk melihat checklist.</div>
+        <div class="glassmorphism-table p-4 rounded-lg">
+            <div id="checklist-placeholder" class="text-sm text-secondary">Pilih Tipe Test Plan untuk melihat checklist.</div>
             
             <?php
-            $test_plan_items = [
+            $test_plan_items_form = [
                 'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
                 'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
                 'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'],
                 'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'],
                 'Simple Exception MR' => ['STS']
             ];
-            foreach($test_plan_items as $plan => $items):
+            foreach($test_plan_items_form as $plan => $items):
                 $plan_id = str_replace(' ', '_', $plan);
             ?>
             <div id="checklist-container-<?= $plan_id ?>" class="hidden space-y-2">
@@ -136,7 +129,7 @@
                     ?>
                     <div class="flex items-center">
                         <input id="checklist_<?= $plan_id ?>_<?= $item_id ?>" name="checklist[<?= $item_id ?>]" type="checkbox" value="1" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 ring-offset-gray-800 focus:ring-2">
-                        <label for="checklist_<?= $plan_id ?>_<?= $item_id ?>" class="ml-2 text-sm themed-text"><?= htmlspecialchars($item) ?></label>
+                        <label for="checklist_<?= $plan_id ?>_<?= $item_id ?>" class="ml-2 text-sm text-primary"><?= htmlspecialchars($item) ?></label>
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -145,11 +138,9 @@
         </div>
     </div>
     
-    <!-- Baris 8: Notes -->
     <div>
         <label for="notes-editor" class="form-label block mb-1 text-sm font-medium">Notes</label>
         <input type="hidden" name="notes" id="notes-hidden-input">
         <div id="notes-editor" class="themed-input rounded-lg"></div>
     </div>
 </div>
-
