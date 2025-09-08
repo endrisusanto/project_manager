@@ -34,7 +34,7 @@ $all_test_plans = array_keys($test_plan_items);
 while ($row = $tasks_result->fetch_assoc()) {
     $row['request_date_obj'] = $row['request_date'] ? new DateTime($row['request_date']) : null;
     $row['submission_date_obj'] = $row['submission_date'] ? new DateTime($row['submission_date']) : null;
-    $row['sign_off_date_obj'] = $row['sign_off_date'] ? new DateTime($row['sign_off_date']) : null;
+    $row['approved_date_obj'] = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
     $deadline_date = $row['deadline'] ? new DateTime($row['deadline']) : null;
     
     if ($row['submission_date_obj'] && $row['request_date_obj']) {
@@ -42,8 +42,8 @@ while ($row = $tasks_result->fetch_assoc()) {
         $row['ontime_submission_status'] = $submission_diff <= 7 ? 'Ontime' : 'Delay';
     } else { $row['ontime_submission_status'] = null; }
     
-    if ($row['sign_off_date_obj'] && $row['submission_date_obj']) {
-        $approval_diff = $row['sign_off_date_obj']->diff($row['submission_date_obj'])->days;
+    if ($row['approved_date_obj'] && $row['submission_date_obj']) {
+        $approval_diff = $row['approved_date_obj']->diff($row['submission_date_obj'])->days;
         $row['ontime_approved_status'] = $approval_diff <= 3 ? 'Ontime' : 'Delay';
     } else { $row['ontime_approved_status'] = null; }
 
@@ -55,7 +55,7 @@ while ($row = $tasks_result->fetch_assoc()) {
     }
 
     $row['approval_countdown'] = null;
-    if ($row['submission_date_obj'] && !$row['sign_off_date_obj']) {
+    if ($row['submission_date_obj'] && !$row['approved_date_obj']) {
         $approval_deadline = (clone $row['submission_date_obj'])->modify('+3 days');
         $now = new DateTime(); $now->setTime(0,0,0); $approval_deadline->setTime(0,0,0);
         $diff = $now->diff($approval_deadline);
@@ -174,6 +174,17 @@ while ($row = $tasks_result->fetch_assoc()) {
         @keyframes pulse-alert { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } }
         .animate-pulse-alert { animation: pulse-alert 1.5s infinite; color: #f87171; } /* Merah */
         html.light .animate-pulse-alert { color: #dc2626; }
+        
+        /* Gaya untuk outline kedip */
+        @keyframes blink-outline {
+            50% {
+                border-color: #3b82f6;
+                box-shadow: 0 0 8px rgba(59, 130, 246, 0.7);
+            }
+        }
+        .highlight-important {
+            animation: blink-outline 2.5s infinite;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -305,7 +316,15 @@ while ($row = $tasks_result->fetch_assoc()) {
                                     </div>
                                 </td>
                                 <td class="p-3 align-top">
-                                    <button onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                                    <div class="flex items-center">
+                                        <button onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                                        <form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');">
+                                            <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
+                                            <button type="submit" name="delete_gba_task" class="p-1 rounded hover:bg-gray-600/50">
+                                                <svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -363,8 +382,59 @@ while ($row = $tasks_result->fetch_assoc()) {
         // --- MODAL, FORM, COPY QB LINK ---
         const modal = document.getElementById('task-modal'); const modalTitle = document.getElementById('modal-title'); const taskForm = document.getElementById('task-form'); const formAction = document.getElementById('form-action'); const taskId = document.getElementById('task-id');
         let quill;
-        function openAddModal() { taskForm.reset(); modalTitle.innerText = 'Tambah Task Baru'; formAction.value = 'create_gba_task'; taskId.value = ''; setupQuill(''); updateChecklistVisibility(); document.getElementById('request_date').value = new Date().toISOString().slice(0, 10); modal.classList.remove('hidden'); }
-        function openEditModal(task) { taskForm.reset(); modalTitle.innerText = 'Edit Task'; formAction.value = 'update_gba_task'; for (const key in task) { if (taskForm.elements[key] && !key.endsWith('_obj')) { taskForm.elements[key].value = task[key]; } } setupQuill(task.notes || ''); updateChecklistVisibility(); if (task.test_items_checklist) { try { const checklist = JSON.parse(task.test_items_checklist); for(const itemName in checklist) { const checkbox = taskForm.elements[`checklist[${itemName}]`]; if (checkbox) { checkbox.checked = checklist[itemName]; } } } catch(e) { console.error("Could not parse checklist JSON:", e); } } modal.classList.remove('hidden'); }
+
+        function openAddModal() {
+            taskForm.reset();
+            modalTitle.innerText = 'Tambah Task Baru';
+            formAction.value = 'create_gba_task';
+            taskId.value = '';
+            setupQuill('');
+            updateChecklistVisibility();
+            const today = new Date();
+            document.getElementById('request_date').value = today.toISOString().slice(0, 10);
+            
+            const futureDate = calculateWorkingDays(today, 7);
+            document.getElementById('deadline').value = futureDate;
+            document.getElementById('sign_off_date').value = futureDate;
+
+            modal.classList.remove('hidden');
+            updateFormControls();
+        }
+        
+        function openEditModal(task) {
+            taskForm.reset();
+            modalTitle.innerText = 'Edit Task';
+            formAction.value = 'update_gba_task';
+            for (const key in task) {
+                if (taskForm.elements[key] && !key.endsWith('_obj')) {
+                    taskForm.elements[key].value = task[key];
+                }
+            }
+            setupQuill(task.notes || '');
+            
+            // FIX: Panggil updateChecklistVisibility SEBELUM mengisi checklist
+            updateChecklistVisibility(); 
+
+            if (task.test_items_checklist) {
+                try {
+                    const checklist = JSON.parse(task.test_items_checklist);
+                    const visibleContainer = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+                    if (visibleContainer) {
+                        for (const itemName in checklist) {
+                            const checkbox = visibleContainer.querySelector(`input[name="checklist[${itemName}]"]`);
+                            if (checkbox) {
+                                checkbox.checked = !!checklist[itemName];
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Could not parse checklist JSON:", e);
+                }
+            }
+            modal.classList.remove('hidden');
+            updateFormControls();
+        }
+
         function closeModal() { modal.classList.add('hidden'); }
         window.onclick = function(event) { if (event.target == modal) closeModal(); }
         document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility);
@@ -385,10 +455,127 @@ while ($row = $tasks_result->fetch_assoc()) {
         function renderTable() { const searchText = searchInput.value.toLowerCase(); const rowsPerPage = parseInt(rowsSelect.value); const filteredRows = allRows.filter(row => { const matchesSearch = row.textContent.toLowerCase().includes(searchText); const matchesPlan = activePlanFilter === 'All' || row.dataset.plan === activePlanFilter; return matchesSearch && matchesPlan; }); const totalPages = Math.ceil(filteredRows.length / rowsPerPage); currentPage = Math.min(currentPage, totalPages) || 1; tableBody.innerHTML = ''; const start = (currentPage - 1) * rowsPerPage; const end = start + rowsPerPage; filteredRows.slice(start, end).forEach(row => tableBody.appendChild(row)); renderPagination(totalPages); }
         function renderPagination(totalPages) { paginationNav.innerHTML = ''; if (totalPages <= 1) return; const maxButtons = 5; let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2)); let endPage = Math.min(totalPages, startPage + maxButtons - 1); if (endPage - startPage + 1 < maxButtons) { startPage = Math.max(1, endPage - maxButtons + 1); } if (startPage > 1) { paginationNav.appendChild(createPageButton(1, '«')); paginationNav.appendChild(createPageButton(currentPage - 1, '‹')); } for (let i = startPage; i <= endPage; i++) { paginationNav.appendChild(createPageButton(i, i)); } if (endPage < totalPages) { paginationNav.appendChild(createPageButton(currentPage + 1, '›')); paginationNav.appendChild(createPageButton(totalPages, '»')); } }
         function createPageButton(page, text) { const pageButton = document.createElement('button'); pageButton.textContent = text; pageButton.className = `px-3 py-1 rounded-lg text-sm ${page === currentPage ? 'bg-blue-600 text-white' : 'themed-input'}`; pageButton.onclick = () => { currentPage = page; renderTable(); }; return pageButton; }
+        
+        // --- FORM AUTOMATION LOGIC ---
+        const progressStatusSelect = document.getElementById('progress_status');
+        const submissionDateInput = document.getElementById('submission_date');
+        const approvedDateInput = document.getElementById('approved_date');
+        const requestDateInput = document.getElementById('request_date');
+        const deadlineInput = document.getElementById('deadline');
+        const signOffDateInput = document.getElementById('sign_off_date');
+
+        function calculateWorkingDays(startDate, daysToAdd) {
+            let currentDate = new Date(startDate);
+            let addedDays = 0;
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                // 0 = Sunday, 6 = Saturday
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    addedDays++;
+                }
+            }
+            return currentDate.toISOString().slice(0, 10);
+        }
+
+        function getTodayDate() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function checkAllVisibleCheckboxes() {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) {
+                visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = true;
+                });
+            }
+        }
+        
+        function updateFormControls() {
+            const status = progressStatusSelect.value;
+            const isSubmitted = submissionDateInput.value !== '';
+            
+            submissionDateInput.readonly = (status === 'Submitted' || status === 'Approved');
+            approvedDateInput.readonly = !(isSubmitted || status === 'Approved');
+        }
+
+        requestDateInput.addEventListener('change', () => {
+            if (requestDateInput.value) {
+                const futureDate = calculateWorkingDays(requestDateInput.value, 7);
+                deadlineInput.value = futureDate;
+                signOffDateInput.value = futureDate;
+            }
+        });
+
+        progressStatusSelect.addEventListener('change', (e) => {
+            const status = e.target.value;
+            
+            if (status === 'Submitted') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = getTodayDate();
+                }
+                checkAllVisibleCheckboxes();
+            } else if (status === 'Approved') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = getTodayDate();
+                }
+                 if (!approvedDateInput.value) {
+                    approvedDateInput.value = getTodayDate();
+                }
+                checkAllVisibleCheckboxes();
+            }
+            updateFormControls();
+        });
+        
+        submissionDateInput.addEventListener('change', () => {
+             if (submissionDateInput.value && !['Submitted', 'Approved'].includes(progressStatusSelect.value)) {
+                progressStatusSelect.value = 'Submitted';
+                checkAllVisibleCheckboxes();
+            }
+            updateFormControls();
+        });
+
+        approvedDateInput.addEventListener('change', () => {
+            if (approvedDateInput.value && progressStatusSelect.value !== 'Approved') {
+                progressStatusSelect.value = 'Approved';
+                if (!submissionDateInput.value) {
+                   submissionDateInput.value = getTodayDate();
+                }
+                checkAllVisibleCheckboxes();
+            }
+            updateFormControls();
+        });
+
+        taskForm.addEventListener('change', (e) => {
+            if (e.target.matches('input[type="checkbox"][name^="checklist"]')) {
+                const currentStatus = progressStatusSelect.value;
+                if (currentStatus !== 'Approved') {
+                    progressStatusSelect.value = 'Test Ongoing';
+                    submissionDateInput.value = '';
+                    approvedDateInput.value = '';
+                    updateFormControls();
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => { 
+            renderTable(); 
+            setupQuill(''); 
+            updateChecklistVisibility();
+            updateFormControls();
+        });
+
         searchInput.addEventListener('input', renderTable);
         rowsSelect.addEventListener('change', () => { currentPage = 1; renderTable(); });
-        testplanFilterContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { testplanFilterContainer.querySelector('.active').classList.remove('active'); e.target.classList.add('active'); activePlanFilter = e.target.dataset.plan; currentPage = 1; renderTable(); } });
-        document.addEventListener('DOMContentLoaded', () => { renderTable(); setupQuill(''); updateChecklistVisibility(); });
+        testplanFilterContainer.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                testplanFilterContainer.querySelector('.active').classList.remove('active');
+                e.target.classList.add('active');
+                // FIX: Perbarui variabel activePlanFilter
+                activePlanFilter = e.target.dataset.plan;
+                currentPage = 1;
+                renderTable();
+            }
+        });
     </script>
 </body>
 </html>

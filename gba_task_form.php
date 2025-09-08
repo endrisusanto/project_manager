@@ -72,14 +72,18 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div>
             <label for="request_date" class="form-label block mb-1 text-sm font-medium">Request Date</label>
             <input type="date" id="request_date" name="request_date" class="themed-input w-full p-2 text-sm rounded-lg">
         </div>
         <div>
             <label for="submission_date" class="form-label block mb-1 text-sm font-medium">Submission Date</label>
-            <input type="date" id="submission_date" name="submission_date" class="themed-input w-full p-2 text-sm rounded-lg">
+            <input type="date" id="submission_date" name="submission_date" class="themed-input w-full p-2 text-sm rounded-lg highlight-important">
+        </div>
+        <div>
+            <label for="approved_date" class="form-label block mb-1 text-sm font-medium">Approved Date</label>
+            <input type="date" id="approved_date" name="approved_date" class="themed-input w-full p-2 text-sm rounded-lg highlight-important">
         </div>
         <div>
             <label for="deadline" class="form-label block mb-1 text-sm font-medium">Deadline</label>
@@ -98,11 +102,11 @@
         </div>
         <div>
             <label for="submission_id" class="form-label block mb-1 text-sm font-medium">Submission ID</label>
-            <input type="text" id="submission_id" name="submission_id" class="themed-input w-full p-2.5 text-sm rounded-lg">
+            <input type="text" id="submission_id" name="submission_id" class="themed-input w-full p-2.5 text-sm rounded-lg highlight-important">
         </div>
         <div>
             <label for="reviewer_email" class="form-label block mb-1 text-sm font-medium">Reviewer Email</label>
-            <input type="email" id="reviewer_email" name="reviewer_email" class="themed-input w-full p-2.5 text-sm rounded-lg">
+            <input type="email" id="reviewer_email" name="reviewer_email" class="themed-input w-full p-2.5 text-sm rounded-lg highlight-important">
         </div>
     </div>
     

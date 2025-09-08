@@ -18,6 +18,7 @@ if (!$action) {
     if (isset($_POST['add_project'])) $action = 'add_project';
     elseif (isset($_POST['update_project'])) $action = 'update_project';
     elseif (isset($_POST['delete_project'])) $action = 'delete_project';
+    elseif (isset($_POST['delete_gba_task'])) $action = 'delete_gba_task'; // Ditambahkan
     elseif (isset($_POST['action'])) $action = $_POST['action'];
     else die('Error: Aksi tidak ditentukan.');
 }
@@ -162,22 +163,22 @@ switch ($action) {
         $checklist_json = json_encode($checklist_data);
         
         if ($action === 'create_gba_task') {
-            $stmt = $conn->prepare("INSERT INTO gba_tasks (model_name, pic_email, ap, cp, csc, qb_user, qb_eng, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, base_submission_id, submission_id, reviewer_email, notes, test_items_checklist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("ssssssssssssssssss",
+            $stmt = $conn->prepare("INSERT INTO gba_tasks (model_name, pic_email, ap, cp, csc, qb_user, qb_eng, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, notes, test_items_checklist) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssssssssssssssss",
                 $data['model_name'], $data['pic_email'], null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
                 null_if_empty($data['qb_user']), null_if_empty($data['qb_eng']), $data['test_plan_type'], $data['progress_status'], null_if_empty($data['request_date']),
-                null_if_empty($data['submission_date']), null_if_empty($data['deadline']), null_if_empty($data['sign_off_date']),
+                null_if_empty($data['submission_date']), null_if_empty($data['deadline']), null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
                 null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
                 $data['notes'], $checklist_json
             );
         } else { // update_gba_task
             $task_id = $data['id'];
             $new_progress_status = $data['progress_status'];
-            $stmt = $conn->prepare("UPDATE gba_tasks SET model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_eng=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, notes=?, test_items_checklist=? WHERE id=?");
-            $stmt->bind_param("ssssssssssssssssssi",
+            $stmt = $conn->prepare("UPDATE gba_tasks SET model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_eng=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, notes=?, test_items_checklist=? WHERE id=?");
+            $stmt->bind_param("sssssssssssssssssssi",
                 $data['model_name'], $data['pic_email'], null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
                 null_if_empty($data['qb_user']), null_if_empty($data['qb_eng']), $data['test_plan_type'], $new_progress_status, null_if_empty($data['request_date']),
-                null_if_empty($data['submission_date']), null_if_empty($data['deadline']), null_if_empty($data['sign_off_date']),
+                null_if_empty($data['submission_date']), null_if_empty($data['deadline']), null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
                 null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
                 $data['notes'], $checklist_json, $task_id
             );
@@ -198,6 +199,13 @@ switch ($action) {
                 }
             }
         }
+        redirect('gba_tasks.php');
+        break;
+
+    case 'delete_gba_task': // Case baru ditambahkan di sini
+        $stmt = $conn->prepare("DELETE FROM gba_tasks WHERE id = ?");
+        $stmt->bind_param("i", $data['task_id']);
+        $stmt->execute();
         redirect('gba_tasks.php');
         break;
 

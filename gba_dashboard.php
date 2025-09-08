@@ -25,6 +25,10 @@ $weekly_pic_distribution = [];
 $weekly_data = [];
 $all_pics = [];
 
+// Inisialisasi variabel tanggal
+$start_of_week = null;
+$end_of_week = null;
+
 if (!empty($all_tasks)) {
     // --- 1. LOGIKA UNTUK DONUT CHART MINGGUAN (Rabu - Selasa) ---
 
@@ -217,7 +221,11 @@ if (!empty($all_tasks)) {
                 <div class="col-span-12 sm:col-span-6 lg:col-span-4 row-span-1 bento-item flex flex-col chart-card">
                     <h3 class="font-semibold text-lg mb-2 text-header">Distribusi Task Mingguan</h3>
                     <p class="text-xs text-secondary mb-4">
-                        (<?= $start_of_week->format('d M Y') ?> - <?= $end_of_week->format('d M Y') ?>)
+                        <?php if ($start_of_week && $end_of_week): ?>
+                            (<?= $start_of_week->format('d M Y') ?> - <?= $end_of_week->format('d M Y') ?>)
+                        <?php else: ?>
+                            (Tidak ada data task)
+                        <?php endif; ?>
                     </p>
                     <div class="flex-grow flex items-center justify-center">
                         <canvas id="picPieChart"></canvas>
