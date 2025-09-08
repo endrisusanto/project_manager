@@ -1,11 +1,11 @@
 <div class="space-y-4">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-            <label for="project_name" class="form-label block mb-1 text-sm font-medium">Nama Proyek</label>
+            <label for="project_name" class="form-label block mb-1 text-sm font-medium">Basic Model</label>
             <input type="text" id="project_name" name="project_name" required class="themed-input block w-full text-sm rounded-lg p-2.5">
         </div>
         <div>
-            <label for="product_model" class="form-label block mb-1 text-sm font-medium">Model Produk</label>
+            <label for="product_model" class="form-label block mb-1 text-sm font-medium">Model Name</label>
             <input type="text" id="product_model" name="product_model" required class="themed-input block w-full text-sm rounded-lg p-2.5">
         </div>
     </div>

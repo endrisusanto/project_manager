@@ -36,10 +36,10 @@
             </div>
         </div>
         <div>
-            <label for="qb_eng" class="form-label block mb-1 text-sm font-medium">QB ENG</label>
+            <label for="qb_userdebug" class="form-label block mb-1 text-sm font-medium">QB USERDEBUG</label>
             <div class="relative">
-                <input type="text" id="qb_eng" name="qb_eng" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234568">
-                <button type="button" onclick="copyQbLink(this, 'qb_eng')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-icon hover:text-blue-400">
+                <input type="text" id="qb_userdebug" name="qb_userdebug" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234568">
+                <button type="button" onclick="copyQbLink(this, 'qb_userdebug')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-icon hover:text-blue-400">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"></path><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z"></path></svg>
                 </button>
             </div>

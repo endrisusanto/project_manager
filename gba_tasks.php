@@ -175,7 +175,6 @@ while ($row = $tasks_result->fetch_assoc()) {
         .animate-pulse-alert { animation: pulse-alert 1.5s infinite; color: #f87171; } /* Merah */
         html.light .animate-pulse-alert { color: #dc2626; }
         
-        /* Gaya untuk outline kedip */
         @keyframes blink-outline {
             50% {
                 border-color: #3b82f6;
@@ -184,6 +183,15 @@ while ($row = $tasks_result->fetch_assoc()) {
         }
         .highlight-important {
             animation: blink-outline 2.5s infinite;
+        }
+
+        .qb-link {
+            cursor: pointer;
+            text-decoration: underline;
+            color: var(--badge-blue-text);
+        }
+        html.light .qb-link {
+             color: var(--badge-blue-text);
         }
     </style>
 </head>
@@ -243,6 +251,7 @@ while ($row = $tasks_result->fetch_assoc()) {
                     <thead class="themed-bg">
                         <tr class="border-b border-[var(--glass-border)]">
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Model & Build</th>
+                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">QB Build</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">PIC</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Test Plan</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Status</th>
@@ -254,7 +263,7 @@ while ($row = $tasks_result->fetch_assoc()) {
                     </thead>
                     <tbody id="task-table-body">
                         <?php if (empty($tasks)): ?>
-                            <tr><td colspan="8" class="text-center p-4 text-secondary">Tidak ada task yang ditemukan.</td></tr>
+                            <tr><td colspan="9" class="text-center p-4 text-secondary">Tidak ada task yang ditemukan.</td></tr>
                         <?php else: ?>
                             <?php foreach ($tasks as $task): ?>
                             <tr class="border-b border-[var(--glass-border)] hover:bg-white/5" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>">
@@ -263,6 +272,14 @@ while ($row = $tasks_result->fetch_assoc()) {
                                     <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
                                         <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div> <div>CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div> <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
                                     </div>
+                                </td>
+                                <td class="p-3 align-top text-xs text-secondary font-mono">
+                                    <?php if ($task['qb_user']): ?>
+                                        <div>USER: <span class="qb-link" data-build-id="<?= htmlspecialchars($task['qb_user']) ?>"><?= htmlspecialchars($task['qb_user']) ?></span></div>
+                                    <?php endif; ?>
+                                    <?php if ($task['qb_userdebug']): ?>
+                                        <div>USERDEBUG: <span class="qb-link" data-build-id="<?= htmlspecialchars($task['qb_userdebug']) ?>"><?= htmlspecialchars($task['qb_userdebug']) ?></span></div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="p-3 align-top"><span class="badge <?= getDynamicColorClasses($task['pic_email'], 'pic') ?>"><?= htmlspecialchars($task['pic_email']) ?></span></td>
                                 <td class="p-3 align-top"><span class="badge <?= getDynamicColorClasses($task['test_plan_type'], 'plan') ?>"><?= htmlspecialchars($task['test_plan_type']) ?></span></td>
@@ -412,7 +429,6 @@ while ($row = $tasks_result->fetch_assoc()) {
             }
             setupQuill(task.notes || '');
             
-            // FIX: Panggil updateChecklistVisibility SEBELUM mengisi checklist
             updateChecklistVisibility(); 
 
             if (task.test_items_checklist) {
@@ -465,11 +481,10 @@ while ($row = $tasks_result->fetch_assoc()) {
         const signOffDateInput = document.getElementById('sign_off_date');
 
         function calculateWorkingDays(startDate, daysToAdd) {
-            let currentDate = new Date(startDate);
+            let currentDate = new Date(startDate.valueOf());
             let addedDays = 0;
             while (addedDays < daysToAdd) {
                 currentDate.setDate(currentDate.getDate() + 1);
-                // 0 = Sunday, 6 = Saturday
                 if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
                     addedDays++;
                 }
@@ -494,13 +509,13 @@ while ($row = $tasks_result->fetch_assoc()) {
             const status = progressStatusSelect.value;
             const isSubmitted = submissionDateInput.value !== '';
             
-            submissionDateInput.readonly = (status === 'Submitted' || status === 'Approved');
-            approvedDateInput.readonly = !(isSubmitted || status === 'Approved');
+            submissionDateInput.readOnly = (status === 'Submitted' || status === 'Approved');
+            approvedDateInput.readOnly = !(isSubmitted || status === 'Approved');
         }
 
         requestDateInput.addEventListener('change', () => {
             if (requestDateInput.value) {
-                const futureDate = calculateWorkingDays(requestDateInput.value, 7);
+                const futureDate = calculateWorkingDays(new Date(requestDateInput.value), 7);
                 deadlineInput.value = futureDate;
                 signOffDateInput.value = futureDate;
             }
@@ -556,6 +571,15 @@ while ($row = $tasks_result->fetch_assoc()) {
                 }
             }
         });
+        
+        document.getElementById('task-table-body').addEventListener('click', function(e) {
+            if (e.target.classList.contains('qb-link')) {
+                const buildId = e.target.dataset.buildId;
+                if (buildId) {
+                    window.open(`https://android.qb.sec.samsung.net/build/${buildId}`, '_blank');
+                }
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', () => { 
             renderTable(); 
@@ -570,7 +594,6 @@ while ($row = $tasks_result->fetch_assoc()) {
             if (e.target.tagName === 'BUTTON') {
                 testplanFilterContainer.querySelector('.active').classList.remove('active');
                 e.target.classList.add('active');
-                // FIX: Perbarui variabel activePlanFilter
                 activePlanFilter = e.target.dataset.plan;
                 currentPage = 1;
                 renderTable();

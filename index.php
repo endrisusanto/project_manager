@@ -7,19 +7,22 @@ foreach ($statuses as $status) {
     $projectsToDisplay[$status] = [];
 }
 
-// **QUERY UTAMA DIUBAH: Menggunakan LEFT JOIN**
+// 1. UBAH QUERY: Menggunakan p.product_model = gt.model_name
 $sql = "
     SELECT 
         p.*, 
         gt.deadline AS gba_deadline, 
-        gt.sign_off_date AS gba_sign_off_date
+        gt.sign_off_date AS gba_sign_off_date,
+        gt.progress_status AS gba_status
     FROM 
         projects p
     LEFT JOIN 
-        gba_tasks gt ON p.id = gt.project_id
+        (SELECT *, ROW_NUMBER() OVER(PARTITION BY model_name ORDER BY id DESC) as rn FROM gba_tasks) gt 
+        ON p.product_model = gt.model_name AND gt.rn = 1
     ORDER BY 
-        p.id ASC, gt.id DESC
+        p.id ASC
 ";
+
 
 $result = $conn->query($sql);
 $allProjects = [];
@@ -118,12 +121,16 @@ function getBadgeColor($type) {
         .nav-link { color: var(--text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s; }
         .nav-link:hover { border-color: var(--text-secondary); color: var(--text-primary); }
         .nav-link-active { color: var(--text-primary); border-bottom: 2px solid #3b82f6; font-weight: 600; }
-        @keyframes pulse-alert { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } }
-        .animate-pulse-alert { animation: pulse-alert 1.5s infinite; }
         #toast { position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: var(--toast-bg); color: var(--toast-text); padding: 12px 20px; border-radius: 8px; z-index: 100; transition: bottom 0.5s ease-in-out; }
         #toast.show { bottom: 30px; }
+        
         @keyframes blink-border { 50% { border-color: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); } }
         .anomaly-card { animation: blink-border 1.5s infinite; }
+        
+        @keyframes yellow-stabilo {
+            50% { box-shadow: 0 4px 10px rgba(250, 204, 21, 0.5), inset 0 -4px 0 rgba(250, 204, 21, 0.8); }
+        }
+        .highlight-gba { animation: yellow-stabilo 1.5s infinite; }
     </style>
 </head>
 <body>
@@ -160,7 +167,7 @@ function getBadgeColor($type) {
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                            <svg class="h-5 w-5 text-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
                         </div>
-                        <input type="search" id="search-input" placeholder="Cari nama proyek atau model..." class="themed-input block w-full rounded-lg py-2 pl-10 pr-3 focus:ring-2">
+                        <input type="search" id="search-input" placeholder="Cari Basic Model atau Model Name..." class="themed-input block w-full rounded-lg py-2 pl-10 pr-3 focus:ring-2">
                     </div>
                     <div id="filter-container" class="flex items-center space-x-2">
                         <button class="filter-button active px-3 py-1.5 text-sm font-medium rounded-md transition-colors" data-type="All">Semua</button>
@@ -206,42 +213,18 @@ function getBadgeColor($type) {
                                 <?php echo htmlspecialchars($project['project_type']); ?>
                             </span>
 
-                            <?php
-                            $display_deadline_section = false;
-                            $deadline_to_show = null;
-                            $deadline_label = 'Deadline';
+                            <div class="mt-2 pt-2 border-t border-[var(--glass-border)] text-xs text-secondary font-mono space-y-0.5">
+                                <div>AP: <?php echo htmlspecialchars($project['ap'] ?: '-'); ?></div>
+                                <div>CP: <?php echo htmlspecialchars($project['cp'] ?: '-'); ?></div>
+                                <div>CSC: <?php echo htmlspecialchars($project['csc'] ?: '-'); ?></div>
+                            </div>
 
-                            if ($project['status'] === 'GBA Testing' && !empty($project['gba_deadline'])) {
-                                $display_deadline_section = true;
-                                $deadline_to_show = $project['gba_deadline'];
-                                $deadline_label = 'GBA Deadline';
-                            } elseif ($project['status'] === 'Software Confirm / FOTA' && !empty($project['gba_sign_off_date'])) {
-                                $display_deadline_section = true;
-                                $deadline_to_show = $project['gba_sign_off_date'];
-                                $deadline_label = 'Sign-Off Date';
-                            }
-                            ?>
-
-                            <?php if ($display_deadline_section): ?>
                             <div class="mt-3 pt-3 border-t border-[var(--glass-border)]">
-                                <div class="anomaly-warning text-red-400 text-xs font-bold items-center hidden gap-1 mb-2">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg>
-                                    <span>GBA Task Belum Approved!</span>
-                                </div>
-                                <div class="flex justify-between items-center text-xs text-card-body font-medium">
-                                    <span class="font-bold"><?= $deadline_label ?>:</span>
-                                    <span><?= date("d M Y", strtotime($deadline_to_show)) ?></span>
-                                </div>
-                                <div class="flex justify-between items-center text-xs text-card-body font-medium mt-1">
-                                    <span class="countdown-timer" data-due-date="<?php echo htmlspecialchars($deadline_to_show); ?>"></span>
-                                    <span class="alert-icon hidden text-red-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" />
-                                        </svg>
-                                    </span>
+                                <div class="anomaly-warning text-red-400 text-xs font-bold items-center hidden gap-1">
+                                    <svg class="w-4 h-4 inline-block" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg>
+                                    <span class="inline-block">GBA Task Belum Approved!</span>
                                 </div>
                             </div>
-                            <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -311,27 +294,36 @@ function getBadgeColor($type) {
         }
         function copyQbLink(element, inputId) { const inputField = element.parentElement.querySelector(`#${inputId}`); const buildId = inputField.value; if (buildId && !isNaN(buildId)) { const url = `https://android.qb.sec.samsung.net/build/${buildId}`; navigator.clipboard.writeText(url).then(() => { const toast = document.getElementById('toast'); toast.classList.add('show'); setTimeout(() => { toast.classList.remove('show'); }, 3000); }).catch(err => console.error('Gagal menyalin link: ', err)); } }
         document.addEventListener('DOMContentLoaded', function () {
-            function updateAllCountdowns() {
-                document.querySelectorAll('.countdown-timer').forEach(timer => {
-                    const dueDateStr = timer.dataset.dueDate;
-                    if (!dueDateStr) { timer.textContent = ''; return; }
-                    const dueDate = new Date(dueDateStr);
-                    const now = new Date();
-                    dueDate.setHours(0, 0, 0, 0); now.setHours(0, 0, 0, 0);
-                    const diffTime = dueDate - now;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    const alertIcon = timer.parentElement.querySelector('.alert-icon');
-                    if (diffDays < 0) { timer.textContent = `Lewat ${Math.abs(diffDays)} hari`; timer.classList.add('text-red-500'); alertIcon.classList.add('hidden'); }
-                    else if (diffDays === 0) { timer.textContent = 'Hari ini'; timer.classList.add('text-yellow-500'); alertIcon.classList.remove('hidden'); alertIcon.classList.add('animate-pulse-alert'); }
-                    else {
-                        timer.textContent = `${diffDays} hari lagi`;
-                        timer.classList.remove('text-red-500', 'text-yellow-500');
-                         if (diffDays <= 3) { alertIcon.classList.remove('hidden'); alertIcon.classList.add('animate-pulse-alert'); }
-                         else { alertIcon.classList.add('hidden'); }
-                    }
-                });
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('highlight')) {
+                const projectId = urlParams.get('highlight');
+                const card = document.getElementById(`project-${projectId}`);
+                if (card) {
+                    card.classList.add('highlight-gba');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             }
-            updateAllCountdowns();
+            if(urlParams.has('error') && urlParams.get('error') === 'no_gba_task') {
+                const model = urlParams.get('model');
+                alert(`Model ${model} belum ditambahkan ke GBA Tasks.`);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            document.querySelectorAll('#status-GBATesting .project-card').forEach(card => {
+                const projectData = JSON.parse(card.getAttribute('data-project'));
+                if (projectData.gba_status === 'Approved') {
+                    const fotaColumn = document.getElementById('status-SoftwareConfirmFOTA');
+                    if(fotaColumn){
+                         fotaColumn.appendChild(card);
+                         fetch('handler.php', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ action: 'update_status', project_id: projectData.id, new_status: 'Software Confirm / FOTA' })
+                        });
+                    }
+                }
+            });
+
             const columns = document.querySelectorAll('.kanban-column');
             columns.forEach(column => {
                 new Sortable(column, {
@@ -341,23 +333,26 @@ function getBadgeColor($type) {
                         const projectId = card.dataset.id;
                         const fromStatus = evt.from.dataset.status;
                         const toStatus = evt.to.dataset.status;
+                        const projectData = JSON.parse(card.getAttribute('data-project'));
+                        
+                        card.classList.remove('anomaly-card', 'highlight-gba');
+                        card.querySelector('.anomaly-warning').classList.add('hidden');
 
-                        if (fromStatus === 'Software Confirm / FOTA') {
-                            card.classList.remove('anomaly-card');
-                            card.querySelector('.anomaly-warning').classList.add('hidden');
+                        if (toStatus === 'Software Confirm / FOTA') {
+                             if (projectData.gba_status !== 'Approved') {
+                                evt.from.appendChild(card);
+                                const warning = card.querySelector('.anomaly-warning');
+                                warning.classList.remove('hidden');
+                                card.classList.add('anomaly-card');
+                                updateColumnCounts();
+                                return;
+                             }
                         }
                         
-                        if (toStatus === 'Software Confirm / FOTA') {
-                            const response = await fetch('handler.php', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({ action: 'check_gba_status', project_id: projectId })
-                            });
-                            const result = await response.json();
-                            if (!result.is_approved) {
+                        if (toStatus === 'GBA Testing' && fromStatus === 'Released') {
+                            if (!projectData.gba_status) {
+                                alert('Model versi ini belum ditambahkan ke GBA Tasks.');
                                 evt.from.appendChild(card);
-                                card.classList.add('anomaly-card');
-                                card.querySelector('.anomaly-warning').classList.remove('hidden');
                                 updateColumnCounts();
                                 return;
                             }
@@ -373,7 +368,7 @@ function getBadgeColor($type) {
                             if (data.success && data.updated_project) {
                                 card.setAttribute('data-project', JSON.stringify(data.updated_project));
                                 if (toStatus === 'GBA Testing' && fromStatus !== 'GBA Testing') {
-                                    setTimeout(() => window.location.reload(), 300);
+                                    card.classList.add('highlight-gba');
                                 }
                             } else {
                                 console.error('Gagal memperbarui status.');
@@ -399,6 +394,7 @@ function getBadgeColor($type) {
             filterContainer.addEventListener('click', (e) => {
                 if(e.target.tagName === 'BUTTON') updateColumnCounts();
             });
+            updateColumnCounts();
         });
     </script>
 </body>
