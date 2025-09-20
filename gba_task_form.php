@@ -1,5 +1,9 @@
 <div class="space-y-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+            <label for="project_name" class="form-label block mb-1 text-sm font-medium">Marketing Name</label>
+            <input type="text" id="project_name" name="project_name" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
+        </div>
         <div>
             <label for="model_name" class="form-label block mb-1 text-sm font-medium">Model Name</label>
             <input type="text" id="model_name" name="model_name" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
@@ -8,6 +12,11 @@
             <label for="pic_email" class="form-label block mb-1 text-sm font-medium">PIC (Email)</label>
             <input type="email" id="pic_email" name="pic_email" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
         </div>
+    </div>
+
+    <div class="flex items-center pt-2">
+        <input id="is_urgent" name="is_urgent" type="checkbox" value="1" class="w-4 h-4 text-red-500 bg-gray-700 border-gray-600 rounded focus:ring-red-600 ring-offset-gray-800 focus:ring-2">
+        <label for="is_urgent" class="ml-2 text-sm font-medium text-red-400">Tandai sebagai Task Urgent</label>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -28,21 +37,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="qb_user" class="form-label block mb-1 text-sm font-medium">QB USER</label>
-            <div class="relative">
-                <input type="text" id="qb_user" name="qb_user" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234567">
-                <button type="button" onclick="copyQbLink(this, 'qb_user')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-icon hover:text-blue-400">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"></path><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z"></path></svg>
-                </button>
-            </div>
+            <input type="text" id="qb_user" name="qb_user" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234567">
         </div>
         <div>
             <label for="qb_userdebug" class="form-label block mb-1 text-sm font-medium">QB USERDEBUG</label>
-            <div class="relative">
-                <input type="text" id="qb_userdebug" name="qb_userdebug" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234568">
-                <button type="button" onclick="copyQbLink(this, 'qb_userdebug')" class="absolute inset-y-0 right-0 flex items-center pr-3 text-icon hover:text-blue-400">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 9a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9z"></path><path d="M5 3a2 2 0 00-2 2v6a2 2 0 002 2V5h6a2 2 0 00-2-2H5z"></path></svg>
-                </button>
-            </div>
+            <input type="text" id="qb_userdebug" name="qb_userdebug" class="themed-input w-full p-2.5 text-sm rounded-lg" placeholder="e.g., 1234568">
         </div>
     </div>
 
@@ -79,11 +78,11 @@
         </div>
         <div>
             <label for="submission_date" class="form-label block mb-1 text-sm font-medium">Submission Date</label>
-            <input type="date" id="submission_date" name="submission_date" class="themed-input w-full p-2 text-sm rounded-lg highlight-important">
+            <input type="date" id="submission_date" name="submission_date" class="themed-input w-full p-2 text-sm rounded-lg">
         </div>
         <div>
             <label for="approved_date" class="form-label block mb-1 text-sm font-medium">Approved Date</label>
-            <input type="date" id="approved_date" name="approved_date" class="themed-input w-full p-2 text-sm rounded-lg highlight-important">
+            <input type="date" id="approved_date" name="approved_date" class="themed-input w-full p-2 text-sm rounded-lg">
         </div>
         <div>
             <label for="deadline" class="form-label block mb-1 text-sm font-medium">Deadline</label>
@@ -102,17 +101,17 @@
         </div>
         <div>
             <label for="submission_id" class="form-label block mb-1 text-sm font-medium">Submission ID</label>
-            <input type="text" id="submission_id" name="submission_id" class="themed-input w-full p-2.5 text-sm rounded-lg highlight-important">
+            <input type="text" id="submission_id" name="submission_id" class="themed-input w-full p-2.5 text-sm rounded-lg">
         </div>
         <div>
             <label for="reviewer_email" class="form-label block mb-1 text-sm font-medium">Reviewer Email</label>
-            <input type="email" id="reviewer_email" name="reviewer_email" class="themed-input w-full p-2.5 text-sm rounded-lg highlight-important">
+            <input type="email" id="reviewer_email" name="reviewer_email" class="themed-input w-full p-2.5 text-sm rounded-lg">
         </div>
     </div>
     
     <div>
         <label class="form-label block mb-1 text-sm font-medium">Test Items Checklist</label>
-        <div class="glassmorphism-table p-4 rounded-lg">
+        <div class="glass-container p-4 rounded-lg">
             <div id="checklist-placeholder" class="text-sm text-secondary">Pilih Tipe Test Plan untuk melihat checklist.</div>
             
             <?php
@@ -132,7 +131,7 @@
                         $item_id = str_replace([' ', '-'], '_', $item);
                     ?>
                     <div class="flex items-center">
-                        <input id="checklist_<?= $plan_id ?>_<?= $item_id ?>" name="checklist[<?= $item_id ?>]" type="checkbox" value="1" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-600 ring-offset-gray-800 focus:ring-2">
+                        <input id="checklist_<?= $plan_id ?>_<?= $item_id ?>" name="checklist[<?= $item_id ?>]" type="checkbox" value="1" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
                         <label for="checklist_<?= $plan_id ?>_<?= $item_id ?>" class="ml-2 text-sm text-primary"><?= htmlspecialchars($item) ?></label>
                     </div>
                     <?php endforeach; ?>
