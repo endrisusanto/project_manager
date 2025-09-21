@@ -96,17 +96,14 @@ function getStatusColorClasses($status) {
         html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}html.light .badge-color-cyan{background-color:#cffafe;color:#0e7490}html.light .badge-color-indigo{background-color:#e0e7ff;color:#3730a3}html.light .badge-color-lime{background-color:#ecfccb;color:#4d7c0f}html.light .badge-color-pink{background-color:#fce7f3;color:#9d174d}html.light .badge-color-fuchsia{background-color:#fae8ff;color:#86198f}html.light .badge-color-green{background-color:#dcfce7;color:#15803d}html.light .badge-color-purple{background-color:#f3e8ff;color:#6b21a8}html.light .badge-color-yellow{background-color:#fef9c3;color:#854d0e}html.light .badge-color-blue{background-color:#dbeafe;color:#1e40af}html.light .badge-color-gray{background-color:#f3f4f6;color:#374151}html.light .badge-color-orange{background-color:#ffedd5;color:#9a3412}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.7}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite;color:#f87171}html.light .animate-pulse-alert{color:#dc2626}
         .qb-link{cursor:pointer;text-decoration:underline;color:#93c5fd}html.light .qb-link{color:#1e40af}
-
-        /* PERBAIKAN: Efek glow untuk baris urgent */
-        .urgent-row {
-            position: relative;
-            border-left: 3px solid transparent;
-            animation: urgent-row-glow 1.5s infinite;
-        }
+        .urgent-row { position: relative; border-left: 3px solid transparent; animation: urgent-row-glow 1.5s infinite; }
         @keyframes urgent-row-glow {
             0%, 100% { border-left-color: rgba(239, 68, 68, 0.7); box-shadow: inset 3px 0 8px -2px rgba(239, 68, 68, 0.5); }
             50% { border-left-color: rgba(239, 68, 68, 0.4); box-shadow: inset 3px 0 15px -2px rgba(239, 68, 68, 0.3); }
         }
+        .table-container td { vertical-align: middle; }
+        #pagination-rows { color: var(--text-primary); }
+        #pagination-rows option { background-color: var(--bg-primary); color: var(--text-primary); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -126,7 +123,7 @@ function getStatusColorClasses($status) {
                 </div>
                  <div class="flex items-center gap-2 ml-auto">
                     <span class="text-sm text-secondary">Baris:</span>
-                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm bg-transparent"><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option><option value="50">50</option></select>
+                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option><option value="50">50</option></select>
                 </div>
             </div>
         </div>
@@ -153,28 +150,28 @@ function getStatusColorClasses($status) {
                         <?php else: ?>
                             <?php foreach ($tasks as $task): ?>
                             <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>">
-                                <td class="p-3 align-top">
+                                <td class="p-3">
                                     <div class="font-medium text-primary"><?= htmlspecialchars($task['model_name']) ?></div>
                                     <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
                                         <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div> <div>CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div> <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
                                     </div>
                                 </td>
-                                <td class="p-3 align-top text-xs text-secondary font-mono">
+                                <td class="p-3 text-xs text-secondary font-mono">
                                     <?php if ($task['qb_user']): ?><div>USER: <span class="qb-link" data-build-id="<?= htmlspecialchars($task['qb_user']) ?>"><?= htmlspecialchars($task['qb_user']) ?></span></div><?php endif; ?>
                                     <?php if ($task['qb_userdebug']): ?><div>USERDEBUG: <span class="qb-link" data-build-id="<?= htmlspecialchars($task['qb_userdebug']) ?>"><?= htmlspecialchars($task['qb_userdebug']) ?></span></div><?php endif; ?>
                                 </td>
-                                <td class="p-3 align-top"><span class="badge <?= getDynamicColorClasses($task['pic_email'], 'pic') ?>"><?= htmlspecialchars($task['pic_email']) ?></span></td>
-                                <td class="p-3 align-top"><span class="badge <?= getDynamicColorClasses($task['test_plan_type'], 'plan') ?>"><?= htmlspecialchars($task['test_plan_type']) ?></span></td>
-                                <td class="p-3 align-top"><span class="badge <?= getStatusColorClasses($task['progress_status']) ?>"><?= htmlspecialchars($task['progress_status']) ?></span></td>
-                                <td class="p-3 align-top">
+                                <td class="p-3"><span class="badge <?= getDynamicColorClasses($task['pic_email'], 'pic') ?>"><?= htmlspecialchars($task['pic_email']) ?></span></td>
+                                <td class="p-3"><span class="badge <?= getDynamicColorClasses($task['test_plan_type'], 'plan') ?>"><?= htmlspecialchars($task['test_plan_type']) ?></span></td>
+                                <td class="p-3"><span class="badge <?= getStatusColorClasses($task['progress_status']) ?>"><?= htmlspecialchars($task['progress_status']) ?></span></td>
+                                <td class="p-3">
                                     <div class="w-28"><div class="progress-bar-bg w-full rounded-full h-4 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-4 rounded-full absolute top-0 left-0" style="width: <?= $task['progress_percentage'] ?>%;"></div><span class="relative text-xs font-bold z-10 progress-text pl-2"><?= round($task['progress_percentage']) ?>%</span></div></div>
                                 </td>
-                                <td class="p-3 align-top text-xs text-secondary">
+                                <td class="p-3 text-xs text-secondary">
                                     <div>Req: <?= $task['request_date_obj'] ? $task['request_date_obj']->format('d M Y') : '-' ?></div>
                                     <div>Sub: <?= $task['submission_date_obj'] ? $task['submission_date_obj']->format('d M Y') : '-' ?></div>
                                     <div class="font-bold text-primary">Deadline: <?= $task['deadline'] ? date('d M Y', strtotime($task['deadline'])) : '-' ?></div>
                                 </td>
-                                <td class="p-3 align-top text-xs">
+                                <td class="p-3 text-xs">
                                     <div class="mb-1 flex items-center gap-1">
                                         <span class="w-20 inline-block">Submission:</span>
                                         <?php if ($task['ontime_submission_status']): ?>
@@ -198,13 +195,11 @@ function getStatusColorClasses($status) {
                                         <?php else: echo '-'; endif; ?>
                                     </div>
                                 </td>
-                                <td class="p-3 align-top">
+                                <td class="p-3">
                                     <div class="flex items-center">
+                                        <button onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                         <?php if (is_admin()): ?>
-                                            <button onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                             <form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="<?= $task['id'] ?>"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>
-                                        <?php else: ?>
-                                            <span class="text-xs text-secondary">-</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -240,16 +235,25 @@ function getStatusColorClasses($status) {
         const canvas=document.getElementById('neural-canvas'),ctx=canvas.getContext('2d'),themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let particles=[],hue=0,quill;function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}setCanvasSize();class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.5;this.vy=(Math.random()-.5)*.5;this.size=Math.random()*1.5+1}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,70%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
         function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle)}
         function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.5)%360;ctx.shadowColor=`hsl(${hue},100%,50%)`;ctx.shadowBlur=10;particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animate)}init(80);animate();window.addEventListener('resize',()=>{setCanvasSize();init(80)});function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
+        
         function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}
-        function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
+        
+        function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
+        
         function closeModal(){modal.classList.add('hidden')}window.onclick=function(event){if(event.target==modal)closeModal()}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         function copyQbLink(element,inputId){const inputField=element.closest('.relative').querySelector(`#${inputId}`),buildId=inputField.value;if(buildId&&!isNaN(buildId)){const url=`https://android.qb.sec.samsung.net/build/${buildId}`;navigator.clipboard.writeText(url).then(()=>{const toast=document.getElementById('toast');toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),3000)}).catch(err=>console.error('Gagal menyalin link: ',err))}}
+        
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),allRows=Array.from(tableBody.querySelectorAll('tr'));let currentPage=1,activePlanFilter='All';function renderTable(){const searchText=searchInput.value.toLowerCase(),rowsPerPage=parseInt(rowsSelect.value),filteredRows=allRows.filter(row=>{const matchesSearch=row.textContent.toLowerCase().includes(searchText),matchesPlan=activePlanFilter==='All'||row.dataset.plan===activePlanFilter;return matchesSearch&&matchesPlan}),totalPages=Math.ceil(filteredRows.length/rowsPerPage);currentPage=Math.min(currentPage,totalPages)||1;tableBody.innerHTML='';const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage;filteredRows.slice(start,end).forEach(row=>tableBody.appendChild(row));renderPagination(totalPages)}
         function renderPagination(totalPages){paginationNav.innerHTML='';if(totalPages<=1)return;const maxButtons=5;let startPage=Math.max(1,currentPage-Math.floor(maxButtons/2)),endPage=Math.min(totalPages,startPage+maxButtons-1);if(endPage-startPage+1<maxButtons){startPage=Math.max(1,endPage-maxButtons+1)}if(startPage>1){paginationNav.appendChild(createPageButton(1,'«'));paginationNav.appendChild(createPageButton(currentPage-1,'‹'))}for(let i=startPage;i<=endPage;i++){paginationNav.appendChild(createPageButton(i,i))}if(endPage<totalPages){paginationNav.appendChild(createPageButton(currentPage+1,'›'));paginationNav.appendChild(createPageButton(totalPages,'»'))}}
         function createPageButton(page,text){const pageButton=document.createElement('button');pageButton.textContent=text;pageButton.className=`px-3 py-1 rounded-lg text-sm ${page===currentPage?'bg-blue-600 text-white':'themed-input'}`;pageButton.onclick=()=>{currentPage=page;renderTable()};return pageButton}
-        document.getElementById('task-table-body').addEventListener('click',function(e){if(e.target.classList.contains('qb-link')){const buildId=e.target.dataset.buildId;if(buildId)window.open(`https://android.qb.sec.samsung.net/build/${buildId}`,'_blank')}});
+        
+        const progressStatusSelect=document.getElementById('progress_status'),submissionDateInput=document.getElementById('submission_date'),approvedDateInput=document.getElementById('approved_date');
+        function getTodayDate(){return new Date().toISOString().slice(0,10)}
+        function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+        
         document.addEventListener('DOMContentLoaded',()=>{renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
         if(searchInput){searchInput.addEventListener('input',renderTable)};rowsSelect.addEventListener('change',()=>{currentPage=1;renderTable()});testplanFilterContainer.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'){testplanFilterContainer.querySelector('.active').classList.remove('active');e.target.classList.add('active');activePlanFilter=e.target.dataset.plan;currentPage=1;renderTable()}});
     </script>

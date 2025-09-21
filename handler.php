@@ -12,42 +12,23 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
 
 // --- FUNGSI HELPER ---
 
-/**
- * Memeriksa apakah pengguna saat ini adalah admin.
- * @return bool
- */
 function is_admin() {
     return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
 }
 
-/**
- * Mengarahkan pengguna kembali ke halaman sebelumnya dengan pesan error.
- * Pesan ini akan ditangkap oleh JavaScript untuk ditampilkan sebagai modal.
- * @param string $message Kunci pesan error (misal: 'permission_denied').
- */
 function redirect_with_error($message) {
     $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
-    // Membersihkan query string yang mungkin sudah ada
     $referer = strtok($referer, '?');
     header("Location: " . $referer . "?error=" . urlencode($message));
     exit();
 }
 
-/**
- * Mengembalikan null jika nilai kosong, jika tidak, kembalikan nilai yang sudah di-trim.
- * @param mixed $value
- * @return mixed
- */
 if (!function_exists('null_if_empty')) {
     function null_if_empty($value) {
         return trim($value) === '' ? null : trim($value);
     }
 }
 
-/**
- * Mengarahkan pengguna ke URL tertentu.
- * @param string $url
- */
 function redirect($url) {
     header("Location: " . $url);
     exit();
@@ -65,62 +46,69 @@ if (!$action) {
 
 switch ($action) {
     case 'create_gba_task':
-    case 'update_gba_task':
-        // Hanya admin yang bisa membuat atau mengubah detail lengkap task
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
         
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
-        $is_urgent = isset($data['is_urgent']) ? 1 : 0;
+        // MODIFIKASI: Menggunakan nilai langsung dari form
+        $is_urgent = (int)($data['is_urgent'] ?? 0);
         
-        if ($action === 'create_gba_task') {
-            $stmt = $conn->prepare(
-                "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-            );
-            $stmt->bind_param("ssssssssssssssssssiss",
-                $data['project_name'], $data['model_name'], $data['pic_email'], 
-                null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
-                null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
-                null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
-                null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
-                null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
-                $is_urgent, $data['notes'], $checklist_json
-            );
-        } else { // update_gba_task
-            $stmt = $conn->prepare(
-                "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?
-                WHERE id=?"
-            );
-            $stmt->bind_param("ssssssssssssssssssissi",
-                $data['project_name'], $data['model_name'], $data['pic_email'], 
-                null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
-                null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
-                null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
-                null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
-                null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
-                $is_urgent, $data['notes'], $checklist_json, $data['id']
-            );
-        }
+        $stmt = $conn->prepare(
+            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param("ssssssssssssssssssiss",
+            $data['project_name'], $data['model_name'], $data['pic_email'], 
+            null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
+            null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
+            null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
+            null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
+            null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
+            $is_urgent, $data['notes'], $checklist_json
+        );
         
         $stmt->execute();
         redirect('index.php');
         break;
 
+    case 'update_gba_task':
+        $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
+        // MODIFIKASI: Menggunakan nilai langsung dari form
+        $is_urgent = (int)($data['is_urgent'] ?? 0);
+        
+        $stmt = $conn->prepare(
+            "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?
+            WHERE id=?"
+        );
+        $stmt->bind_param("ssssssssssssssssssissi",
+            $data['project_name'], $data['model_name'], $data['pic_email'], 
+            null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
+            null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
+            null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
+            null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
+            null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
+            $is_urgent, $data['notes'], $checklist_json, $data['id']
+        );
+        
+        $stmt->execute();
+        $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+        redirect($referer);
+        break;
+
+
     case 'delete_gba_task':
-        // Hanya admin yang bisa menghapus task
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
         $stmt = $conn->prepare("DELETE FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $data['id']);
         $stmt->execute();
-        redirect('index.php');
+        $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+        redirect($referer);
         break;
 
     case 'update_task_status':
-        // Semua pengguna yang login bisa mengubah status task (misal: via drag-and-drop)
         header('Content-Type: application/json');
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
@@ -136,18 +124,15 @@ switch ($action) {
         exit();
         
     case 'toggle_urgent':
-        // Semua pengguna yang login bisa mengubah status urgent
         header('Content-Type: application/json');
         $task_id = $data['task_id'] ?? 0;
         
-        // Dapatkan status 'is_urgent' saat ini
         $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $task_id);
         $stmt->execute();
         $current_status = $stmt->get_result()->fetch_assoc()['is_urgent'] ?? 0;
         $stmt->close();
         
-        // Ubah statusnya
         $new_status = $current_status ? 0 : 1;
         
         $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");

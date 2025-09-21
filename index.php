@@ -10,10 +10,16 @@ $active_page = 'project_dashboard';
 $statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
 $tasksToDisplay = [];
 foreach ($statuses as $status) {
-    $tasksToDisplay[$status] = []; // PERBAIKAN: Spasi non-standar dihilangkan
+    $tasksToDisplay[$status] = [];
 }
 
-$sql = "SELECT * FROM gba_tasks ORDER BY is_urgent DESC, id DESC";
+$one_month_ago = date('Y-m-d', strtotime('-1 month'));
+// MODIFIKASI: Menggabungkan tabel gba_tasks dengan users untuk mendapatkan profile_picture
+$sql = "SELECT t.*, u.profile_picture 
+        FROM gba_tasks t 
+        LEFT JOIN users u ON t.pic_email = u.email 
+        WHERE t.request_date >= '{$one_month_ago}' 
+        ORDER BY t.is_urgent DESC, t.id DESC";
 $result = $conn->query($sql);
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
@@ -122,7 +128,7 @@ function render_kinerja_status($task) {
         html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:#cffafe;color:#0e7490}
         .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.8}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite}html.light .animate-pulse-alert{color:#dc2626}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}html.light .font-semibold.text-yellow-400{color:#a16207}
-        @keyframes underline-glow{0%,100%{box-shadow:0 2px 4px -2px rgba(239,68,68,.3),0 4px 12px -2px rgba(239,68,68,.2)}50%{box-shadow:0 2px 8px -2px rgba(239,68,68,.6),0 4px 18px -2px rgba(239,68,68,.5)}}.underline-glow-effect{border-bottom:2px solid rgba(239,68,68,.8);animation:underline-glow 2s infinite ease-in-out}.sad-emoji{position:fixed;font-size:2rem;animation:fall 5s linear forwards;opacity:1;z-index:9999}@keyframes fall{to{transform:translateY(100vh) rotate(360deg);opacity:0}}
+        @keyframes underline-glow{0%,100%{box-shadow:0 2px 4px -2px rgba(249,115,22,.3),0 4px 12px -2px rgba(249,115,22,.2)}50%{box-shadow:0 2px 8px -2px rgba(249,115,22,.6),0 4px 18px -2px rgba(249,115,22,.5)}}.underline-glow-effect{border-bottom:2px solid rgba(249,115,22,.8);animation:underline-glow 2s infinite ease-in-out}.sad-emoji{position:fixed;font-size:2rem;animation:fall 5s linear forwards;opacity:1;z-index:9999}@keyframes fall{to{transform:translateY(100vh) rotate(360deg);opacity:0}}
         .accordion-summary{display:none}.view-accordion .accordion-summary{display:block}.view-accordion .task-card-full-content{display:none}
         .view-accordion .task-card.is-expanded .task-card-full-content{display:block; padding-top: 1rem; }
         .view-accordion .task-card.is-expanded .accordion-summary{display:none}.pic-icon{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
@@ -132,7 +138,6 @@ function render_kinerja_status($task) {
             border-radius: .75rem;
             animation: strobe-effect 1.5s infinite;
         }
-        /* MODIFIKASI: Efek kedip diubah ke kanan-kiri */
         @keyframes strobe-effect {
             0%, 20% { box-shadow: inset 2px 0 0 0 rgba(59, 130, 246, 1), 0 0 15px rgba(59, 130, 246, 0.7); }
             21%, 24% { box-shadow: none; }
@@ -172,8 +177,12 @@ function render_kinerja_status($task) {
                         <div class="glass-container-content p-4">
                             <div class="accordion-summary">
                                <div class="flex justify-between items-center">
-                                    <h4 class="font-bold text-sm text-card-title truncate flex-grow"><?= htmlspecialchars($task['project_name'] ?: 'N/A') ?></h4>
-                                    <div class="pic-icon <?= getPicBadgeColor($task['pic_email']) ?>"><?= getPicInitials($task['pic_email']) ?></div>
+                                    <h4 class="font-bold text-sm text-card-title truncate flex-grow pr-2"><?= htmlspecialchars($task['ap'] ?: 'N/A') ?></h4>
+                                    <?php if (!empty($task['profile_picture']) && $task['profile_picture'] !== 'default.png'): ?>
+                                        <img src="uploads/<?= htmlspecialchars($task['profile_picture']) ?>" alt="PIC" class="w-6 h-6 rounded-full object-cover flex-shrink-0">
+                                    <?php else: ?>
+                                        <div class="pic-icon <?= getPicBadgeColor($task['pic_email']) ?>"><?= getPicInitials($task['pic_email']) ?></div>
+                                    <?php endif; ?>
                                </div>
                                <div class="mt-2 pt-2 border-t border-[var(--glass-border)] text-xs space-y-1">
                                     <?= render_kinerja_status($task) ?>
