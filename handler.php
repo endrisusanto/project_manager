@@ -3,8 +3,58 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 include 'config.php';
+session_start();
 
-// Menentukan sumber data (JSON atau POST)
+// Cek apakah pengguna sudah login
+if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
+    die('Akses ditolak. Silakan login terlebih dahulu.');
+}
+
+// --- FUNGSI HELPER ---
+
+/**
+ * Memeriksa apakah pengguna saat ini adalah admin.
+ * @return bool
+ */
+function is_admin() {
+    return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
+}
+
+/**
+ * Mengarahkan pengguna kembali ke halaman sebelumnya dengan pesan error.
+ * Pesan ini akan ditangkap oleh JavaScript untuk ditampilkan sebagai modal.
+ * @param string $message Kunci pesan error (misal: 'permission_denied').
+ */
+function redirect_with_error($message) {
+    $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+    // Membersihkan query string yang mungkin sudah ada
+    $referer = strtok($referer, '?');
+    header("Location: " . $referer . "?error=" . urlencode($message));
+    exit();
+}
+
+/**
+ * Mengembalikan null jika nilai kosong, jika tidak, kembalikan nilai yang sudah di-trim.
+ * @param mixed $value
+ * @return mixed
+ */
+if (!function_exists('null_if_empty')) {
+    function null_if_empty($value) {
+        return trim($value) === '' ? null : trim($value);
+    }
+}
+
+/**
+ * Mengarahkan pengguna ke URL tertentu.
+ * @param string $url
+ */
+function redirect($url) {
+    header("Location: " . $url);
+    exit();
+}
+
+// --- LOGIKA UTAMA ---
+
 $is_json = strpos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false;
 $data = $is_json ? json_decode(file_get_contents('php://input'), true) : $_POST;
 $action = $data['action'] ?? null;
@@ -13,24 +63,14 @@ if (!$action) {
     die('Error: Aksi tidak ditentukan.');
 }
 
-// --- FUNGSI HELPER ---
-
-if (!function_exists('null_if_empty')) {
-    function null_if_empty($value) {
-        return trim($value) === '' ? null : trim($value);
-    }
-}
-
-function redirect($url) {
-    header("Location: " . $url);
-    exit();
-}
-
-// --- LOGIKA UTAMA ---
-
 switch ($action) {
     case 'create_gba_task':
     case 'update_gba_task':
+        // Hanya admin yang bisa membuat atau mengubah detail lengkap task
+        if (!is_admin()) {
+            redirect_with_error('permission_denied');
+        }
+        
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) ? 1 : 0;
         
@@ -69,6 +109,10 @@ switch ($action) {
         break;
 
     case 'delete_gba_task':
+        // Hanya admin yang bisa menghapus task
+        if (!is_admin()) {
+            redirect_with_error('permission_denied');
+        }
         $stmt = $conn->prepare("DELETE FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $data['id']);
         $stmt->execute();
@@ -76,20 +120,41 @@ switch ($action) {
         break;
 
     case 'update_task_status':
+        // Semua pengguna yang login bisa mengubah status task (misal: via drag-and-drop)
         header('Content-Type: application/json');
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
 
-        if ($new_status === 'Task Baru') {
-            $stmt = $conn->prepare("UPDATE gba_tasks SET progress_status = ?, submission_date = NULL, approved_date = NULL, sign_off_date = NULL, test_items_checklist = NULL WHERE id = ?");
-        } else {
-            $stmt = $conn->prepare("UPDATE gba_tasks SET progress_status = ? WHERE id = ?");
-        }
-        
+        $stmt = $conn->prepare("UPDATE gba_tasks SET progress_status = ? WHERE id = ?");
         $stmt->bind_param("si", $new_status, $task_id);
         
         if ($stmt->execute()) {
             echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
+        exit();
+        
+    case 'toggle_urgent':
+        // Semua pengguna yang login bisa mengubah status urgent
+        header('Content-Type: application/json');
+        $task_id = $data['task_id'] ?? 0;
+        
+        // Dapatkan status 'is_urgent' saat ini
+        $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
+        $stmt->bind_param("i", $task_id);
+        $stmt->execute();
+        $current_status = $stmt->get_result()->fetch_assoc()['is_urgent'] ?? 0;
+        $stmt->close();
+        
+        // Ubah statusnya
+        $new_status = $current_status ? 0 : 1;
+        
+        $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");
+        $stmt->bind_param("ii", $new_status, $task_id);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'is_urgent' => (bool)$new_status]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }

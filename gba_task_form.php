@@ -1,3 +1,14 @@
+<?php
+// Ambil daftar pengguna untuk dropdown PIC.
+// Variabel $conn sudah tersedia dari file yang meng-include file ini (misal: index.php)
+$users_result = $conn->query("SELECT email, username FROM users ORDER BY username ASC");
+$users_list = [];
+if ($users_result && $users_result->num_rows > 0) {
+    while($user_row = $users_result->fetch_assoc()) {
+        $users_list[] = $user_row;
+    }
+}
+?>
 <div class="space-y-4">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
@@ -9,16 +20,28 @@
             <input type="text" id="model_name" name="model_name" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
         </div>
         <div>
-            <label for="pic_email" class="form-label block mb-1 text-sm font-medium">PIC (Email)</label>
-            <input type="email" id="pic_email" name="pic_email" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
+            <label for="pic_email" class="form-label block mb-1 text-sm font-medium">PIC</label>
+            <select id="pic_email" name="pic_email" class="themed-input w-full p-2.5 text-sm rounded-lg" required>
+                <option value="" disabled selected>Pilih PIC</option>
+                <?php foreach ($users_list as $user): ?>
+                    <option value="<?= htmlspecialchars($user['email']) ?>">
+                        <?= htmlspecialchars($user['username']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
     </div>
 
     <div class="flex items-center pt-2">
-        <input id="is_urgent" name="is_urgent" type="checkbox" value="1" class="w-4 h-4 text-red-500 bg-gray-700 border-gray-600 rounded focus:ring-red-600 ring-offset-gray-800 focus:ring-2">
-        <label for="is_urgent" class="ml-2 text-sm font-medium text-red-400">Tandai sebagai Task Urgent</label>
+        <label for="is_urgent_toggle" class="relative inline-flex items-center cursor-pointer">
+            <input type="hidden" name="is_urgent" value="0">
+            <input type="checkbox" value="1" id="is_urgent_toggle" name="is_urgent" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-red-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+            <span class="ml-3 text-sm font-medium text-gray-300 peer-checked:text-red-400">
+                Tandai sebagai Task Urgent
+            </span>
+        </label>
     </div>
-
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
             <label for="ap" class="form-label block mb-1 text-sm font-medium">AP</label>
