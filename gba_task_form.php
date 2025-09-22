@@ -170,3 +170,33 @@ if ($users_result && $users_result->num_rows > 0) {
         <div id="notes-editor" class="themed-input rounded-lg"></div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modelNameInput = document.getElementById('model_name');
+    const projectNameInput = document.getElementById('project_name');
+
+    if (modelNameInput && projectNameInput) {
+        modelNameInput.addEventListener('change', function() {
+            const modelName = this.value.trim();
+            if (modelName.length > 5) { // Hanya jalankan jika model name cukup panjang
+                projectNameInput.value = 'Mencari...'; // Tampilkan status pencarian
+                fetch(`get_marketing_name.php?model_name=${encodeURIComponent(modelName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.marketing_name) {
+                            projectNameInput.value = data.marketing_name;
+                        } else {
+                            projectNameInput.value = ''; // Kosongkan jika tidak ditemukan
+                            projectNameInput.placeholder = 'Nama pemasaran tidak ditemukan';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        projectNameInput.value = '';
+                        projectNameInput.placeholder = 'Gagal mengambil data';
+                    });
+            }
+        });
+    }
+});
+</script>

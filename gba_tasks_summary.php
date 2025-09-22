@@ -2,116 +2,60 @@
 // 1. INISIALISASI
 require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
-$active_page = 'gba_tasks';
 
+$active_page = 'gba_tasks_summary';
 
-// Tentukan halaman aktif untuk navigasi header
-$active_page = 'gba_tasks';
-
-// 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
-$sql = "SELECT * FROM gba_tasks";
-$params = [];
-$types = "";
-
-$where_clauses = ["progress_status NOT IN ('Approved', 'Batal')"];
-
-if (!is_admin()) {
-    $where_clauses[] = "pic_email = ?";
-    $params[] = $_SESSION['user_details']['email'];
-    $types .= "s";
-}
-
-if (!empty($where_clauses)) {
-    $sql .= " WHERE " . implode(" AND ", $where_clauses);
-}
-
-$sql .= " ORDER BY is_urgent DESC, request_date DESC";
-$stmt = $conn->prepare($sql);
-
-if ($stmt) {
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $tasks_result = $stmt->get_result();
-} else {
-    $tasks_result = false;
-}
-
+// 2. LOGIKA PENGAMBILAN DATA
+$tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY is_urgent DESC, request_date DESC");
 $tasks = [];
-
-$test_plan_items = [
-    'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
-    'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 'Simple Exception MR' => ['STS']
-];
-$all_test_plans = array_keys($test_plan_items);
 
 if ($tasks_result) {
     while ($row = $tasks_result->fetch_assoc()) {
-        $row['request_date_obj'] = $row['request_date'] ? new DateTime($row['request_date']) : null;
-        $row['submission_date_obj'] = $row['submission_date'] ? new DateTime($row['submission_date']) : null;
-        $row['approved_date_obj'] = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
+        // Proses kalkulasi tanggal dan status di sisi server agar data siap pakai
         $deadline_date = $row['deadline'] ? new DateTime($row['deadline']) : null;
-        
-        if ($row['submission_date_obj'] && $row['request_date_obj']) {
-            $submission_diff = $row['submission_date_obj']->diff($row['request_date_obj'])->days;
-            $row['ontime_submission_status'] = $submission_diff <= 7 ? 'Ontime' : 'Delay';
+        $request_date_obj = $row['request_date'] ? new DateTime($row['request_date']) : null;
+        $submission_date_obj = $row['submission_date'] ? new DateTime($row['submission_date']) : null;
+        $approved_date_obj = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
+
+        if ($submission_date_obj && $request_date_obj) {
+            $row['ontime_submission_status'] = $submission_date_obj->diff($request_date_obj)->days <= 7 ? 'Ontime' : 'Delay';
         } else { $row['ontime_submission_status'] = null; }
         
-        if ($row['approved_date_obj'] && $row['submission_date_obj']) {
-            $approval_diff = $row['approved_date_obj']->diff($row['submission_date_obj'])->days;
-            $row['ontime_approved_status'] = $approval_diff <= 3 ? 'Ontime' : 'Delay';
+        if ($approved_date_obj && $submission_date_obj) {
+            $row['ontime_approved_status'] = $approved_date_obj->diff($submission_date_obj)->days <= 3 ? 'Ontime' : 'Delay';
         } else { $row['ontime_approved_status'] = null; }
-    
+
         $row['deadline_countdown'] = null;
-        if (!$row['submission_date_obj'] && $deadline_date) {
-            $now = new DateTime(); $now->setTime(0,0,0); $deadline_date->setTime(0,0,0);
+        if (!$submission_date_obj && $deadline_date) {
+            $now = new DateTime(); $now->setTime(0,0,0);
+            $deadline_date->setTime(0,0,0);
             $diff = $now->diff($deadline_date);
             $row['deadline_countdown'] = ($now <= $deadline_date) ? $diff->days : -$diff->days;
         }
-    
+
         $row['approval_countdown'] = null;
-        if ($row['submission_date_obj'] && !$row['approved_date_obj']) {
-            $approval_deadline = (clone $row['submission_date_obj'])->modify('+3 days');
-            $now = new DateTime(); $now->setTime(0,0,0); $approval_deadline->setTime(0,0,0);
+        if ($submission_date_obj && !$approved_date_obj) {
+            $approval_deadline = (clone $submission_date_obj)->modify('+3 days');
+            $now = new DateTime(); $now->setTime(0,0,0);
+            $approval_deadline->setTime(0,0,0);
             $diff = $now->diff($approval_deadline);
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
         
-        $checklist = json_decode($row['test_items_checklist'], true);
-        $plan_type = $row['test_plan_type'];
-        $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
-        $completed_items = 0;
-        if ($total_items > 0 && is_array($checklist)) {
-            foreach ($test_plan_items[$plan_type] as $item) {
-                $item_key = str_replace([' ', '-'], '_', $item);
-                if (!empty($checklist[$item_key])) { $completed_items++; }
-            }
-        }
-        $row['progress_percentage'] = $total_items > 0 ? ($completed_items / $total_items) * 100 : 0;
+        // Data ini dikirim ke JavaScript
         $tasks[] = $row;
     }
 }
 
-// 3. FUNGSI HELPER TAMPILAN
-function getDynamicColorClasses($identifier, $type = 'pic') {
-    $pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan'];
-    $plan_colors = ['indigo', 'lime', 'pink', 'orange', 'fuchsia'];
-    $palette = ($type === 'plan') ? $plan_colors : $pic_colors;
-    $hash = crc32($identifier);
-    return "badge-color-" . $palette[$hash % count($palette)];
-}
-function getStatusColorClasses($status) {
-    $colors = ['Approved'=>'badge-color-green','Passed'=>'badge-color-green','Submitted'=>'badge-color-purple','Test Ongoing'=>'badge-color-yellow','Task Baru'=>'badge-color-blue','Batal'=>'badge-color-gray','Pending Feedback'=>'badge-color-orange','Feedback Sent'=>'badge-color-orange'];
-    return $colors[$status] ?? 'badge-color-gray';
-}
+$all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Exception MR'];
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GBA Task Manager</title>
+    <title>GBA Task Summary</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
@@ -152,9 +96,15 @@ function getStatusColorClasses($status) {
                         <button class="filter-button px-3 py-1.5 text-sm font-medium rounded-md" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
                     <?php endforeach; ?>
                 </div>
-                 <div class="flex items-center gap-2 ml-auto">
+                 <div class="flex items-center gap-4 ml-auto">
+                    <a id="export-button" href="export_handler.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
+                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clip-rule="evenodd" />
+                        </svg>
+                        Export Excel
+                    </a>
                     <span class="text-sm text-secondary">Baris:</span>
-                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option><option value="50">50</option></select>
+                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option></select>
                 </div>
             </div>
         </div>
@@ -176,67 +126,7 @@ function getStatusColorClasses($status) {
                         </tr>
                     </thead>
                     <tbody id="task-table-body">
-                        <?php if (empty($tasks)): ?>
-                            <tr><td colspan="9" class="text-center p-4 text-secondary">Tidak ada task aktif yang ditemukan.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($tasks as $task): ?>
-                            <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>">
-                                <td class="p-3">
-                                    <div class="font-medium text-primary"><?= htmlspecialchars($task['model_name']) ?></div>
-                                    <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
-                                        <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div> <div>CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div> <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
-                                    </div>
-                                </td>
-                                <td class="p-3 text-xs text-secondary font-mono">
-                                    <?php if ($task['qb_user']): ?><div>USER: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars($task['qb_user']) ?>" target="_blank" class="qb-link"><?= htmlspecialchars($task['qb_user']) ?></a></div><?php endif; ?>
-                                    <?php if ($task['qb_userdebug']): ?><div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars($task['qb_userdebug']) ?>" target="_blank" class="qb-link"><?= htmlspecialchars($task['qb_userdebug']) ?></a></div><?php endif; ?>
-                                </td>
-                                <td class="p-3"><span class="badge <?= getDynamicColorClasses($task['pic_email'], 'pic') ?>"><?= htmlspecialchars($task['pic_email']) ?></span></td>
-                                <td class="p-3"><span class="badge <?= getDynamicColorClasses($task['test_plan_type'], 'plan') ?>"><?= htmlspecialchars($task['test_plan_type']) ?></span></td>
-                                <td class="p-3"><span class="badge <?= getStatusColorClasses($task['progress_status']) ?>"><?= htmlspecialchars($task['progress_status']) ?></span></td>
-                                <td class="p-3">
-                                    <div class="w-28"><div class="progress-bar-bg w-full rounded-full h-4 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-4 rounded-full absolute top-0 left-0" style="width: <?= $task['progress_percentage'] ?>%;"></div><span class="relative text-xs font-bold z-10 progress-text pl-2"><?= round($task['progress_percentage']) ?>%</span></div></div>
-                                </td>
-                                <td class="p-3 text-xs text-secondary">
-                                    <div>Req: <?= $task['request_date_obj'] ? $task['request_date_obj']->format('d M Y') : '-' ?></div>
-                                    <div>Sub: <?= $task['submission_date_obj'] ? $task['submission_date_obj']->format('d M Y') : '-' ?></div>
-                                    <div class="font-bold text-primary">Deadline: <?= $task['deadline'] ? date('d M Y', strtotime($task['deadline'])) : '-' ?></div>
-                                </td>
-                                <td class="p-3 text-xs">
-                                    <div class="mb-1 flex items-center gap-1">
-                                        <span class="w-20 inline-block">Submission:</span>
-                                        <?php if ($task['ontime_submission_status']): ?>
-                                            <span class="font-semibold <?= $task['ontime_submission_status'] == 'Delay' ? 'text-red-400' : 'text-green-400' ?>"><?= $task['ontime_submission_status'] ?></span>
-                                        <?php elseif (isset($task['deadline_countdown'])): ?>
-                                            <span class="flex items-center gap-1 <?= $task['deadline_countdown'] < 0 ? 'text-red-400' : ($task['deadline_countdown'] <= 3 ? 'text-red-400' : 'text-secondary') ?>">
-                                                <?php if ($task['deadline_countdown'] <= 3 && $task['deadline_countdown'] >= 0): ?><svg class="w-4 h-4 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg><?php endif; ?>
-                                                <?= $task['deadline_countdown'] >= 0 ? $task['deadline_countdown'] . ' hari lagi' : 'Terlewat ' . abs($task['deadline_countdown']) . ' hari'; ?>
-                                            </span>
-                                        <?php else: echo '-'; endif; ?>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <span class="w-20 inline-block">Approval:</span>
-                                        <?php if ($task['ontime_approved_status']): ?>
-                                            <span class="font-semibold <?= $task['ontime_approved_status'] == 'Delay' ? 'text-red-400' : 'text-green-400' ?>"><?= $task['ontime_approved_status'] ?></span>
-                                        <?php elseif (isset($task['approval_countdown'])): ?>
-                                            <span class="flex items-center gap-1 <?= $task['approval_countdown'] < 0 ? 'text-red-400' : ($task['approval_countdown'] <= 1 ? 'text-red-400' : 'text-secondary') ?>">
-                                                <?php if ($task['approval_countdown'] <= 1 && $task['approval_countdown'] >= 0): ?><svg class="w-4 h-4 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg><?php endif; ?>
-                                                <?= $task['approval_countdown'] >= 0 ? $task['approval_countdown'] . ' hari lagi' : 'Terlewat ' . abs($task['approval_countdown']) . ' hari'; ?>
-                                            </span>
-                                        <?php else: echo '-'; endif; ?>
-                                    </div>
-                                </td>
-                                <td class="p-3">
-                                    <div class="flex items-center">
-                                        <button onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
-                                        <?php if (is_admin()): ?>
-                                            <form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="<?= $task['id'] ?>"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                        <tr><td colspan="9" class="text-center p-8 text-secondary">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -263,7 +153,8 @@ function getStatusColorClasses($status) {
     </div>
     
     <script>
-        // --- ANIMATION & THEME LOGIC ---
+        const allTasksData = <?= json_encode($tasks) ?>;
+
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
         let particles = [], hue = 210;
         function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
@@ -325,29 +216,222 @@ function getStatusColorClasses($status) {
         const particleCount = window.innerWidth > 768 ? 150 : 70;
         init(particleCount);
         animate();
-        
+
         // --- PAGE SPECIFIC LOGIC ---
         const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
+        window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
         function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}
         function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
         function closeModal(){modal.classList.add('hidden')}window.onclick=function(event){if(event.target==modal)closeModal()}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
-        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),allRows=Array.from(tableBody.querySelectorAll('tr'));let currentPage=1,activePlanFilter='All';function renderTable(){const searchText=searchInput.value.toLowerCase(),rowsPerPage=parseInt(rowsSelect.value),filteredRows=allRows.filter(row=>{const matchesSearch=row.textContent.toLowerCase().includes(searchText),matchesPlan=activePlanFilter==='All'||row.dataset.plan===activePlanFilter;return matchesSearch&&matchesPlan}),totalPages=Math.ceil(filteredRows.length/rowsPerPage);currentPage=Math.min(currentPage,totalPages)||1;tableBody.innerHTML='';const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage;filteredRows.slice(start,end).forEach(row=>tableBody.appendChild(row));renderPagination(totalPages)}
-        function renderPagination(totalPages){paginationNav.innerHTML='';if(totalPages<=1)return;const maxButtons=5;let startPage=Math.max(1,currentPage-Math.floor(maxButtons/2)),endPage=Math.min(totalPages,startPage+maxButtons-1);if(endPage-startPage+1<maxButtons){startPage=Math.max(1,endPage-maxButtons+1)}if(startPage>1){paginationNav.appendChild(createPageButton(1,'«'));paginationNav.appendChild(createPageButton(currentPage-1,'‹'))}for(let i=startPage;i<=endPage;i++){paginationNav.appendChild(createPageButton(i,i))}if(endPage<totalPages){paginationNav.appendChild(createPageButton(currentPage+1,'›'));paginationNav.appendChild(createPageButton(totalPages,'»'))}}
-        function createPageButton(page,text){const pageButton=document.createElement('button');pageButton.textContent=text;pageButton.className=`px-3 py-1 rounded-lg text-sm ${page===currentPage?'bg-blue-600 text-white':'themed-input'}`;pageButton.onclick=()=>{currentPage=page;renderTable()};return pageButton}
-        const progressStatusSelect=document.getElementById('progress_status'),submissionDateInput=document.getElementById('submission_date'),approvedDateInput=document.getElementById('approved_date'),requestDateInput=document.getElementById('request_date'),deadlineInput=document.getElementById('deadline'),signOffDateInput=document.getElementById('sign_off_date');
-        function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
-        function getTodayDate(){return new Date().toISOString().slice(0,10)}
-        function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
-        requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
-        taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
-        document.addEventListener('DOMContentLoaded',()=>{renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
-        if(searchInput){searchInput.addEventListener('input',renderTable)};rowsSelect.addEventListener('change',()=>{currentPage=1;renderTable()});testplanFilterContainer.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'){testplanFilterContainer.querySelector('.active').classList.remove('active');e.target.classList.add('active');activePlanFilter=e.target.dataset.plan;currentPage=1;renderTable()}});
+        
+        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container');
+        let currentPage=1,activePlanFilter='All';
+        
+        function getDynamicColorClassesJS(identifier, type = 'pic') {
+            const pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan'];
+            const plan_colors = ['indigo', 'lime', 'pink', 'orange', 'fuchsia'];
+            const palette = (type === 'plan') ? plan_colors : pic_colors;
+            let hash = 0;
+            for (let i = 0; i < identifier.length; i++) {
+                hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const index = Math.abs(hash % palette.length);
+            return "badge-color-" + palette[index];
+        }
+
+        function getStatusColorClassesJS(status) {
+            const colors = {'Approved':'badge-color-green','Passed':'badge-color-green','Submitted':'badge-color-purple','Test Ongoing':'badge-color-yellow','Task Baru':'badge-color-blue','Batal':'badge-color-gray','Pending Feedback':'badge-color-orange','Feedback Sent':'badge-color-orange'};
+            return colors[status] || 'badge-color-gray';
+        }
+
+        // --- FUNGSI UNTUK RENDER TABEL, PAGINASI, DAN FILTER ---
+
+function renderTable() {
+    const searchText = searchInput ? searchInput.value.toLowerCase() : "";
+    const rowsPerPage = parseInt(rowsSelect.value);
     
+    // Filter data berdasarkan pencarian dan filter Test Plan
+    const filteredTasks = allTasksData.filter(task => {
+        const searchContent = (
+            (task.model_name || '') +
+            (task.pic_email || '') +
+            (task.progress_status || '') +
+            (task.ap || '') +
+            (task.project_name || '')
+        ).toLowerCase();
+        const matchesSearch = searchContent.includes(searchText);
+        const matchesPlan = activePlanFilter === 'All' || task.test_plan_type === activePlanFilter;
+        return matchesSearch && matchesPlan;
+    });
     
+    const totalPages = Math.ceil(filteredTasks.length / rowsPerPage);
+    currentPage = Math.min(currentPage, totalPages) || 1;
+    
+    const start = (currentPage - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    const paginatedTasks = filteredTasks.slice(start, end);
+
+    buildTableRows(paginatedTasks);
+    renderPagination(totalPages);
+}
+
+function buildTableRows(tasks) {
+    tableBody.innerHTML = '';
+    if (tasks.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-secondary">Tidak ada task yang cocok dengan filter.</td></tr>';
+        return;
+    }
+    
+    tasks.forEach(task => {
+        const urgentClass = task.is_urgent == 1 ? 'urgent-row' : '';
+        
+        // Format tanggal atau tampilkan '-' jika null
+        const formatDate = (dateStr) => {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+
+        const reqDate = formatDate(task.request_date);
+        const subDate = formatDate(task.submission_date);
+        const deadDate = formatDate(task.deadline);
+        
+        const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link">${task.qb_user}</a></div>` : '';
+        const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
+        
+        // Membuat HTML untuk kolom Kinerja
+        let kinerjaHtml = '';
+        kinerjaHtml += `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span>`;
+        if(task.ontime_submission_status) {
+            const colorClass = task.ontime_submission_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+            kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_submission_status}</span>`;
+        } else if (task.deadline_countdown !== null) {
+            const colorClass = task.deadline_countdown < 0 ? 'text-red-400' : (task.deadline_countdown <= 3 ? 'text-red-400' : 'text-secondary');
+            const text = task.deadline_countdown >= 0 ? `${task.deadline_countdown} hari lagi` : `Terlewat ${Math.abs(task.deadline_countdown)} hari`;
+            kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+        } else {
+            kinerjaHtml += '-';
+        }
+        kinerjaHtml += `</div>`;
+        kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span>`;
+         if(task.ontime_approved_status) {
+            const colorClass = task.ontime_approved_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+            kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_approved_status}</span>`;
+        } else if (task.approval_countdown !== null) {
+            const colorClass = task.approval_countdown < 0 ? 'text-red-400' : (task.approval_countdown <= 1 ? 'text-red-400' : 'text-secondary');
+            const text = task.approval_countdown >= 0 ? `${task.approval_countdown} hari lagi` : `Terlewat ${Math.abs(task.approval_countdown)} hari`;
+            kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+        } else {
+            kinerjaHtml += '-';
+        }
+        kinerjaHtml += `</div>`;
+
+        // Membuat baris tabel
+        const rowHtml = `
+            <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}">
+                <td class="p-3">
+                    <div class="font-medium text-primary">${task.model_name || '-'}</div>
+                    <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
+                        <div>AP: ${task.ap || '-'}</div> <div>CP: ${task.cp || '-'}</div> <div>CSC: ${task.csc || '-'}</div>
+                    </div>
+                </td>
+                <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}</td>
+                <td class="p-3"><span class="badge ${getDynamicColorClassesJS(task.pic_email || 'N/A', 'pic')}">${task.pic_email || 'N/A'}</span></td>
+                <td class="p-3"><span class="badge ${getDynamicColorClassesJS(task.test_plan_type || 'N/A', 'plan')}">${task.test_plan_type || 'N/A'}</span></td>
+                <td class="p-3"><span class="badge ${getStatusColorClassesJS(task.progress_status)}">${task.progress_status || 'N/A'}</span></td>
+                <td class="p-3">
+                    <div class="w-28"><div class="progress-bar-bg w-full rounded-full h-4 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-4 rounded-full absolute top-0 left-0" style="width: ${task.progress_percentage || 0}%;"></div><span class="relative text-xs font-bold z-10 progress-text pl-2">${Math.round(task.progress_percentage || 0)}%</span></div></div>
+                </td>
+                <td class="p-3 text-xs text-secondary">
+                    <div>Req: ${reqDate}</div>
+                    <div>Sub: ${subDate}</div>
+                    <div class="font-bold text-primary">Deadline: ${deadDate}</div>
+                </td>
+                <td class="p-3 text-xs">${kinerjaHtml}</td>
+                <td class="p-3">
+                    <div class="flex items-center">
+                        <button onclick='openEditModal(${JSON.stringify(task)})' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                        <form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>
+                    </div>
+                </td>
+            </tr>
+        `;
+        tableBody.insertAdjacentHTML('beforeend', rowHtml);
+    });
+}
+
+function renderPagination(totalPages) {
+    paginationNav.innerHTML = '';
+    if (totalPages <= 1) return;
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage + 1 < maxButtons) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    if (startPage > 1) {
+        paginationNav.appendChild(createPageButton(1, '«'));
+        paginationNav.appendChild(createPageButton(currentPage - 1, '‹'));
+    }
+    for (let i = startPage; i <= endPage; i++) {
+        paginationNav.appendChild(createPageButton(i, i));
+    }
+    if (endPage < totalPages) {
+        paginationNav.appendChild(createPageButton(currentPage + 1, '›'));
+        paginationNav.appendChild(createPageButton(totalPages, '»'));
+    }
+}
+
+function createPageButton(page, text) {
+    const pageButton = document.createElement('button');
+    pageButton.textContent = text;
+    pageButton.className = `px-3 py-1 rounded-lg text-sm ${page === currentPage ? 'bg-blue-600 text-white' : 'themed-input'}`;
+    pageButton.onclick = () => {
+        currentPage = page;
+        renderTable();
+    };
+    return pageButton;
+}
+
+// Jalankan semua fungsi setelah DOM siap
+document.addEventListener('DOMContentLoaded', () => {
+    renderTable();
+    setupQuill('');
+    updateChecklistVisibility();
+    
+    const profileMenu = document.getElementById('profile-menu');
+    if (profileMenu) {
+        const profileButton = profileMenu.querySelector('button');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
+        document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
+    }
+
+    if (searchInput) { searchInput.addEventListener('input', renderTable); }
+    rowsSelect.addEventListener('change', () => { currentPage = 1; renderTable(); });
+    testplanFilterContainer.addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON') {
+            testplanFilterContainer.querySelector('.active').classList.remove('active');
+            e.target.classList.add('active');
+            activePlanFilter = e.target.dataset.plan;
+            currentPage = 1;
+            renderTable();
+        }
+    });
+
+    const exportButton = document.getElementById('export-button');
+    if(exportButton){
+        exportButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const plan = activePlanFilter;
+            const search = searchInput ? searchInput.value : "";
+            window.location.href = `export_handler.php?plan=${encodeURIComponent(plan)}&search=${encodeURIComponent(search)}`;
+        });
+    }
+});
     </script>
 </body>
 </html>

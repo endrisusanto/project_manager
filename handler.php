@@ -45,14 +45,83 @@ if (!$action) {
 }
 
 switch ($action) {
+    // MODIFIKASI: Tambahkan case baru ini
+    case 'create_bulk_gba_task':
+        if (!is_admin()) {
+            redirect_with_error('permission_denied');
+        }
+        
+        // Ambil data dari textarea dan pisahkan per baris
+        $bulk_data = trim($_POST['bulk_data']);
+        $lines = explode("\n", $bulk_data);
+
+        // Ambil semua user untuk rotasi PIC
+        $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' OR role = 'admin' ORDER BY id ASC");
+        $pic_list = [];
+        while ($user = $users_result->fetch_assoc()) {
+            $pic_list[] = $user['email'];
+        }
+
+        if (empty($pic_list)) {
+            redirect_with_error('Tidak ada user yang bisa di-assign sebagai PIC.');
+        }
+
+        // Muat kamus marketing name
+        require_once 'marketing_name_mapper.php';
+        $pic_index = 0;
+        
+        $stmt = $conn->prepare(
+            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?)"
+        );
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+            
+            $parts = preg_split('/\s+/', $line); // Pisahkan berdasarkan spasi atau tab
+            
+            $model_name = $parts[0] ?? '';
+            $ap = $parts[1] ?? '';
+            $cp = $parts[2] ?? '';
+            $csc = $parts[3] ?? '';
+            $qb_user = $parts[4] ?? '';
+            $qb_userdebug = $parts[5] ?? '';
+            
+            // Dapatkan marketing name
+            $marketing_name = 'N/A';
+            foreach ($model_mapping as $key => $value) {
+                if (strpos(strtoupper($model_name), $key) === 0) {
+                    $marketing_name = $value;
+                    break;
+                }
+            }
+
+            // Rotasi PIC
+            $pic_email = $pic_list[$pic_index % count($pic_list)];
+            $pic_index++;
+            
+            $request_date = date('Y-m-d');
+            $test_plan_type = 'Normal MR'; // Default
+            
+            $stmt->bind_param("ssssssssss", 
+                $marketing_name, $model_name, $pic_email, $ap, $cp, $csc, 
+                $qb_user, $qb_userdebug, $request_date, $test_plan_type
+            );
+            $stmt->execute();
+        }
+
+        $stmt->close();
+        redirect('index.php'); // Kembali ke halaman utama setelah selesai
+        break;
+
     case 'create_gba_task':
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
         
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
-        // MODIFIKASI: Menggunakan nilai langsung dari form
-        $is_urgent = (int)($data['is_urgent'] ?? 0);
+        $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
         
         $stmt = $conn->prepare(
             "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist) 
@@ -74,8 +143,7 @@ switch ($action) {
 
     case 'update_gba_task':
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
-        // MODIFIKASI: Menggunakan nilai langsung dari form
-        $is_urgent = (int)($data['is_urgent'] ?? 0);
+        $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
         
         $stmt = $conn->prepare(
             "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?
@@ -112,9 +180,60 @@ switch ($action) {
         header('Content-Type: application/json');
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
+        
+        // MODIFIKASI: Logika untuk update tanggal dan checklist
+        $today = date('Y-m-d');
+        $test_plan_items = [
+            'Regular Variant' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
+            'SKU' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
+            'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 
+            'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
+            'Simple Exception MR' => ['STS']
+        ];
+        
+        $get_task_stmt = $conn->prepare("SELECT test_plan_type FROM gba_tasks WHERE id = ?");
+        $get_task_stmt->bind_param("i", $task_id);
+        $get_task_stmt->execute();
+        $task_result = $get_task_stmt->get_result();
+        $task_data = $task_result->fetch_assoc();
+        $get_task_stmt->close();
 
-        $stmt = $conn->prepare("UPDATE gba_tasks SET progress_status = ? WHERE id = ?");
-        $stmt->bind_param("si", $new_status, $task_id);
+        $sql = "UPDATE gba_tasks SET progress_status = ?";
+        $params = [$new_status];
+        $types = "s";
+
+        if (in_array($new_status, ['Submitted', 'Approved', 'Passed'])) {
+            $sql .= ", submission_date = COALESCE(submission_date, ?)";
+            $params[] = $today;
+            $types .= "s";
+
+            if (in_array($new_status, ['Approved', 'Passed'])) {
+                $sql .= ", approved_date = COALESCE(approved_date, ?)";
+                $params[] = $today;
+                $types .= "s";
+            }
+            
+            if ($task_data) {
+                $plan_type = $task_data['test_plan_type'];
+                if (isset($test_plan_items[$plan_type])) {
+                    $checklist = [];
+                    foreach ($test_plan_items[$plan_type] as $item) {
+                        $item_key = str_replace([' ', '-'], '_', $item);
+                        $checklist[$item_key] = "1";
+                    }
+                    $sql .= ", test_items_checklist = ?";
+                    $params[] = json_encode($checklist);
+                    $types .= "s";
+                }
+            }
+        }
+        
+        $sql .= " WHERE id = ?";
+        $params[] = $task_id;
+        $types .= "i";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
         
         if ($stmt->execute()) {
             echo json_encode(['success' => true]);

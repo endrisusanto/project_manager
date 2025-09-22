@@ -13,11 +13,12 @@ $username = $_SESSION['username'] ?? 'User';
                     <a href="index.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'project_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Project Dashboard</a>
                     <a href="gba_dashboard.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">GBA Dashboard</a>
                     <a href="gba_tasks.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">GBA Tasks</a>
+                    <a href="gba_tasks_summary.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">GBA Summary</a>
                 </div>
             </div>
 
             <div class="flex items-center space-x-4">
-                <?php if ($active_page === 'project_dashboard' || $active_page === 'gba_tasks'): ?>
+                <?php if (in_array($active_page, ['project_dashboard', 'gba_tasks', 'gba_tasks_summary'])): ?>
                     <div class="relative flex-grow">
                         <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg></div>
                         <input type="search" id="search-input" placeholder="Cari..." class="themed-input block w-full rounded-lg py-2 pl-10 pr-3 focus:ring-2">

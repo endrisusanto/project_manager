@@ -14,16 +14,53 @@ switch ($action) {
     case 'register':
         $username = $_POST['username'];
         $email = $_POST['email'];
-        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $role = $_POST['role'] ?? 'user'; // Default role is user
+        $password_plain = $_POST['password']; // Simpan password asli untuk auto-login
+        $password_hashed = password_hash($password_plain, PASSWORD_DEFAULT);
+        $role = $_POST['role'] ?? 'user';
 
+        // Cek duplikasi email
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+        if ($stmt->num_rows > 0) {
+            redirect_with_message('register.php', 'error', 'Email sudah terdaftar. Silakan gunakan email lain.');
+            $stmt->close();
+            break;
+        }
+        $stmt->close();
+
+        // Cek duplikasi username
+        $stmt = $conn->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->store_result();
+        if ($stmt->num_rows > 0) {
+            redirect_with_message('register.php', 'error', 'Username sudah digunakan. Silakan pilih yang lain.');
+            $stmt->close();
+            break;
+        }
+        $stmt->close();
+
+        // Jika tidak ada duplikasi, lanjutkan registrasi
         $stmt = $conn->prepare("INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("ssss", $username, $email, $password, $role);
+        $stmt->bind_param("ssss", $username, $email, $password_hashed, $role);
 
         if ($stmt->execute()) {
-            redirect_with_message('login.php', 'success', 'Registrasi berhasil! Silakan login.');
+            // MODIFIKASI: Auto-login setelah registrasi berhasil
+            $user_id = $stmt->insert_id;
+            session_regenerate_id();
+            $_SESSION["loggedin"] = true;
+            $_SESSION["id"] = $user_id;
+            $_SESSION["username"] = $username;
+            $_SESSION["role"] = $role;
+            $_SESSION["user_details"] = [
+                'email' => $email,
+                'profile_picture' => 'default.png' // default setelah register
+            ];
+            header("location: index.php");
         } else {
-            redirect_with_message('register.php', 'error', 'Gagal mendaftar. Username atau email mungkin sudah digunakan.');
+            redirect_with_message('register.php', 'error', 'Gagal mendaftar. Terjadi kesalahan tidak terduga.');
         }
         $stmt->close();
         break;
@@ -45,11 +82,22 @@ switch ($action) {
                 $_SESSION["id"] = $user['id'];
                 $_SESSION["username"] = $user['username'];
                 $_SESSION["role"] = $user['role'];
-                // Simpan detail user di session untuk akses mudah (misal: di navbar)
                 $_SESSION["user_details"] = [
                     'email' => $user['email'],
                     'profile_picture' => $user['profile_picture']
                 ];
+                
+                // MODIFIKASI: Logika "Ingat Saya"
+                if (!empty($_POST["remember"])) {
+                    // Set cookie selama 30 hari
+                    setcookie("username", $username, time() + (86400 * 30), "/");
+                    setcookie("password", $password, time() + (86400 * 30), "/");
+                } else {
+                    // Hapus cookie jika tidak dicentang
+                    setcookie("username", "", time() - 3600, "/");
+                    setcookie("password", "", time() - 3600, "/");
+                }
+
                 header("location: index.php");
             } else {
                 redirect_with_message('login.php', 'error', 'Password yang Anda masukkan salah.');
@@ -60,6 +108,7 @@ switch ($action) {
         $stmt->close();
         break;
 
+    // ... (case lainnya tetap sama) ...
     case 'change_password':
         if (!isset($_SESSION["loggedin"])) exit('Akses ditolak.');
         
@@ -112,7 +161,6 @@ switch ($action) {
             $destination = $upload_dir . $new_filename;
 
             if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $destination)) {
-                // Hapus foto lama jika bukan default.png
                 $old_pic = $_SESSION['user_details']['profile_picture'];
                 if ($old_pic != 'default.png' && file_exists($upload_dir . $old_pic)) {
                     unlink($upload_dir . $old_pic);
@@ -123,7 +171,6 @@ switch ($action) {
                 $stmt->execute();
                 $stmt->close();
                 
-                // Update session
                 $_SESSION['user_details']['profile_picture'] = $new_filename;
                 
                 redirect_with_message('profile.php', 'success', 'Foto profil berhasil diperbarui.');

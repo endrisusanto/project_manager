@@ -183,27 +183,88 @@ if (!empty($all_tasks)) {
         </div>
     </main>
 
-    <script>
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d'), themeToggleBtn = document.getElementById('theme-toggle');
-        let particles = [], hue = 0, currentTheme = 'dark';
-        function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}setCanvasSize();
-        class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.5;this.vy=(Math.random()-.5)*.5;this.size=Math.random()*1.5+1}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,70%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
-        function init(num){for(let i=0;i<num;i++)particles.push(new Particle)}
-        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.5)%360;ctx.shadowColor=`hsl(${hue},100%,50%)`;ctx.shadowBlur=10;particles.forEach(p=>{p.update();p.draw();});requestAnimationFrame(animate)}init(80);animate();window.addEventListener('resize',()=>{setCanvasSize();init(80);renderCharts();});
-        
-        const weeklyPicData = <?= json_encode($weekly_pic_distribution) ?>, yearlyChartData = <?= json_encode($weekly_data) ?>, picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
-        function getChartColors(){return{ticksColor:currentTheme==='light'?'#475569':'#94a3b8',gridColor:currentTheme==='light'?'rgba(0,0,0,.05)':'rgba(255,255,255,.1)',borderColor:currentTheme==='light'?'#fff':'var(--bg-primary)'}}
-        function createPicDoughnutChart(){const ctx=document.getElementById('picPieChart');if(!ctx)return;if(window.picDoughnutChart instanceof Chart)window.picDoughnutChart.destroy();const labels=Object.keys(weeklyPicData),data=Object.values(weeklyPicData);if(labels.length===0){ctx.style.display='none';const placeholder=document.createElement('p');placeholder.textContent='Tidak ada data task untuk minggu ini.';placeholder.className='text-center text-secondary';ctx.parentNode.appendChild(placeholder);return;}ctx.style.display='block';const existingPlaceholder=ctx.parentNode.querySelector('p');if(existingPlaceholder)existingPlaceholder.remove();window.picDoughnutChart=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{label:'Tasks',data:data,backgroundColor:Object.values(picColors),borderColor:getChartColors().borderColor,borderWidth:4}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:'bottom',labels:{color:getChartColors().ticksColor,padding:20,usePointStyle:!0}}}}})}
-        function createYearlyTaskChart(){const ctx=document.getElementById('weeklyTaskChart');if(!ctx||!yearlyChartData.labels||yearlyChartData.labels.length===0)return;if(window.yearlyTaskChart instanceof Chart)window.yearlyTaskChart.destroy();window.yearlyTaskChart=new Chart(ctx,{type:'bar',data:yearlyChartData,options:{responsive:!0,maintainAspectRatio:!1,scales:{x:{stacked:!1,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}},y:{stacked:!1,beginAtZero:!0,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}}},plugins:{legend:{position:'top',labels:{color:getChartColors().ticksColor}},tooltip:{mode:'index',intersect:!1}},interaction:{mode:'index',intersect:!1}}})}
-        function renderCharts(){createPicDoughnutChart();createYearlyTaskChart()}
-        function applyTheme(isLight){currentTheme=isLight?'light':'dark';document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight);renderCharts()}
-        themeToggleBtn.addEventListener('click',()=>{const isCurrentlyLight=document.documentElement.classList.contains('light');localStorage.setItem('theme',isCurrentlyLight?'dark':'light');applyTheme(!isCurrentlyLight)});
-        
-        const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta'},{name:'Korea Selatan',tz:'Asia/Seoul'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh'},{name:'China',tz:'Asia/Shanghai'},{name:'Brazil',tz:'America/Sao_Paulo'}];
-        function pad(n){return n<10?'0'+n:n}
-        function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
-        
-        document.addEventListener('DOMContentLoaded',()=>{const savedTheme=localStorage.getItem('theme'),prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;applyTheme(savedTheme?savedTheme==='light':!prefersDark);updateClocks();setInterval(updateClocks,1000);const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
-    </script>
+<script>
+    // --- ANIMATION & THEME LOGIC ---
+    const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
+    let particles = [], hue = 210;
+    function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
+    
+    class Particle{
+        constructor(x,y){
+            this.x=x||Math.random()*canvas.width;
+            this.y=y||Math.random()*canvas.height;
+            this.vx=(Math.random()-.5)*.4;
+            this.vy=(Math.random()-.5)*.4;
+            this.size=Math.random()*2 + 1.5;
+        }
+        update(){
+            this.x+=this.vx;this.y+=this.vy;
+            if(this.x<0||this.x>canvas.width)this.vx*=-1;
+            if(this.y<0||this.y>canvas.height)this.vy*=-1;
+        }
+        draw(){
+            ctx.fillStyle=`hsl(${hue},100%,75%)`;
+            ctx.beginPath();
+            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    function init(num){
+        particles = [];
+        for(let i=0;i<num;i++)particles.push(new Particle())
+    }
+
+    function handleParticles() {
+        for(let i = 0; i < particles.length; i++) {
+            particles[i].update();
+            particles[i].draw();
+            for (let j = i; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 120) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+    function animate(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        hue = (hue + 0.3) % 360; 
+        handleParticles();
+        requestAnimationFrame(animate);
+    }
+    
+    const particleCount = window.innerWidth > 768 ? 150 : 70;
+    init(particleCount);
+    animate();
+
+    // --- PAGE SPECIFIC LOGIC ---
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    let currentTheme = 'dark';
+    window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);renderCharts();});
+    
+    const weeklyPicData = <?= json_encode($weekly_pic_distribution) ?>, yearlyChartData = <?= json_encode($weekly_data) ?>, picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
+    function getChartColors(){return{ticksColor:currentTheme==='light'?'#475569':'#94a3b8',gridColor:currentTheme==='light'?'rgba(0,0,0,.05)':'rgba(255,255,255,.1)',borderColor:currentTheme==='light'?'#fff':'var(--bg-primary)'}}
+    function createPicDoughnutChart(){const ctx=document.getElementById('picPieChart');if(!ctx)return;if(window.picDoughnutChart instanceof Chart)window.picDoughnutChart.destroy();const labels=Object.keys(weeklyPicData),data=Object.values(weeklyPicData);if(labels.length===0){ctx.style.display='none';const placeholder=document.createElement('p');placeholder.textContent='Tidak ada data task untuk minggu ini.';placeholder.className='text-center text-secondary';ctx.parentNode.appendChild(placeholder);return;}ctx.style.display='block';const existingPlaceholder=ctx.parentNode.querySelector('p');if(existingPlaceholder)existingPlaceholder.remove();window.picDoughnutChart=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{label:'Tasks',data:data,backgroundColor:Object.values(picColors),borderColor:getChartColors().borderColor,borderWidth:4}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:'bottom',labels:{color:getChartColors().ticksColor,padding:20,usePointStyle:!0}}}}})}
+    function createYearlyTaskChart(){const ctx=document.getElementById('weeklyTaskChart');if(!ctx||!yearlyChartData.labels||yearlyChartData.labels.length===0)return;if(window.yearlyTaskChart instanceof Chart)window.yearlyTaskChart.destroy();window.yearlyTaskChart=new Chart(ctx,{type:'bar',data:yearlyChartData,options:{responsive:!0,maintainAspectRatio:!1,scales:{x:{stacked:!1,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}},y:{stacked:!1,beginAtZero:!0,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}}},plugins:{legend:{position:'top',labels:{color:getChartColors().ticksColor}},tooltip:{mode:'index',intersect:!1}},interaction:{mode:'index',intersect:!1}}})}
+    function renderCharts(){createPicDoughnutChart();createYearlyTaskChart()}
+    function applyTheme(isLight){currentTheme=isLight?'light':'dark';document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight);renderCharts()}
+    themeToggleBtn.addEventListener('click',()=>{const isCurrentlyLight=document.documentElement.classList.contains('light');localStorage.setItem('theme',isCurrentlyLight?'dark':'light');applyTheme(!isCurrentlyLight)});
+    
+    const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta'},{name:'Korea Selatan',tz:'Asia/Seoul'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh'},{name:'China',tz:'Asia/Shanghai'},{name:'Brazil',tz:'America/Sao_Paulo'}];
+    function pad(n){return n<10?'0'+n:n}
+    function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
+    
+    document.addEventListener('DOMContentLoaded',()=>{const savedTheme=localStorage.getItem('theme'),prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;applyTheme(savedTheme?savedTheme==='light':!prefersDark);updateClocks();setInterval(updateClocks,1000);const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
+</script>
 </body>
 </html>
