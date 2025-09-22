@@ -110,13 +110,17 @@ if (!empty($all_tasks)) {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.6); --glass-border: rgba(51, 65, 85, 0.6); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); }
-        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.7); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; }
+        /* MODIFIKASI: --glass-bg dan --glass-border diubah untuk efek lebih glassy */
+        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.45); --glass-border: rgba(51, 65, 85, 0.3); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); }
+        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.5); --glass-border: rgba(0, 0, 0, 0.08); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; }
+        
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
         #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        .glass-container { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); }
-        .bento-item { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 1.5rem; padding: 1.5rem; transition: transform 0.3s, box-shadow 0.3s; }
+        
+        /* MODIFIKASI: backdrop-filter blur ditingkatkan dari 12px ke 20px */
+        .bento-item { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 1.5rem; padding: 1.5rem; transition: transform 0.3s, box-shadow 0.3s; }
         .bento-item:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        
         .nav-link { color: var(--text-secondary); border-bottom: 2px solid transparent; transition: all 0.2s; } .nav-link:hover { border-color: var(--text-secondary); color: var(--text-primary); }
         .nav-link-active { color: var(--text-primary) !important; border-bottom: 2px solid #3b82f6; font-weight: 600; }
         html, body { height: 100%; overflow: hidden; }
@@ -132,7 +136,7 @@ if (!empty($all_tasks)) {
     <?php include 'header.php'; ?>
 
     <main class="py-8">
-        <div class="max-w-screen-2xl h-full mx-auto px-4 md:px-6">
+        <div class="max-w-full h-full mx-auto px-6">
             <div class="grid grid-cols-12 grid-rows-[auto_1fr_1fr] gap-6 h-full grid-container">
                 <div class="col-span-12 row-span-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
                     <div class="bento-item text-center"><p class="text-3xl font-bold"><?= $stats['total'] ?></p><p class="text-sm text-secondary">Total Task</p></div>
@@ -184,86 +188,26 @@ if (!empty($all_tasks)) {
     </main>
 
 <script>
-    // --- ANIMATION & THEME LOGIC ---
+    // --- (JavaScript tidak ada perubahan, tetap sama) ---
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
     let particles = [], hue = 210;
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-    
-    class Particle{
-        constructor(x,y){
-            this.x=x||Math.random()*canvas.width;
-            this.y=y||Math.random()*canvas.height;
-            this.vx=(Math.random()-.5)*.4;
-            this.vy=(Math.random()-.5)*.4;
-            this.size=Math.random()*2 + 1.5;
-        }
-        update(){
-            this.x+=this.vx;this.y+=this.vy;
-            if(this.x<0||this.x>canvas.width)this.vx*=-1;
-            if(this.y<0||this.y>canvas.height)this.vy*=-1;
-        }
-        draw(){
-            ctx.fillStyle=`hsl(${hue},100%,75%)`;
-            ctx.beginPath();
-            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-            ctx.fill();
-        }
-    }
-
-    function init(num){
-        particles = [];
-        for(let i=0;i<num;i++)particles.push(new Particle())
-    }
-
-    function handleParticles() {
-        for(let i = 0; i < particles.length; i++) {
-            particles[i].update();
-            particles[i].draw();
-            for (let j = i; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 120) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
-                    ctx.lineWidth = 1;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.stroke();
-                    ctx.closePath();
-                }
-            }
-        }
-    }
-
-    function animate(){
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        hue = (hue + 0.3) % 360; 
-        handleParticles();
-        requestAnimationFrame(animate);
-    }
-    
-    const particleCount = window.innerWidth > 768 ? 150 : 70;
-    init(particleCount);
-    animate();
-
-    // --- PAGE SPECIFIC LOGIC ---
-    const themeToggleBtn = document.getElementById('theme-toggle');
-    let currentTheme = 'dark';
-    window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);renderCharts();});
-    
-    const weeklyPicData = <?= json_encode($weekly_pic_distribution) ?>, yearlyChartData = <?= json_encode($weekly_data) ?>, picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
+    class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
+    function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
+    function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
+    function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
+    const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
+    const themeToggleBtn=document.getElementById('theme-toggle');let currentTheme='dark';window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);renderCharts()});
+    const weeklyPicData=<?= json_encode($weekly_pic_distribution) ?>,yearlyChartData=<?= json_encode($weekly_data) ?>,picColors=<?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
     function getChartColors(){return{ticksColor:currentTheme==='light'?'#475569':'#94a3b8',gridColor:currentTheme==='light'?'rgba(0,0,0,.05)':'rgba(255,255,255,.1)',borderColor:currentTheme==='light'?'#fff':'var(--bg-primary)'}}
-    function createPicDoughnutChart(){const ctx=document.getElementById('picPieChart');if(!ctx)return;if(window.picDoughnutChart instanceof Chart)window.picDoughnutChart.destroy();const labels=Object.keys(weeklyPicData),data=Object.values(weeklyPicData);if(labels.length===0){ctx.style.display='none';const placeholder=document.createElement('p');placeholder.textContent='Tidak ada data task untuk minggu ini.';placeholder.className='text-center text-secondary';ctx.parentNode.appendChild(placeholder);return;}ctx.style.display='block';const existingPlaceholder=ctx.parentNode.querySelector('p');if(existingPlaceholder)existingPlaceholder.remove();window.picDoughnutChart=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{label:'Tasks',data:data,backgroundColor:Object.values(picColors),borderColor:getChartColors().borderColor,borderWidth:4}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:'bottom',labels:{color:getChartColors().ticksColor,padding:20,usePointStyle:!0}}}}})}
+    function createPicDoughnutChart(){const ctx=document.getElementById('picPieChart');if(!ctx)return;if(window.picDoughnutChart instanceof Chart)window.picDoughnutChart.destroy();const labels=Object.keys(weeklyPicData),data=Object.values(weeklyPicData);if(labels.length===0){ctx.style.display='none';const placeholder=document.createElement('p');placeholder.textContent='Tidak ada data task untuk minggu ini.';placeholder.className='text-center text-secondary';ctx.parentNode.appendChild(placeholder);return}ctx.style.display='block';const existingPlaceholder=ctx.parentNode.querySelector('p');if(existingPlaceholder)existingPlaceholder.remove();window.picDoughnutChart=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{label:'Tasks',data:data,backgroundColor:Object.values(picColors),borderColor:getChartColors().borderColor,borderWidth:4}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:'bottom',labels:{color:getChartColors().ticksColor,padding:20,usePointStyle:!0}}}}})}
     function createYearlyTaskChart(){const ctx=document.getElementById('weeklyTaskChart');if(!ctx||!yearlyChartData.labels||yearlyChartData.labels.length===0)return;if(window.yearlyTaskChart instanceof Chart)window.yearlyTaskChart.destroy();window.yearlyTaskChart=new Chart(ctx,{type:'bar',data:yearlyChartData,options:{responsive:!0,maintainAspectRatio:!1,scales:{x:{stacked:!1,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}},y:{stacked:!1,beginAtZero:!0,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}}},plugins:{legend:{position:'top',labels:{color:getChartColors().ticksColor}},tooltip:{mode:'index',intersect:!1}},interaction:{mode:'index',intersect:!1}}})}
     function renderCharts(){createPicDoughnutChart();createYearlyTaskChart()}
     function applyTheme(isLight){currentTheme=isLight?'light':'dark';document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight);renderCharts()}
     themeToggleBtn.addEventListener('click',()=>{const isCurrentlyLight=document.documentElement.classList.contains('light');localStorage.setItem('theme',isCurrentlyLight?'dark':'light');applyTheme(!isCurrentlyLight)});
-    
     const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta'},{name:'Korea Selatan',tz:'Asia/Seoul'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh'},{name:'China',tz:'Asia/Shanghai'},{name:'Brazil',tz:'America/Sao_Paulo'}];
     function pad(n){return n<10?'0'+n:n}
     function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
-    
     document.addEventListener('DOMContentLoaded',()=>{const savedTheme=localStorage.getItem('theme'),prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;applyTheme(savedTheme?savedTheme==='light':!prefersDark);updateClocks();setInterval(updateClocks,1000);const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
 </script>
 </body>

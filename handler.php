@@ -34,6 +34,21 @@ function redirect($url) {
     exit();
 }
 
+// FUNGSI BARU: Menghitung tanggal setelah N hari kerja
+function add_working_days($start_date_str, $days_to_add) {
+    $current_date = new DateTime($start_date_str);
+    $days_added = 0;
+    while ($days_added < $days_to_add) {
+        $current_date->modify('+1 day');
+        $day_of_week = $current_date->format('N'); // 1 (Senin) - 7 (Minggu)
+        if ($day_of_week < 6) { // Bukan Sabtu atau Minggu
+            $days_added++;
+        }
+    }
+    return $current_date->format('Y-m-d');
+}
+
+
 // --- LOGIKA UTAMA ---
 
 $is_json = strpos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false;
@@ -45,18 +60,16 @@ if (!$action) {
 }
 
 switch ($action) {
-    // MODIFIKASI: Tambahkan case baru ini
     case 'create_bulk_gba_task':
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
         
-        // Ambil data dari textarea dan pisahkan per baris
         $bulk_data = trim($_POST['bulk_data']);
         $lines = explode("\n", $bulk_data);
+        array_shift($lines); // Hapus header
 
-        // Ambil semua user untuk rotasi PIC
-        $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' OR role = 'admin' ORDER BY id ASC");
+        $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
         $pic_list = [];
         while ($user = $users_result->fetch_assoc()) {
             $pic_list[] = $user['email'];
@@ -66,20 +79,20 @@ switch ($action) {
             redirect_with_error('Tidak ada user yang bisa di-assign sebagai PIC.');
         }
 
-        // Muat kamus marketing name
         require_once 'marketing_name_mapper.php';
         $pic_index = 0;
         
+        // MODIFIKASI: Tambahkan deadline dan sign_off_date ke query
         $stmt = $conn->prepare(
-            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?)"
+            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?)"
         );
 
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
             
-            $parts = preg_split('/\s+/', $line); // Pisahkan berdasarkan spasi atau tab
+            $parts = preg_split('/\s+/', $line);
             
             $model_name = $parts[0] ?? '';
             $ap = $parts[1] ?? '';
@@ -88,7 +101,6 @@ switch ($action) {
             $qb_user = $parts[4] ?? '';
             $qb_userdebug = $parts[5] ?? '';
             
-            // Dapatkan marketing name
             $marketing_name = 'N/A';
             foreach ($model_mapping as $key => $value) {
                 if (strpos(strtoupper($model_name), $key) === 0) {
@@ -97,25 +109,29 @@ switch ($action) {
                 }
             }
 
-            // Rotasi PIC
             $pic_email = $pic_list[$pic_index % count($pic_list)];
             $pic_index++;
             
             $request_date = date('Y-m-d');
-            $test_plan_type = 'Normal MR'; // Default
+            $test_plan_type = 'Normal MR';
             
-            $stmt->bind_param("ssssssssss", 
+            // MODIFIKASI: Hitung deadline dan sign_off_date
+            $deadline = add_working_days($request_date, 7);
+            $sign_off_date = $deadline; // Sama dengan deadline
+            
+            // MODIFIKASI: Update bind_param
+            $stmt->bind_param("ssssssssssss", 
                 $marketing_name, $model_name, $pic_email, $ap, $cp, $csc, 
-                $qb_user, $qb_userdebug, $request_date, $test_plan_type
+                $qb_user, $qb_userdebug, $request_date, $test_plan_type,
+                $deadline, $sign_off_date
             );
             $stmt->execute();
         }
 
         $stmt->close();
-        redirect('index.php'); // Kembali ke halaman utama setelah selesai
+        redirect('index.php');
         break;
-
-    case 'create_gba_task':
+case 'create_gba_task':
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
@@ -181,7 +197,6 @@ switch ($action) {
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
         
-        // MODIFIKASI: Logika untuk update tanggal dan checklist
         $today = date('Y-m-d');
         $test_plan_items = [
             'Regular Variant' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 

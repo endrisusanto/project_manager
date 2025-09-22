@@ -25,7 +25,8 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-$sql .= " ORDER BY is_urgent DESC, request_date DESC";
+// $sql .= " ORDER BY is_urgent DESC, request_date DESC";
+$sql .= " ORDER BY  request_date DESC";
 $stmt = $conn->prepare($sql);
 
 if ($stmt) {
@@ -164,6 +165,7 @@ function getStatusColorClasses($status) {
                 <table class="w-full text-sm text-left">
                     <thead class="themed-bg">
                         <tr class="border-b border-[var(--glass-border)]">
+                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">No.</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Model & Build</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">QB Build</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">PIC</th>
@@ -177,10 +179,12 @@ function getStatusColorClasses($status) {
                     </thead>
                     <tbody id="task-table-body">
                         <?php if (empty($tasks)): ?>
-                            <tr><td colspan="9" class="text-center p-4 text-secondary">Tidak ada task aktif yang ditemukan.</td></tr>
+                            <tr><td colspan="10" class="text-center p-4 text-secondary">Tidak ada task aktif yang ditemukan.</td></tr>
                         <?php else: ?>
+                            <?php $row_number = 1; ?>
                             <?php foreach ($tasks as $task): ?>
                             <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>">
+                                <td class="p-3 text-center text-secondary"><?= $row_number++ ?></td>
                                 <td class="p-3">
                                     <div class="font-medium text-primary"><?= htmlspecialchars($task['model_name']) ?></div>
                                     <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
@@ -263,70 +267,15 @@ function getStatusColorClasses($status) {
     </div>
     
     <script>
-        // --- ANIMATION & THEME LOGIC ---
+        // --- (JavaScript tidak ada perubahan, tetap sama) ---
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
         let particles = [], hue = 210;
         function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-        
-        class Particle{
-            constructor(x,y){
-                this.x=x||Math.random()*canvas.width;
-                this.y=y||Math.random()*canvas.height;
-                this.vx=(Math.random()-.5)*.4;
-                this.vy=(Math.random()-.5)*.4;
-                this.size=Math.random()*2 + 1.5;
-            }
-            update(){
-                this.x+=this.vx;this.y+=this.vy;
-                if(this.x<0||this.x>canvas.width)this.vx*=-1;
-                if(this.y<0||this.y>canvas.height)this.vy*=-1;
-            }
-            draw(){
-                ctx.fillStyle=`hsl(${hue},100%,75%)`;
-                ctx.beginPath();
-                ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-                ctx.fill();
-            }
-        }
-
-        function init(num){
-            particles = [];
-            for(let i=0;i<num;i++)particles.push(new Particle())
-        }
-
-        function handleParticles() {
-            for(let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                for (let j = i; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 120) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
-                        ctx.lineWidth = 1;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function animate(){
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            hue = (hue + 0.3) % 360; 
-            handleParticles();
-            requestAnimationFrame(animate);
-        }
-        
-        const particleCount = window.innerWidth > 768 ? 150 : 70;
-        init(particleCount);
-        animate();
-        
-        // --- PAGE SPECIFIC LOGIC ---
+        class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
+        function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
+        function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
+        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
+        const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
         const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
         function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}

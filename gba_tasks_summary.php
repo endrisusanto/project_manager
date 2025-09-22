@@ -6,7 +6,8 @@ require_once "session.php"; // Memastikan pengguna sudah login
 $active_page = 'gba_tasks_summary';
 
 // 2. LOGIKA PENGAMBILAN DATA
-$tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY is_urgent DESC, request_date DESC");
+// $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY is_urgent DESC, request_date DESC");
+$tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY  request_date DESC");
 $tasks = [];
 
 if ($tasks_result) {
@@ -114,6 +115,7 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                 <table class="w-full text-sm text-left">
                     <thead class="themed-bg">
                         <tr class="border-b border-[var(--glass-border)]">
+                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">No.</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Model & Build</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">QB Build</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">PIC</th>
@@ -126,7 +128,7 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                         </tr>
                     </thead>
                     <tbody id="task-table-body">
-                        <tr><td colspan="9" class="text-center p-8 text-secondary">Memuat data...</td></tr>
+                        <tr><td colspan="10" class="text-center p-8 text-secondary">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -274,21 +276,22 @@ function renderTable() {
     const end = start + rowsPerPage;
     const paginatedTasks = filteredTasks.slice(start, end);
 
-    buildTableRows(paginatedTasks);
+    buildTableRows(paginatedTasks, start); // MODIFIKASI: Mengirim 'start' untuk penomoran
     renderPagination(totalPages);
 }
 
-function buildTableRows(tasks) {
+function buildTableRows(tasks, startIndex) { // MODIFIKASI: Menerima 'startIndex'
     tableBody.innerHTML = '';
     if (tasks.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-8 text-secondary">Tidak ada task yang cocok dengan filter.</td></tr>';
+        // MODIFIKASI: Menyesuaikan colspan
+        tableBody.innerHTML = '<tr><td colspan="10" class="text-center p-8 text-secondary">Tidak ada task yang cocok dengan filter.</td></tr>';
         return;
     }
     
-    tasks.forEach(task => {
+    tasks.forEach((task, index) => {
+        const rowNumber = startIndex + index + 1; // MODIFIKASI: Menghitung nomor baris
         const urgentClass = task.is_urgent == 1 ? 'urgent-row' : '';
         
-        // Format tanggal atau tampilkan '-' jika null
         const formatDate = (dateStr) => {
             if (!dateStr) return '-';
             const date = new Date(dateStr);
@@ -302,7 +305,6 @@ function buildTableRows(tasks) {
         const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link">${task.qb_user}</a></div>` : '';
         const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
         
-        // Membuat HTML untuk kolom Kinerja
         let kinerjaHtml = '';
         kinerjaHtml += `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span>`;
         if(task.ontime_submission_status) {
@@ -332,6 +334,7 @@ function buildTableRows(tasks) {
         // Membuat baris tabel
         const rowHtml = `
             <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}">
+                <td class="p-3 text-center text-secondary">${rowNumber}</td>
                 <td class="p-3">
                     <div class="font-medium text-primary">${task.model_name || '-'}</div>
                     <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
