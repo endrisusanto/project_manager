@@ -78,7 +78,7 @@ $user = $_SESSION['user_details'];
 
         <div class="form-container p-6 rounded-2xl">
             <h2 class="text-xl font-semibold mb-4 text-header">Ganti Password</h2>
-            <form action="auth_handler.php" method="post" class="max-w-md">
+            <form action="auth_handler.php" method="post">
                 <input type="hidden" name="action" value="change_password">
                 <div class="space-y-4">
                     <div>

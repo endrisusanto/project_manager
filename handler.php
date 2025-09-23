@@ -132,9 +132,10 @@ switch ($action) {
         redirect('index.php');
         break;
 case 'create_gba_task':
-        if (!is_admin()) {
-            redirect_with_error('permission_denied');
-        }
+        // Cek admin dihapus dari sini agar semua user bisa membuat task
+        // if (!is_admin()) {
+        //     redirect_with_error('permission_denied');
+        // }
 
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;

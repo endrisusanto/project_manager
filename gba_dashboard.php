@@ -112,8 +112,8 @@ if (!empty($all_tasks)) {
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
-        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.45); --glass-border: rgba(51, 65, 85, 0.3); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); --modal-bg: rgba(15, 23, 42, 0.8); --modal-border: rgba(51, 65, 85, 0.6); }
-        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.5); --glass-border: rgba(0, 0, 0, 0.08); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; --modal-bg: rgba(255, 255, 255, 0.9); --modal-border: rgba(0,0,0,0.1); }
+        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.8); --glass-border: rgba(51, 65, 85, 0.6); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); --input-border: #475569; --modal-bg: rgba(15, 23, 42, 0.8); --modal-border: rgba(51, 65, 85, 0.6); }
+        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.7); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; --input-border: #cbd5e1; --modal-bg: rgba(255, 255, 255, 0.9); --modal-border: rgba(0,0,0,0.1); }
         
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
         #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
@@ -128,6 +128,7 @@ if (!empty($all_tasks)) {
         .chart-card { min-height: 0; } .chart-card > div { flex-grow: 1; min-height: 0; } .chart-card canvas { max-height: 100%; }
         .year-picker { background-color: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-primary); }
         .themed-input { background-color: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); }
+        .themed-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
         .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}
         .modal-content-wrapper { background: var(--modal-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--modal-border); }
         .glow-effect { animation: glow 1.5s infinite alternate; border-radius: 0.5rem; }
