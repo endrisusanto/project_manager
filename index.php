@@ -34,8 +34,9 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-$sql .= " ORDER BY t.id DESC, t.request_date DESC";
+// $sql .= " ORDER BY t.id DESC, t.request_date DESC";
 // $sql .= " ORDER BY t.request_date DESC";
+$sql .= " ORDER BY t.id DESC";
 
 $stmt = $conn->prepare($sql);
 if ($stmt) {

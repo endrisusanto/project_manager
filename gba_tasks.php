@@ -4,17 +4,43 @@ require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
 $active_page = 'gba_tasks';
 
-
 // Tentukan halaman aktif untuk navigasi header
 $active_page = 'gba_tasks';
 
 // 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
+// MODIFIKASI: Query untuk pengecekan duplikat AP (berlaku global)
+$all_tasks_sql = "
+    SELECT t.model_name, t.ap, u.username 
+    FROM gba_tasks t
+    LEFT JOIN users u ON t.pic_email = u.email
+    WHERE t.progress_status NOT IN ('Approved', 'Batal') AND t.model_name IS NOT NULL AND t.ap IS NOT NULL AND t.ap != ''
+";
+$all_tasks_result = $conn->query($all_tasks_sql);
+
+$model_ap_versions = [];
+if ($all_tasks_result) {
+    while ($row = $all_tasks_result->fetch_assoc()) {
+        $model_ap_versions[$row['model_name']][] = [
+            'ap' => $row['ap'],
+            'user' => $row['username'] ?? strtok($row['pic_email'], '@') // Fallback ke nama dari email
+        ];
+    }
+}
+
+$duplicate_ap_tasks = [];
+foreach ($model_ap_versions as $model => $details) {
+    $unique_aps = array_unique(array_column($details, 'ap'));
+    if (count($unique_aps) > 1) {
+        $duplicate_ap_tasks[$model] = $details;
+    }
+}
+
+// Query untuk menampilkan data di tabel (berlaku sesuai hak akses)
 $sql = "SELECT * FROM gba_tasks";
 $params = [];
 $types = "";
 
 $where_clauses = ["progress_status NOT IN ('Approved', 'Batal')"];
-
 if (!is_admin()) {
     $where_clauses[] = "pic_email = ?";
     $params[] = $_SESSION['user_details']['email'];
@@ -25,8 +51,8 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-$sql .= " ORDER BY id DESC, request_date DESC";
-// $sql .= " ORDER BY  request_date DESC";
+// $sql .= " ORDER BY is_urgent DESC, request_date DESC";
+$sql .= " ORDER BY id DESC";
 $stmt = $conn->prepare($sql);
 
 if ($stmt) {
@@ -40,7 +66,6 @@ if ($stmt) {
 }
 
 $tasks = [];
-
 $test_plan_items = [
     'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
     'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 'Simple Exception MR' => ['STS']
@@ -53,24 +78,24 @@ if ($tasks_result) {
         $row['submission_date_obj'] = $row['submission_date'] ? new DateTime($row['submission_date']) : null;
         $row['approved_date_obj'] = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
         $deadline_date = $row['deadline'] ? new DateTime($row['deadline']) : null;
-
+        
         if ($row['submission_date_obj'] && $row['request_date_obj']) {
             $submission_diff = $row['submission_date_obj']->diff($row['request_date_obj'])->days;
             $row['ontime_submission_status'] = $submission_diff <= 7 ? 'Ontime' : 'Delay';
         } else { $row['ontime_submission_status'] = null; }
-
+        
         if ($row['approved_date_obj'] && $row['submission_date_obj']) {
             $approval_diff = $row['approved_date_obj']->diff($row['submission_date_obj'])->days;
             $row['ontime_approved_status'] = $approval_diff <= 3 ? 'Ontime' : 'Delay';
         } else { $row['ontime_approved_status'] = null; }
-
+    
         $row['deadline_countdown'] = null;
         if (!$row['submission_date_obj'] && $deadline_date) {
             $now = new DateTime(); $now->setTime(0,0,0); $deadline_date->setTime(0,0,0);
             $diff = $now->diff($deadline_date);
             $row['deadline_countdown'] = ($now <= $deadline_date) ? $diff->days : -$diff->days;
         }
-
+    
         $row['approval_countdown'] = null;
         if ($row['submission_date_obj'] && !$row['approved_date_obj']) {
             $approval_deadline = (clone $row['submission_date_obj'])->modify('+3 days');
@@ -78,7 +103,7 @@ if ($tasks_result) {
             $diff = $now->diff($approval_deadline);
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
-
+        
         $checklist = json_decode($row['test_items_checklist'], true);
         $plan_type = $row['test_plan_type'];
         $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
@@ -118,11 +143,10 @@ function getStatusColorClasses($status) {
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
-        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}
-        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255, 255, 255, 0.9);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
-        html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}
-        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
-        .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{background-color:rgba(0,0,0,.1);padding:0 6px;border-radius:6px;color:#fff}
+        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.6);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255,255,255,.6);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
+        html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}.glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
+        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
+        .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{background-color:rgba(0,0,0,.4);padding:0 6px;border-radius:6px;color:#fff}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         .filter-button{background-color:var(--filter-btn-bg);color:var(--text-secondary);transition:all .2s}.filter-button:hover{background-color:rgba(255,255,255,.1)}html.light .filter-button:hover{background-color:rgba(0,0,0,.1)}.filter-button.active{background-color:var(--filter-btn-bg-active);color:#fff}
         .badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}.badge-color-indigo{background-color:rgba(99,102,241,.2);color:#a5b4fc}.badge-color-lime{background-color:rgba(132,204,22,.2);color:#bef264}.badge-color-pink{background-color:rgba(236,72,153,.2);color:#f9a8d4}.badge-color-fuchsia{background-color:rgba(217,70,239,.2);color:#f0abfc}.badge-color-green{background-color:rgba(34,197,94,.2);color:#86efac}.badge-color-purple{background-color:rgba(168,85,247,.2);color:#d8b4fe}.badge-color-yellow{background-color:rgba(234,179,8,.2);color:#fde047}.badge-color-blue{background-color:rgba(59,130,246,.2);color:#93c5fd}.badge-color-gray{background-color:rgba(107,114,128,.2);color:#d1d5db}.badge-color-orange{background-color:rgba(249,115,22,.2);color:#fdba74}
@@ -137,12 +161,15 @@ function getStatusColorClasses($status) {
         .table-container td { vertical-align: middle; }
         #pagination-rows { color: var(--text-primary); }
         #pagination-rows option { background-color: var(--bg-primary); color: var(--text-primary); }
-        .modal-content-wrapper { background: var(--modal-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--modal-border); }
-        .glow-effect { animation: glow 1.5s infinite alternate; border-radius: 0.5rem; }
-        @keyframes glow {
-            from { box-shadow: 0 0 2px #3b82f6, 0 0 4px #3b82f6, 0 0 6px #3b82f6; }
-            to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
-        }
+        
+        .alert-carousel { position: relative; overflow: hidden; }
+        .alert-carousel-inner { display: flex; transition: transform 0.8s ease; }
+        .alert-carousel-item { min-width: 100%; box-sizing: border-box; }
+        .alert-content { padding-left: 3.5rem; padding-right: 3.5rem; }
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0,0,0,0.2); border-radius: 9999px; padding: 0.5rem; color: #fff; }
+        .carousel-btn:hover { background-color: rgba(0,0,0,0.4); }
+        .carousel-btn.prev { left: 0.75rem; }
+        .carousel-btn.next { right: 0.75rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -152,6 +179,43 @@ function getStatusColorClasses($status) {
     <?php include 'header.php'; ?>
 
     <main class="w-full h-full flex flex-col">
+        <?php if (!empty($duplicate_ap_tasks)): ?>
+        <div class="px-4 sm:px-6 lg:px-8 pt-4">
+            <div id="alert-carousel" class="alert-carousel rounded-lg" onmouseenter="pauseCarousel()" onmouseleave="resumeCarousel()">
+                <div class="alert-carousel-inner">
+                    <?php
+                    $alert_colors = ['bg-yellow-400', 'bg-red-400', 'bg-blue-400'];
+                    $color_index = 0;
+                    foreach ($duplicate_ap_tasks as $model => $details):
+                        $color_class = $alert_colors[$color_index % count($alert_colors)];
+                        $color_index++;
+                    ?>
+                    <div class="alert-carousel-item relative p-1 border <?php echo $color_class; ?> text-gray-800 grid items-center " role="alert">
+                        <div class="alert-content">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"></path></svg>
+                                <p class="text-sm font-semibold">Peringatan Duplikat Task untuk <span class="font-bold underline"><?php echo htmlspecialchars($model); ?></span></p>
+                            </div>
+                            <ul class="mt-2 ml-8 list-disc text-xs space-y-1">
+                                <?php foreach ($details as $info): ?>
+                                    <li>
+                                        <span class="font-semibold"><?php echo htmlspecialchars($info['ap']); ?></span>
+                                        <span class="font-medium">(PIC: <?php echo htmlspecialchars($info['user']); ?>)</span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php if (count($duplicate_ap_tasks) > 1): ?>
+                <button type="button" class="carousel-btn prev" onclick="prevSlide()">&#10094;</button>
+                <button type="button" class="carousel-btn next" onclick="nextSlide()">&#10095;</button>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-4">
             <div class="flex flex-col sm:flex-row gap-4">
                 <div id="testplan-filter-container" class="flex items-center space-x-2 flex-shrink-0 overflow-x-auto pb-2">
@@ -166,7 +230,7 @@ function getStatusColorClasses($status) {
                 </div>
             </div>
         </div>
-
+        
         <div class="flex-grow overflow-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
             <div class="glassmorphism-table rounded-lg">
                 <table class="w-full text-sm text-left">
@@ -256,9 +320,9 @@ function getStatusColorClasses($status) {
     </main>
 
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="modal-content-wrapper rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
+                <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
                 <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
             </div>
             <form id="task-form" action="handler.php" method="POST">
@@ -272,40 +336,75 @@ function getStatusColorClasses($status) {
             </form>
         </div>
     </div>
-
+    
     <script>
-        // --- ANIMATION & THEME LOGIC ---
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
         let particles = [], hue = 210;
         function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-        class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
-        function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
-        function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
-        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
-        const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
-
-        // --- PAGE SPECIFIC LOGIC ---
-        const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
-        function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
-
-        function openAddModal() {
-            taskForm.reset();
-            modalTitle.innerText = 'Tambah Task Baru';
-            formAction.value = 'create_gba_task';
-            taskId.value = '';
-            setupQuill('');
-            updateChecklistVisibility();
-            const today = new Date().toISOString().slice(0, 10);
-            document.getElementById('request_date').value = today;
-            const deadlineDate = calculateWorkingDays(today, 7);
-            document.getElementById('deadline').value = deadlineDate;
-            document.getElementById('sign_off_date').value = deadlineDate;
-            modal.classList.remove('hidden');
+        
+        class Particle{
+            constructor(x,y){
+                this.x=x||Math.random()*canvas.width;
+                this.y=y||Math.random()*canvas.height;
+                this.vx=(Math.random()-.5)*.4;
+                this.vy=(Math.random()-.5)*.4;
+                this.size=Math.random()*2 + 1.5;
+            }
+            update(){
+                this.x+=this.vx;this.y+=this.vy;
+                if(this.x<0||this.x>canvas.width)this.vx*=-1;
+                if(this.y<0||this.y>canvas.height)this.vy*=-1;
+            }
+            draw(){
+                ctx.fillStyle=`hsl(${hue},100%,75%)`;
+                ctx.beginPath();
+                ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+                ctx.fill();
+            }
         }
 
-        function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
-        function closeModal(){modal.classList.add('hidden')}
+        function init(num){
+            particles = [];
+            for(let i=0;i<num;i++)particles.push(new Particle())
+        }
 
+        function handleParticles() {
+            for(let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function animate(){
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            hue = (hue + 0.3) % 360; 
+            handleParticles();
+            requestAnimationFrame(animate);
+        }
+        
+        const particleCount = window.innerWidth > 768 ? 150 : 70;
+        init(particleCount);
+        animate();
+        
+        const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
+        function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
+        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}
+        function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
+        function closeModal(){modal.classList.add('hidden')}window.onclick=function(event){if(event.target==modal)closeModal()}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),allRows=Array.from(tableBody.querySelectorAll('tr'));let currentPage=1,activePlanFilter='All';function renderTable(){const searchText=searchInput.value.toLowerCase(),rowsPerPage=parseInt(rowsSelect.value),filteredRows=allRows.filter(row=>{const matchesSearch=row.textContent.toLowerCase().includes(searchText),matchesPlan=activePlanFilter==='All'||row.dataset.plan===activePlanFilter;return matchesSearch&&matchesPlan}),totalPages=Math.ceil(filteredRows.length/rowsPerPage);currentPage=Math.min(currentPage,totalPages)||1;tableBody.innerHTML='';const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage;filteredRows.slice(start,end).forEach(row=>tableBody.appendChild(row));renderPagination(totalPages)}
@@ -318,7 +417,56 @@ function getStatusColorClasses($status) {
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
         progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
         taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
-        document.addEventListener('DOMContentLoaded',()=>{renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
+        
+        const carousel = document.getElementById('alert-carousel');
+        let carouselInterval;
+        let currentIndex = 0;
+
+        function updateCarousel() {
+            if (!carousel) return;
+            const inner = carousel.querySelector('.alert-carousel-inner');
+            const totalItems = inner.children.length;
+            if (totalItems > 0) {
+                inner.style.transform = `translateX(-${currentIndex * 100}%)`;
+            }
+        }
+
+        function nextSlide() {
+            if (!carousel) return;
+            const inner = carousel.querySelector('.alert-carousel-inner');
+            const totalItems = inner.children.length;
+            currentIndex = (currentIndex + 1) % totalItems;
+            updateCarousel();
+        }
+
+        function prevSlide() {
+            if (!carousel) return;
+            const inner = carousel.querySelector('.alert-carousel-inner');
+            const totalItems = inner.children.length;
+            currentIndex = (currentIndex - 1 + totalItems) % totalItems;
+            updateCarousel();
+        }
+
+        function startCarousel() {
+            if (carousel) {
+               const totalItems = carousel.querySelector('.alert-carousel-inner').children.length;
+               if(totalItems > 1) {
+                  carouselInterval = setInterval(nextSlide, 8000);
+               }
+            }
+        }
+
+        function pauseCarousel() {
+            clearInterval(carouselInterval);
+        }
+        
+        function resumeCarousel() {
+            startCarousel();
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            startCarousel();
+            renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
         if(searchInput){searchInput.addEventListener('input',renderTable)};rowsSelect.addEventListener('change',()=>{currentPage=1;renderTable()});testplanFilterContainer.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'){testplanFilterContainer.querySelector('.active').classList.remove('active');e.target.classList.add('active');activePlanFilter=e.target.dataset.plan;currentPage=1;renderTable()}});
     </script>
 </body>
