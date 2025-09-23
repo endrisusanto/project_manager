@@ -6,8 +6,8 @@ require_once "session.php"; // Memastikan pengguna sudah login
 $active_page = 'gba_tasks_summary';
 
 // 2. LOGIKA PENGAMBILAN DATA
-// $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY is_urgent DESC, request_date DESC");
-$tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY  request_date DESC");
+$tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY id DESC, request_date DESC");
+// $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY  request_date DESC");
 $tasks = [];
 
 if ($tasks_result) {

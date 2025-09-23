@@ -49,10 +49,7 @@ $user = $_SESSION['user_details'];
 
         <?php if(isset($_GET['success'])): ?>
             <div class="bg-green-500/20 text-green-300 text-sm p-4 rounded-lg mb-6">
-                <?php 
-                    if($_GET['success'] === 'picture_updated') echo 'Foto profil berhasil diperbarui.';
-                    if($_GET['success'] === 'password_changed') echo 'Password berhasil diubah.';
-                ?>
+                <?php echo htmlspecialchars($_GET['success']); ?>
             </div>
         <?php endif; ?>
         <?php if(isset($_GET['error'])): ?>

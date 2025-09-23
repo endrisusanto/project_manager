@@ -34,14 +34,13 @@ function redirect($url) {
     exit();
 }
 
-// FUNGSI BARU: Menghitung tanggal setelah N hari kerja
 function add_working_days($start_date_str, $days_to_add) {
     $current_date = new DateTime($start_date_str);
     $days_added = 0;
     while ($days_added < $days_to_add) {
         $current_date->modify('+1 day');
-        $day_of_week = $current_date->format('N'); // 1 (Senin) - 7 (Minggu)
-        if ($day_of_week < 6) { // Bukan Sabtu atau Minggu
+        $day_of_week = $current_date->format('N');
+        if ($day_of_week < 6) {
             $days_added++;
         }
     }
@@ -64,10 +63,10 @@ switch ($action) {
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
-
+        
         $bulk_data = trim($_POST['bulk_data']);
         $lines = explode("\n", $bulk_data);
-        array_shift($lines); // Hapus header
+        array_shift($lines);
 
         $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
         $pic_list = [];
@@ -81,8 +80,7 @@ switch ($action) {
 
         require_once 'marketing_name_mapper.php';
         $pic_index = 0;
-
-        // MODIFIKASI: Tambahkan deadline dan sign_off_date ke query
+        
         $stmt = $conn->prepare(
             "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?)"
@@ -91,16 +89,17 @@ switch ($action) {
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
-
+            
             $parts = preg_split('/\s+/', $line);
-
+            
             $model_name = $parts[0] ?? '';
             $ap = $parts[1] ?? '';
             $cp = $parts[2] ?? '';
             $csc = $parts[3] ?? '';
-            $qb_user = $parts[4] ?? '';
-            $qb_userdebug = $parts[5] ?? '';
-
+            $type_request_raw = $parts[4] ?? 'Normal MR';
+            $qb_user = $parts[5] ?? '';
+            $qb_userdebug = $parts[6] ?? '';
+            
             $marketing_name = 'N/A';
             foreach ($model_mapping as $key => $value) {
                 if (strpos(strtoupper($model_name), $key) === 0) {
@@ -111,15 +110,28 @@ switch ($action) {
 
             $pic_email = $pic_list[$pic_index % count($pic_list)];
             $pic_index++;
-
+            
             $request_date = date('Y-m-d');
+            
+            $type_request = strtoupper($type_request_raw);
+            $valid_types = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Exception MR'];
             $test_plan_type = 'Normal MR';
-
-            // MODIFIKASI: Hitung deadline dan sign_off_date
+            
+            if (in_array($type_request_raw, $valid_types)) {
+                $test_plan_type = $type_request_raw;
+            } else {
+                switch ($type_request) {
+                    case 'SMR': $test_plan_type = 'SMR'; break;
+                    case 'SKU': $test_plan_type = 'SKU'; break;
+                    case 'NORMAL': $test_plan_type = 'Normal MR'; break;
+                    case 'SIMPLE': $test_plan_type = 'Simple Exception MR'; break;
+                    case 'REGULAR': $test_plan_type = 'Regular Variant'; break;
+                }
+            }
+            
             $deadline = add_working_days($request_date, 7);
-            $sign_off_date = $deadline; // Sama dengan deadline
-
-            // MODIFIKASI: Update bind_param
+            $sign_off_date = $deadline;
+            
             $stmt->bind_param("ssssssssssss", 
                 $marketing_name, $model_name, $pic_email, $ap, $cp, $csc, 
                 $qb_user, $qb_userdebug, $request_date, $test_plan_type,
@@ -131,15 +143,15 @@ switch ($action) {
         $stmt->close();
         redirect('index.php');
         break;
-case 'create_gba_task':
-        // Cek admin dihapus dari sini agar semua user bisa membuat task
-        // if (!is_admin()) {
-        //     redirect_with_error('permission_denied');
-        // }
 
+    case 'create_gba_task':
+        if (!is_admin()) {
+            redirect_with_error('permission_denied');
+        }
+        
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
-
+        
         $stmt = $conn->prepare(
             "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -153,7 +165,7 @@ case 'create_gba_task':
             null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
             $is_urgent, $data['notes'], $checklist_json
         );
-
+        
         $stmt->execute();
         redirect('index.php');
         break;
@@ -161,7 +173,7 @@ case 'create_gba_task':
     case 'update_gba_task':
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
-
+        
         $stmt = $conn->prepare(
             "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?
             WHERE id=?"
@@ -175,7 +187,7 @@ case 'create_gba_task':
             null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
             $is_urgent, $data['notes'], $checklist_json, $data['id']
         );
-
+        
         $stmt->execute();
         $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
         redirect($referer);
@@ -197,7 +209,7 @@ case 'create_gba_task':
         header('Content-Type: application/json');
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
-
+        
         $today = date('Y-m-d');
         $test_plan_items = [
             'Regular Variant' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
@@ -206,7 +218,7 @@ case 'create_gba_task':
             'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
             'Simple Exception MR' => ['STS']
         ];
-
+        
         $get_task_stmt = $conn->prepare("SELECT test_plan_type FROM gba_tasks WHERE id = ?");
         $get_task_stmt->bind_param("i", $task_id);
         $get_task_stmt->execute();
@@ -228,7 +240,7 @@ case 'create_gba_task':
                 $params[] = $today;
                 $types .= "s";
             }
-
+            
             if ($task_data) {
                 $plan_type = $task_data['test_plan_type'];
                 if (isset($test_plan_items[$plan_type])) {
@@ -243,36 +255,36 @@ case 'create_gba_task':
                 }
             }
         }
-
+        
         $sql .= " WHERE id = ?";
         $params[] = $task_id;
         $types .= "i";
-
+        
         $stmt = $conn->prepare($sql);
         $stmt->bind_param($types, ...$params);
-
+        
         if ($stmt->execute()) {
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }
         exit();
-
+        
     case 'toggle_urgent':
         header('Content-Type: application/json');
         $task_id = $data['task_id'] ?? 0;
-
+        
         $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $task_id);
         $stmt->execute();
         $current_status = $stmt->get_result()->fetch_assoc()['is_urgent'] ?? 0;
         $stmt->close();
-
+        
         $new_status = $current_status ? 0 : 1;
-
+        
         $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");
         $stmt->bind_param("ii", $new_status, $task_id);
-
+        
         if ($stmt->execute()) {
             echo json_encode(['success' => true, 'is_urgent' => (bool)$new_status]);
         } else {

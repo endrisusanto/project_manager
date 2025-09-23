@@ -45,9 +45,9 @@ $active_page = 'bulk_add';
                 <input type="hidden" name="action" value="create_bulk_gba_task">
                 <div>
                     <label for="bulk_data" class="block mb-2 text-sm font-medium text-secondary">
-                        Paste data dari Excel (Format: MODEL | AP | CP | CSC | QB USER | QB USERDEBUG)
+                        Paste data dari Excel (Format: MODEL | AP | CP | CSC | TYPE REQUEST | QB USER | QB USERDEBUG)
                     </label>
-                    <textarea id="bulk_data" name="bulk_data" rows="15" class="themed-input block w-full text-sm rounded-lg p-2.5 font-mono" placeholder="Contoh:&#10;modelapcpcscqb userqb userdebug&#10;SM-S918B_SEA_15_DX S918BXXS8DYI3 S918BXXS8DYI3 S918BOLE8DYI3 100733179 100733181&#10;SM-F946B_SEA_16_DX F946BXXU5FYI8 F946BXXU5FYI8 F946BOLE5FYI8 100733177 100733180"></textarea>
+                    <textarea id="bulk_data" name="bulk_data" rows="15" class="themed-input block w-full text-sm rounded-lg p-2.5 font-mono" placeholder="Contoh:&#10;model ap cp csc type qb_user qb_userdebug&#10;SM-S918B_SEA_15_DX S918BXXS8DYI3 S918BXXS8DYI3 S918BOLE8DYI3 SMR 100733179 100733181&#10;SM-F946B_SEA_16_DX F946BXXU5FYI8 F946BXXU5FYI8 F946BOLE5FYI8 NORMAL 100733177 100733180"></textarea>
                 </div>
                 <div class="mt-6 text-right">
                     <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">
@@ -113,7 +113,7 @@ $active_page = 'bulk_add';
             modalTitle.innerText = 'Tambah Task Baru';
             taskForm.elements['action'].value = 'create_gba_task';
             taskForm.elements['id'].value = '';
-            document.getElementById('request_date').value = new Date().toISOString().slice(0, 10);
+            setDefaultDates(); // Panggil fungsi untuk set tanggal otomatis
             setupQuill('');
             updateChecklistVisibility();
             modal.classList.remove('hidden');
@@ -156,6 +156,31 @@ $active_page = 'bulk_add';
             placeholder.style.display = checklistVisible ? 'none' : 'block';
         }
         
+        function calculateWorkingDays(startDate, daysToAdd) {
+            let currentDate = new Date(startDate);
+            let addedDays = 0;
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    addedDays++;
+                }
+            }
+            return currentDate.toISOString().slice(0, 10);
+        }
+
+        function setDefaultDates() {
+            const requestDateInput = document.getElementById('request_date');
+            const deadlineInput = document.getElementById('deadline');
+            const signOffDateInput = document.getElementById('sign_off_date');
+            const today = new Date();
+            const todayString = today.toISOString().slice(0, 10);
+
+            requestDateInput.value = todayString;
+            const futureDate = calculateWorkingDays(todayString, 7);
+            deadlineInput.value = futureDate;
+            signOffDateInput.value = futureDate;
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             setupQuill('');
             updateChecklistVisibility();
