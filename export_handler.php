@@ -8,7 +8,7 @@ header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Content-Type: application/vnd.ms-excel");
 
 // Query SQL untuk mengambil semua data tanpa filter
-$sql = "SELECT * FROM gba_tasks ORDER BY request_date DESC";
+$sql = "SELECT * FROM gba_tasks ORDER BY id DESC";
 $result = $conn->query($sql);
 
 // Buat output tabel HTML
