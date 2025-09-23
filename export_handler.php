@@ -7,49 +7,13 @@ $filename = "gba_tasks_summary_" . date('Ymd') . ".xls";
 header("Content-Disposition: attachment; filename=\"$filename\"");
 header("Content-Type: application/vnd.ms-excel");
 
-// Ambil parameter filter
-$plan_filter = $_GET['plan'] ?? 'All';
-$search_term = $_GET['search'] ?? '';
+// Query SQL untuk mengambil semua data tanpa filter
+$sql = "SELECT * FROM gba_tasks ORDER BY request_date DESC";
+$result = $conn->query($sql);
 
-// Bangun query SQL dengan filter
-$sql = "SELECT * FROM gba_tasks";
-$where_clauses = [];
-$params = [];
-$types = "";
-
-if ($plan_filter !== 'All') {
-    $where_clauses[] = "test_plan_type = ?";
-    $params[] = $plan_filter;
-    $types .= "s";
-}
-
-if (!empty($search_term)) {
-    $where_clauses[] = "(model_name LIKE ? OR pic_email LIKE ? OR progress_status LIKE ? OR ap LIKE ?)";
-    $search_like = "%" . $search_term . "%";
-    array_push($params, $search_like, $search_like, $search_like, $search_like);
-    $types .= "ssss";
-}
-
-
-if (!empty($where_clauses)) {
-    $sql .= " WHERE " . implode(" AND ", $where_clauses);
-}
-
-$sql .= " ORDER BY id DESC";
-
-$stmt = $conn->prepare($sql);
-if ($stmt) {
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-} else {
-    $result = false;
-}
-
-// Buat output tabel HTML dengan semua kolom
+// Buat output tabel HTML
 $output = "<table>";
+// MODIFIKASI: Menambahkan semua header yang diminta
 $output .= "<tr>
                 <th>ID</th>
                 <th>Project Name</th>
@@ -78,28 +42,29 @@ $output .= "<tr>
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $output .= "<tr>";
-        $output .= "<td>" . htmlspecialchars($row['id']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['project_name']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['model_name']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['ap']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['cp']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['csc']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['qb_user']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['qb_userdebug']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['pic_email']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['test_plan_type']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['progress_status']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['request_date']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['submission_date']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['approved_date']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['deadline']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['sign_off_date']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['base_submission_id']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['submission_id']) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['reviewer_email']) . "</td>";
-        $output .= "<td>" . ($row['is_urgent'] ? 'Yes' : 'No') . "</td>";
-        $output .= "<td>" . htmlspecialchars(strip_tags($row['notes'])) . "</td>";
-        $output .= "<td>" . htmlspecialchars($row['test_items_checklist']) . "</td>";
+        // MODIFIKASI: Menambahkan semua sel data yang sesuai dengan header
+        $output .= "<td>" . ($row['id'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['project_name'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['model_name'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['ap'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['cp'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['csc'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['qb_user'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['qb_userdebug'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['pic_email'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['test_plan_type'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['progress_status'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['request_date'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['submission_date'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['approved_date'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['deadline'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['sign_off_date'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['base_submission_id'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['submission_id'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['reviewer_email'] ?? '') . "</td>";
+        $output .= "<td>" . (($row['is_urgent'] == 1) ? 'Yes' : 'No') . "</td>";
+        $output .= "<td>" . ($row['notes'] ?? '') . "</td>";
+        $output .= "<td>" . ($row['test_items_checklist'] ?? '') . "</td>";
         $output .= "</tr>";
     }
 } else {
