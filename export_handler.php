@@ -48,28 +48,62 @@ if ($stmt) {
     $result = false;
 }
 
-// Buat output tabel HTML
+// Buat output tabel HTML dengan semua kolom
 $output = "<table>";
-$output .= "<tr><th>ID</th><th>Model Name</th><th>AP</th><th>CP</th><th>CSC</th><th>PIC</th><th>Test Plan</th><th>Status</th><th>Request Date</th><th>Submission Date</th><th>Deadline</th></tr>";
+$output .= "<tr>
+                <th>ID</th>
+                <th>Project Name</th>
+                <th>Model Name</th>
+                <th>AP</th>
+                <th>CP</th>
+                <th>CSC</th>
+                <th>QB User</th>
+                <th>QB Userdebug</th>
+                <th>PIC Email</th>
+                <th>Test Plan Type</th>
+                <th>Progress Status</th>
+                <th>Request Date</th>
+                <th>Submission Date</th>
+                <th>Approved Date</th>
+                <th>Deadline</th>
+                <th>Sign-Off Date</th>
+                <th>Base Submission ID</th>
+                <th>Submission ID</th>
+                <th>Reviewer Email</th>
+                <th>Urgent</th>
+                <th>Notes</th>
+                <th>Test Items Checklist</th>
+            </tr>";
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         $output .= "<tr>";
-        $output .= "<td>" . $row['id'] . "</td>";
-        $output .= "<td>" . $row['model_name'] . "</td>";
-        $output .= "<td>" . $row['ap'] . "</td>";
-        $output .= "<td>" . $row['cp'] . "</td>";
-        $output .= "<td>" . $row['csc'] . "</td>";
-        $output .= "<td>" . $row['pic_email'] . "</td>";
-        $output .= "<td>" . $row['test_plan_type'] . "</td>";
-        $output .= "<td>" . $row['progress_status'] . "</td>";
-        $output .= "<td>" . $row['request_date'] . "</td>";
-        $output .= "<td>" . $row['submission_date'] . "</td>";
-        $output .= "<td>" . $row['deadline'] . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['id']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['project_name']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['model_name']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['ap']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['cp']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['csc']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['qb_user']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['qb_userdebug']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['pic_email']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['test_plan_type']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['progress_status']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['request_date']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['submission_date']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['approved_date']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['deadline']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['sign_off_date']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['base_submission_id']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['submission_id']) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['reviewer_email']) . "</td>";
+        $output .= "<td>" . ($row['is_urgent'] ? 'Yes' : 'No') . "</td>";
+        $output .= "<td>" . htmlspecialchars(strip_tags($row['notes'])) . "</td>";
+        $output .= "<td>" . htmlspecialchars($row['test_items_checklist']) . "</td>";
         $output .= "</tr>";
     }
 } else {
-    $output .= "<tr><td colspan='11'>No data found...</td></tr>";
+    $output .= "<tr><td colspan='22'>No data found...</td></tr>";
 }
 
 $output .= "</table>";

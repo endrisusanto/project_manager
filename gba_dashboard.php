@@ -109,15 +109,14 @@ if (!empty($all_tasks)) {
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
-        /* MODIFIKASI: --glass-bg dan --glass-border diubah untuk efek lebih glassy */
-        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.45); --glass-border: rgba(51, 65, 85, 0.3); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); }
-        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.5); --glass-border: rgba(0, 0, 0, 0.08); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; }
+        :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.45); --glass-border: rgba(51, 65, 85, 0.3); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); --modal-bg: rgba(15, 23, 42, 0.8); --modal-border: rgba(51, 65, 85, 0.6); }
+        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.5); --glass-border: rgba(0, 0, 0, 0.08); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; --modal-bg: rgba(255, 255, 255, 0.9); --modal-border: rgba(0,0,0,0.1); }
         
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
         #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
-        
-        /* MODIFIKASI: backdrop-filter blur ditingkatkan dari 12px ke 20px */
         .bento-item { background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 1.5rem; padding: 1.5rem; transition: transform 0.3s, box-shadow 0.3s; }
         .bento-item:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
         
@@ -128,6 +127,14 @@ if (!empty($all_tasks)) {
         .grid-container { height: 100%; grid-template-rows: auto 1fr 1fr; }
         .chart-card { min-height: 0; } .chart-card > div { flex-grow: 1; min-height: 0; } .chart-card canvas { max-height: 100%; }
         .year-picker { background-color: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-primary); }
+        .themed-input { background-color: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); }
+        .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}
+        .modal-content-wrapper { background: var(--modal-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--modal-border); }
+        .glow-effect { animation: glow 1.5s infinite alternate; border-radius: 0.5rem; }
+        @keyframes glow {
+            from { box-shadow: 0 0 2px #3b82f6, 0 0 4px #3b82f6, 0 0 6px #3b82f6; }
+            to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -186,9 +193,27 @@ if (!empty($all_tasks)) {
             </div>
         </div>
     </main>
+    
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
+        <div class="modal-content-wrapper rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
+                <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
+            </div>
+            <form id="task-form" action="handler.php" method="POST">
+                <input type="hidden" name="id" id="task-id">
+                <input type="hidden" name="action" id="form-action" value="create_gba_task">
+                <?php include 'gba_task_form.php'; ?>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 <script>
-    // --- (JavaScript tidak ada perubahan, tetap sama) ---
+    // --- ANIMATION & THEME LOGIC ---
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
     let particles = [], hue = 210;
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
@@ -198,16 +223,43 @@ if (!empty($all_tasks)) {
     function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
     const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
     const themeToggleBtn=document.getElementById('theme-toggle');let currentTheme='dark';window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);renderCharts()});
+    
+    // --- PAGE SPECIFIC LOGIC ---
     const weeklyPicData=<?= json_encode($weekly_pic_distribution) ?>,yearlyChartData=<?= json_encode($weekly_data) ?>,picColors=<?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
+    const modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), taskForm = document.getElementById('task-form'); let quill;
+
     function getChartColors(){return{ticksColor:currentTheme==='light'?'#475569':'#94a3b8',gridColor:currentTheme==='light'?'rgba(0,0,0,.05)':'rgba(255,255,255,.1)',borderColor:currentTheme==='light'?'#fff':'var(--bg-primary)'}}
     function createPicDoughnutChart(){const ctx=document.getElementById('picPieChart');if(!ctx)return;if(window.picDoughnutChart instanceof Chart)window.picDoughnutChart.destroy();const labels=Object.keys(weeklyPicData),data=Object.values(weeklyPicData);if(labels.length===0){ctx.style.display='none';const placeholder=document.createElement('p');placeholder.textContent='Tidak ada data task untuk minggu ini.';placeholder.className='text-center text-secondary';ctx.parentNode.appendChild(placeholder);return}ctx.style.display='block';const existingPlaceholder=ctx.parentNode.querySelector('p');if(existingPlaceholder)existingPlaceholder.remove();window.picDoughnutChart=new Chart(ctx,{type:'doughnut',data:{labels:labels,datasets:[{label:'Tasks',data:data,backgroundColor:Object.values(picColors),borderColor:getChartColors().borderColor,borderWidth:4}]},options:{responsive:!0,maintainAspectRatio:!1,plugins:{legend:{position:'bottom',labels:{color:getChartColors().ticksColor,padding:20,usePointStyle:!0}}}}})}
     function createYearlyTaskChart(){const ctx=document.getElementById('weeklyTaskChart');if(!ctx||!yearlyChartData.labels||yearlyChartData.labels.length===0)return;if(window.yearlyTaskChart instanceof Chart)window.yearlyTaskChart.destroy();window.yearlyTaskChart=new Chart(ctx,{type:'bar',data:yearlyChartData,options:{responsive:!0,maintainAspectRatio:!1,scales:{x:{stacked:!1,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}},y:{stacked:!1,beginAtZero:!0,ticks:{color:getChartColors().ticksColor},grid:{color:getChartColors().gridColor}}},plugins:{legend:{position:'top',labels:{color:getChartColors().ticksColor}},tooltip:{mode:'index',intersect:!1}},interaction:{mode:'index',intersect:!1}}})}
     function renderCharts(){createPicDoughnutChart();createYearlyTaskChart()}
     function applyTheme(isLight){currentTheme=isLight?'light':'dark';document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight);renderCharts()}
     themeToggleBtn.addEventListener('click',()=>{const isCurrentlyLight=document.documentElement.classList.contains('light');localStorage.setItem('theme',isCurrentlyLight?'dark':'light');applyTheme(!isCurrentlyLight)});
+    
+    function openAddModal() {
+        taskForm.reset();
+        modalTitle.innerText = 'Tambah Task Baru';
+        taskForm.elements['action'].value = 'create_gba_task';
+        taskForm.elements['id'].value = '';
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById('request_date').value = today;
+        const deadlineDate = calculateWorkingDays(today, 7);
+        document.getElementById('deadline').value = deadlineDate;
+        document.getElementById('sign_off_date').value = deadlineDate;
+        setupQuill('');
+        updateChecklistVisibility();
+        modal.classList.remove('hidden');
+    }
+    function closeModal() { modal.classList.add('hidden'); }
+    function calculateWorkingDays(startDate, daysToAdd) { let currentDate = new Date(startDate); let addedDays = 0; while (addedDays < daysToAdd) { currentDate.setDate(currentDate.getDate() + 1); if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) { addedDays++; } } return currentDate.toISOString().slice(0, 10); }
+    function setupQuill(content){if(!quill){quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}})}quill.root.innerHTML=content}
+    taskForm.addEventListener('submit',()=>{document.getElementById('notes-hidden-input').value=quill.root.innerHTML});
+    document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility);
+    function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
+    
     const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta'},{name:'Korea Selatan',tz:'Asia/Seoul'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh'},{name:'China',tz:'Asia/Shanghai'},{name:'Brazil',tz:'America/Sao_Paulo'}];
     function pad(n){return n<10?'0'+n:n}
     function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
+    
     document.addEventListener('DOMContentLoaded',()=>{const savedTheme=localStorage.getItem('theme'),prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;applyTheme(savedTheme?savedTheme==='light':!prefersDark);updateClocks();setInterval(updateClocks,1000);const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
 </script>
 </body>

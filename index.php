@@ -147,14 +147,15 @@ function render_kinerja_status($task) {
     <title>GBA Task Kanban Board</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
-        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff}html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff}
+        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff;--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);}
+        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff;--modal-bg:#ffffff;--modal-border:rgba(0,0,0,.1);}
         html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:#cffafe;color:#0e7490}
-        .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
+        .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.8}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite}html.light .animate-pulse-alert{color:#dc2626}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}html.light .font-semibold.text-yellow-400{color:#a16207}
         @keyframes underline-glow{0%,100%{box-shadow:0 2px 4px -2px rgba(249,115,22,.3),0 4px 12px -2px rgba(249,115,22,.2)}50%{box-shadow:0 2px 8px -2px rgba(249,115,22,.6),0 4px 18px -2px rgba(249,115,22,.5)}}.underline-glow-effect{border-bottom:2px solid rgba(249,115,22,.8);animation:underline-glow 2s infinite ease-in-out}.sad-emoji{position:fixed;font-size:2rem;animation:fall 5s linear forwards;opacity:1;z-index:9999}@keyframes fall{to{transform:translateY(100vh) rotate(360deg);opacity:0}}
         .accordion-summary{display:none}.view-accordion .accordion-summary{display:block}.view-accordion .task-card-full-content{display:none}
@@ -175,6 +176,12 @@ function render_kinerja_status($task) {
             71%, 74% { box-shadow: none; }
             75%, 95% { box-shadow: inset -2px 0 0 0 rgba(239, 68, 68, 1), 0 0 15px rgba(239, 68, 68, 0.6); }
             96%, 100% { box-shadow: none; }
+        }
+        .modal-content-wrapper { background: var(--modal-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--modal-border); }
+        .glow-effect { animation: glow 1.5s infinite alternate; border-radius: 0.5rem; }
+        @keyframes glow {
+            from { box-shadow: 0 0 2px #3b82f6, 0 0 4px #3b82f6, 0 0 6px #3b82f6; }
+            to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
         }
     </style>
 </head>
@@ -197,9 +204,9 @@ function render_kinerja_status($task) {
                 <div id="status-<?= str_replace(' ', '', $status) ?>" data-status="<?= $status ?>" class="kanban-column space-y-4 p-2 rounded-lg h-full overflow-y-auto">
                     <?php foreach ($tasksToDisplay[$status] as $task): ?>
                     <?php
-                        $cardClasses = 'task-card flex flex-col';
+                        $cardClasses = 'task-card flex flex-col glass-container';
                         if ($task['progress_status'] === 'Task Baru') $cardClasses .= ' underline-glow-effect';
-                        $cardClasses .= ($task['is_urgent'] == 1) ? ' strobe-urgent-effect' : ' glass-container';
+                        if ($task['is_urgent'] == 1) $cardClasses .= ' strobe-urgent-effect';
                     ?>
                     <div id="task-<?= $task['id'] ?>" data-id="<?= $task['id'] ?>" data-task='<?= json_encode($task, JSON_HEX_APOS | JSON_HEX_QUOT) ?>' class="<?= $cardClasses ?>">
                         <div class="glass-container-content p-4">
@@ -252,7 +259,7 @@ function render_kinerja_status($task) {
     </main>
     
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="glass-container rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        <div class="modal-content-wrapper rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
                 <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
@@ -341,12 +348,28 @@ function render_kinerja_status($task) {
     function triggerConfetti() { const duration = 2.5 * 1000, animationEnd = Date.now() + duration, defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }; function randomInRange(min, max) { return Math.random() * (max - min) + min; } const interval = setInterval(function () { const timeLeft = animationEnd - Date.now(); if (timeLeft <= 0) return clearInterval(interval); const particleCount = 50 * (timeLeft / duration); confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }); confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }); }, 250); }
     function triggerSadAnimation() { for (let i = 0; i < 30; i++) { const e = document.createElement('div'); e.className = 'sad-emoji'; e.innerText = '😢'; e.style.left = `${Math.random() * 100}vw`; e.style.animationDelay = `${Math.random() * 2}s`; document.body.appendChild(e); setTimeout(() => e.remove(), 5000); } }
     function showAlertModal(title, message) { const existingModal = document.getElementById('alert-modal'); if (existingModal) existingModal.remove(); const modalHtml = `<div id="alert-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-70" onclick="this.remove()"><div class="glass-container rounded-lg shadow-xl p-6 w-full max-w-sm mx-4" onclick="event.stopPropagation()"><h2 class="text-xl font-bold text-header mb-4">${title}</h2><p class="text-secondary mb-6">${message}</p><div class="flex justify-end"><button onclick="document.getElementById('alert-modal').remove()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Tutup</button></div></div></div>`; document.body.insertAdjacentHTML('beforeend', modalHtml); }
-    function openAddModal() { taskForm.reset(); modalTitle.innerText = 'Tambah Task Baru'; taskForm.elements['action'].value = 'create_gba_task'; taskForm.elements['id'].value = ''; document.getElementById('request_date').value = new Date().toISOString().slice(0, 10); setupQuill(''); updateChecklistVisibility(); modal.classList.remove('hidden'); }
+    
+    function openAddModal() {
+        taskForm.reset();
+        modalTitle.innerText = 'Tambah Task Baru';
+        taskForm.elements['action'].value = 'create_gba_task';
+        taskForm.elements['id'].value = '';
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById('request_date').value = today;
+        const deadlineDate = calculateWorkingDays(today, 7);
+        document.getElementById('deadline').value = deadlineDate;
+        document.getElementById('sign_off_date').value = deadlineDate;
+        setupQuill('');
+        updateChecklistVisibility();
+        modal.classList.remove('hidden');
+    }
+
     function openEditModal(button) { const card = button.closest('.task-card'), taskData = JSON.parse(card.getAttribute('data-task')); taskForm.reset(); modalTitle.innerText = 'Edit Task'; taskForm.elements['action'].value = 'update_gba_task'; for (const key in taskData) { if (taskForm.elements[key] && !key.endsWith('_obj')) { if (key === 'is_urgent') { document.getElementById('is_urgent_toggle').checked = taskData[key] == 1; } else { taskForm.elements[key].value = taskData[key]; } } } setupQuill(taskData.notes || ''); updateChecklistVisibility(); if (taskData.test_items_checklist) { try { const checklist = JSON.parse(taskData.test_items_checklist); for (const itemName in checklist) { const checkbox = document.querySelector(`input[name="checklist[${itemName}]"]`); if (checkbox) checkbox.checked = !!checklist[itemName]; } } catch (e) { console.error("Gagal parse checklist JSON:", e); } } modal.classList.remove('hidden'); }
-    function closeModal() { modal.classList.add('hidden'); } window.onclick = (event) => { if (event.target == modal) closeModal(); };
+    function closeModal() { modal.classList.add('hidden'); }
+    
     function setupQuill(content) { if (!quill) { quill = new Quill('#notes-editor', { theme: 'snow', modules: { toolbar: [['bold', 'italic'], ['link'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } }); } quill.root.innerHTML = content; }
     taskForm.addEventListener('submit', () => { document.getElementById('notes-hidden-input').value = quill.root.innerHTML; }); document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility); function updateChecklistVisibility() { const testPlan = document.getElementById('test_plan_type').value, placeholder = document.getElementById('checklist-placeholder'); let checklistVisible = !1; document.querySelectorAll('[id^="checklist-container-"]').forEach(el => { const planName = el.id.replace('checklist-container-', '').replace(/_/g, ' '); if (planName === testPlan) { el.classList.remove('hidden'); checklistVisible = !0 } else { el.classList.add('hidden') } }); placeholder.style.display = checklistVisible ? 'none' : 'block'; }
-    function toggleUrgent(button, taskId) { event.stopPropagation(); fetch('handler.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'toggle_urgent', task_id: taskId }) }).then(response => response.json()).then(data => { if (data.success) { showToast('Status urgent diperbarui'); const card = document.getElementById(`task-${taskId}`); const icon = button.querySelector('svg'); card.classList.toggle('strobe-urgent-effect', data.is_urgent); card.classList.toggle('glass-container', !data.is_urgent); icon.classList.toggle('text-red-500', data.is_urgent); } else { showAlertModal('Gagal', data.error || 'Gagal memperbarui status urgent.'); } }).catch(() => showAlertModal('Error', 'Kesalahan jaringan.')); }
+    function toggleUrgent(button, taskId) { event.stopPropagation(); fetch('handler.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'toggle_urgent', task_id: taskId }) }).then(response => response.json()).then(data => { if (data.success) { showToast('Status urgent diperbarui'); const card = document.getElementById(`task-${taskId}`); const icon = button.querySelector('svg'); card.classList.toggle('strobe-urgent-effect', data.is_urgent); icon.classList.toggle('text-red-500', data.is_urgent); } else { showAlertModal('Gagal', data.error || 'Gagal memperbarui status urgent.'); } }).catch(() => showAlertModal('Error', 'Kesalahan jaringan.')); }
     const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date'), requestDateInput = document.getElementById('request_date'), deadlineInput = document.getElementById('deadline'), signOffDateInput = document.getElementById('sign_off_date');
     function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
     function getTodayDate(){return new Date().toISOString().slice(0,10)}
