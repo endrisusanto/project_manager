@@ -48,6 +48,7 @@ if ($tasks_result) {
 }
 
 $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Exception MR'];
+$all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
 
 ?>
 <!DOCTYPE html>
@@ -97,14 +98,24 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                     <?php endforeach; ?>
                 </div>
                  <div class="flex items-center gap-4 ml-auto">
+                    <div>
+                        <select id="status-filter" class="themed-input p-2 rounded-lg text-sm">
+                            <option value="All">Semua Status</option>
+                            <?php foreach($all_statuses as $status): ?>
+                                <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <a id="export-button" href="export_handler.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
                         <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clip-rule="evenodd" />
                         </svg>
                         Export Excel
                     </a>
-                    <span class="text-sm text-secondary">Baris:</span>
-                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option></select>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-secondary">Baris:</span>
+                        <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option></select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -136,25 +147,25 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
     </main>
 
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
-                <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
-            </div>
+        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
             <form id="task-form" action="handler.php" method="POST">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
+                    </div>
+                </div>
                 <input type="hidden" name="id" id="task-id">
                 <input type="hidden" name="action" id="form-action" value="create_gba_task">
                 <?php include 'gba_task_form.php'; ?>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
-                </div>
             </form>
         </div>
     </div>
     
     <script>
         const allTasksData = <?= json_encode($tasks) ?>;
+        const isAdmin = <?= json_encode(is_admin()) ?>;
 
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
         let particles = [], hue = 210;
@@ -222,14 +233,46 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
         const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
         window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
-        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}
+        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
         function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
-        function closeModal(){modal.classList.add('hidden')}window.onclick=function(event){if(event.target==modal)closeModal()}
+        function closeModal(){modal.classList.add('hidden')}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
-        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container');
-        let currentPage=1,activePlanFilter='All';
+        function calculateWorkingDays(startDate, daysToAdd) {
+            let currentDate = new Date(startDate);
+            let addedDays = 0;
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    addedDays++;
+                }
+            }
+            return currentDate.toISOString().slice(0, 10);
+        }
+        
+        function setDefaultDates() {
+            const requestDateInput = document.getElementById('request_date');
+            const deadlineInput = document.getElementById('deadline');
+            const signOffDateInput = document.getElementById('sign_off_date');
+            const today = new Date().toISOString().slice(0, 10);
+            
+            requestDateInput.value = today;
+            const futureDate = calculateWorkingDays(today, 7);
+            deadlineInput.value = futureDate;
+            signOffDateInput.value = futureDate;
+        }
+
+        document.getElementById('request_date').addEventListener('change', function() {
+            if (this.value) {
+                const futureDate = calculateWorkingDays(this.value, 7);
+                document.getElementById('deadline').value = futureDate;
+                document.getElementById('sign_off_date').value = futureDate;
+            }
+        });
+        
+        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter');
+        let currentPage=1,activePlanFilter='All', activeStatusFilter='All';
         
         function getDynamicColorClassesJS(identifier, type = 'pic') {
             const pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan'];
@@ -262,7 +305,8 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                 ).toLowerCase();
                 const matchesSearch = searchContent.includes(searchText);
                 const matchesPlan = activePlanFilter === 'All' || task.test_plan_type === activePlanFilter;
-                return matchesSearch && matchesPlan;
+                const matchesStatus = activeStatusFilter === 'All' || task.progress_status === activeStatusFilter;
+                return matchesSearch && matchesPlan && matchesStatus;
             });
             
             const totalPages = Math.ceil(filteredTasks.length / rowsPerPage);
@@ -301,33 +345,43 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                 const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
                 
                 let kinerjaHtml = '';
-                kinerjaHtml += `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span>`;
-                if(task.ontime_submission_status) {
-                    const colorClass = task.ontime_submission_status === 'Delay' ? 'text-red-400' : 'text-green-400';
-                    kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_submission_status}</span>`;
-                } else if (task.deadline_countdown !== null) {
-                    const colorClass = task.deadline_countdown < 0 ? 'text-red-400' : (task.deadline_countdown <= 3 ? 'text-red-400' : 'text-secondary');
-                    const text = task.deadline_countdown >= 0 ? `${task.deadline_countdown} hari lagi` : `Terlewat ${Math.abs(task.deadline_countdown)} hari`;
-                    kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+                if(task.progress_status === 'Batal') {
+                    kinerjaHtml = `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
+                    kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
                 } else {
-                    kinerjaHtml += '-';
+                    kinerjaHtml += `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span>`;
+                    if(task.ontime_submission_status) {
+                        const colorClass = task.ontime_submission_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+                        kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_submission_status}</span>`;
+                    } else if (task.deadline_countdown !== null) {
+                        const colorClass = task.deadline_countdown < 0 ? 'text-red-400' : (task.deadline_countdown <= 3 ? 'text-red-400' : 'text-secondary');
+                        const text = task.deadline_countdown >= 0 ? `${task.deadline_countdown} hari lagi` : `Terlewat ${Math.abs(task.deadline_countdown)} hari`;
+                        kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+                    } else {
+                        kinerjaHtml += '-';
+                    }
+                    kinerjaHtml += `</div>`;
+                    kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span>`;
+                     if(task.ontime_approved_status) {
+                        const colorClass = task.ontime_approved_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+                        kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_approved_status}</span>`;
+                    } else if (task.approval_countdown !== null) {
+                        const colorClass = task.approval_countdown < 0 ? 'text-red-400' : (task.approval_countdown <= 1 ? 'text-red-400' : 'text-secondary');
+                        const text = task.approval_countdown >= 0 ? `${task.approval_countdown} hari lagi` : `Terlewat ${Math.abs(task.approval_countdown)} hari`;
+                        kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+                    } else {
+                        kinerjaHtml += '-';
+                    }
+                    kinerjaHtml += `</div>`;
                 }
-                kinerjaHtml += `</div>`;
-                kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span>`;
-                 if(task.ontime_approved_status) {
-                    const colorClass = task.ontime_approved_status === 'Delay' ? 'text-red-400' : 'text-green-400';
-                    kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_approved_status}</span>`;
-                } else if (task.approval_countdown !== null) {
-                    const colorClass = task.approval_countdown < 0 ? 'text-red-400' : (task.approval_countdown <= 1 ? 'text-red-400' : 'text-secondary');
-                    const text = task.approval_countdown >= 0 ? `${task.approval_countdown} hari lagi` : `Terlewat ${Math.abs(task.approval_countdown)} hari`;
-                    kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
-                } else {
-                    kinerjaHtml += '-';
+
+                let deleteButton = '';
+                if(isAdmin) {
+                    deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
                 }
-                kinerjaHtml += `</div>`;
 
                 const rowHtml = `
-                    <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}">
+                    <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}" data-status="${task.progress_status || ''}">
                         <td class="p-3 text-center text-secondary">${rowNumber}</td>
                         <td class="p-3">
                             <div class="font-medium text-primary">${task.model_name || '-'}</div>
@@ -351,7 +405,7 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                         <td class="p-3">
                             <div class="flex items-center">
                                 <button onclick='openEditModal(${JSON.stringify(task)})' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
-                                <form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>
+                                ${deleteButton}
                             </div>
                         </td>
                     </tr>
@@ -418,19 +472,11 @@ $all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Excepti
                     renderTable();
                 }
             });
-
-            // MODIFIKASI: Menghapus event listener yang menambahkan filter ke link export
-            /*
-            const exportButton = document.getElementById('export-button');
-            if(exportButton){
-                exportButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const plan = activePlanFilter;
-                    const search = searchInput ? searchInput.value : "";
-                    window.location.href = `export_handler.php?plan=${encodeURIComponent(plan)}&search=${encodeURIComponent(search)}`;
-                });
-            }
-            */
+            statusFilter.addEventListener('change', () => {
+                activeStatusFilter = statusFilter.value;
+                currentPage = 1;
+                renderTable();
+            });
         });
     </script>
 </body>

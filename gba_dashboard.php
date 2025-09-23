@@ -136,6 +136,20 @@ if (!empty($all_tasks)) {
             from { box-shadow: 0 0 2px #3b82f6, 0 0 4px #3b82f6, 0 0 6px #3b82f6; }
             to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
         }
+        .flag-icon {
+            width: 28px;
+            height: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            animation: wave 2s infinite linear;
+            transform-origin: bottom left;
+        }
+        @keyframes wave {
+            0% { transform: rotateZ(0deg) translate3d(0,0,0); }
+            25% { transform: rotateZ(-5deg) translate3d(0,0,0); }
+            50% { transform: rotateZ(0deg) translate3d(0,0,0); }
+            75% { transform: rotateZ(5deg) translate3d(0,0,0); }
+            100% { transform: rotateZ(0deg) translate3d(0,0,0); }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -197,18 +211,17 @@ if (!empty($all_tasks)) {
     
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
         <div class="modal-content-wrapper rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
-                <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
-            </div>
             <form id="task-form" action="handler.php" method="POST">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
+                    </div>
+                </div>
                 <input type="hidden" name="id" id="task-id">
                 <input type="hidden" name="action" id="form-action" value="create_gba_task">
                 <?php include 'gba_task_form.php'; ?>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
-                </div>
             </form>
         </div>
     </div>
@@ -257,9 +270,9 @@ if (!empty($all_tasks)) {
     document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility);
     function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
     
-    const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta'},{name:'Korea Selatan',tz:'Asia/Seoul'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh'},{name:'China',tz:'Asia/Shanghai'},{name:'Brazil',tz:'America/Sao_Paulo'}];
+    const clocksContainer=document.getElementById('world-clocks'),timezones=[{name:'Indonesia (WIB)',tz:'Asia/Jakarta',flag:'id'},{name:'Korea Selatan',tz:'Asia/Seoul',flag:'kr'},{name:'Vietnam',tz:'Asia/Ho_Chi_Minh',flag:'vn'},{name:'China',tz:'Asia/Shanghai',flag:'cn'},{name:'India (Bangalore)',tz:'Asia/Kolkata',flag:'in'},{name:'Brazil',tz:'America/Sao_Paulo',flag:'br'}];
     function pad(n){return n<10?'0'+n:n}
-    function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><span class="text-secondary">${zone.name}</span><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
+    function updateClocks(){if(!clocksContainer)return;let clocksHTML='';const now=new Date();timezones.forEach(zone=>{try{const localTime=new Date(now.toLocaleString('en-US',{timeZone:zone.tz})),time=`${pad(localTime.getHours())}:${pad(localTime.getMinutes())}:${pad(localTime.getSeconds())}`,date=localTime.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});clocksHTML+=`<div class="flex justify-between items-center"><div class="flex items-center gap-3"><img src="https://flagcdn.com/${zone.flag}.svg" class="flag-icon"><span class="text-secondary">${zone.name}</span></div><div class="text-right"><div class="font-mono font-semibold text-primary">${time}</div><div class="text-xs text-secondary">${date}</div></div></div>`}catch(e){console.error("Could not format time for timezone: ",zone.tz)}});clocksContainer.innerHTML=clocksHTML}
     
     document.addEventListener('DOMContentLoaded',()=>{const savedTheme=localStorage.getItem('theme'),prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;applyTheme(savedTheme?savedTheme==='light':!prefersDark);updateClocks();setInterval(updateClocks,1000);const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
 </script>

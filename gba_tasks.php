@@ -71,6 +71,8 @@ $test_plan_items = [
     'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 'Simple Exception MR' => ['STS']
 ];
 $all_test_plans = array_keys($test_plan_items);
+$all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Batal'];
+
 
 if ($tasks_result) {
     while ($row = $tasks_result->fetch_assoc()) {
@@ -170,6 +172,19 @@ function getStatusColorClasses($status) {
         .carousel-btn:hover { background-color: rgba(0,0,0,0.4); }
         .carousel-btn.prev { left: 0.75rem; }
         .carousel-btn.next { right: 0.75rem; }
+        /* CSS Tambahan untuk editor Notes */
+        #task-modal .ql-toolbar {
+            display: true; /* Sembunyikan toolbar editor */
+        }
+        #task-modal .ql-editor {
+            min-height: 42px; /* Atur tinggi minimal */
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+        #task-modal .ql-container {
+            border-top: 1px solid var(--glass-border) !important;
+            border-radius: .5rem;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -224,9 +239,19 @@ function getStatusColorClasses($status) {
                         <button class="filter-button px-3 py-1.5 text-sm font-medium rounded-md" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
                     <?php endforeach; ?>
                 </div>
-                 <div class="flex items-center gap-2 ml-auto">
-                    <span class="text-sm text-secondary">Baris:</span>
-                    <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option><option value="50">50</option></select>
+                 <div class="flex items-center gap-4 ml-auto">
+                    <div>
+                        <select id="status-filter" class="themed-input p-2 rounded-lg text-sm">
+                            <option value="All">Semua Status</option>
+                            <?php foreach($all_statuses as $status): ?>
+                                <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-secondary">Baris:</span>
+                        <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="5">5</option><option value="10" selected>10</option><option value="30">30</option><option value="50">50</option></select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -254,7 +279,7 @@ function getStatusColorClasses($status) {
                         <?php else: ?>
                             <?php $row_number = 1; ?>
                             <?php foreach ($tasks as $task): ?>
-                            <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>">
+                            <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>" data-status="<?= htmlspecialchars($task['progress_status']) ?>">
                                 <td class="p-3 text-center text-secondary"><?= $row_number++ ?></td>
                                 <td class="p-3">
                                     <div class="font-medium text-primary"><?= htmlspecialchars($task['model_name']) ?></div>
@@ -320,19 +345,18 @@ function getStatusColorClasses($status) {
     </main>
 
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
-                <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
-            </div>
-            <form id="task-form" action="handler.php" method="POST">
+        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+             <form id="task-form" action="handler.php" method="POST">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
+                    </div>
+                </div>
                 <input type="hidden" name="id" id="task-id">
                 <input type="hidden" name="action" id="form-action" value="create_gba_task">
                 <?php include 'gba_task_form.php'; ?>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
-                </div>
             </form>
         </div>
     </div>
@@ -400,19 +424,23 @@ function getStatusColorClasses($status) {
         init(particleCount);
         animate();
         
-        const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
+        const themeToggleBtn=document.getElementById('theme-toggle');let quill;
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
-        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();document.getElementById('request_date').value=(new Date).toISOString().slice(0,10);modal.classList.remove('hidden')}
+
+        const modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');
+        
+        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
         function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
-        function closeModal(){modal.classList.add('hidden')}window.onclick=function(event){if(event.target==modal)closeModal()}
+        function closeModal(){modal.classList.add('hidden')}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
-        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),allRows=Array.from(tableBody.querySelectorAll('tr'));let currentPage=1,activePlanFilter='All';function renderTable(){const searchText=searchInput.value.toLowerCase(),rowsPerPage=parseInt(rowsSelect.value),filteredRows=allRows.filter(row=>{const matchesSearch=row.textContent.toLowerCase().includes(searchText),matchesPlan=activePlanFilter==='All'||row.dataset.plan===activePlanFilter;return matchesSearch&&matchesPlan}),totalPages=Math.ceil(filteredRows.length/rowsPerPage);currentPage=Math.min(currentPage,totalPages)||1;tableBody.innerHTML='';const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage;filteredRows.slice(start,end).forEach(row=>tableBody.appendChild(row));renderPagination(totalPages)}
+        const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter'),allRows=Array.from(tableBody.querySelectorAll('tr'));let currentPage=1,activePlanFilter='All',activeStatusFilter='All';function renderTable(){const searchText=searchInput.value.toLowerCase(),rowsPerPage=parseInt(rowsSelect.value),filteredRows=allRows.filter(row=>{const matchesSearch=row.textContent.toLowerCase().includes(searchText),matchesPlan=activePlanFilter==='All'||row.dataset.plan===activePlanFilter,matchesStatus=activeStatusFilter==='All'||row.dataset.status===activeStatusFilter;return matchesSearch&&matchesPlan&&matchesStatus}),totalPages=Math.ceil(filteredRows.length/rowsPerPage);currentPage=Math.min(currentPage,totalPages)||1;tableBody.innerHTML='';const start=(currentPage-1)*rowsPerPage,end=start+rowsPerPage;filteredRows.slice(start,end).forEach(row=>tableBody.appendChild(row));renderPagination(totalPages)}
         function renderPagination(totalPages){paginationNav.innerHTML='';if(totalPages<=1)return;const maxButtons=5;let startPage=Math.max(1,currentPage-Math.floor(maxButtons/2)),endPage=Math.min(totalPages,startPage+maxButtons-1);if(endPage-startPage+1<maxButtons){startPage=Math.max(1,endPage-maxButtons+1)}if(startPage>1){paginationNav.appendChild(createPageButton(1,'«'));paginationNav.appendChild(createPageButton(currentPage-1,'‹'))}for(let i=startPage;i<=endPage;i++){paginationNav.appendChild(createPageButton(i,i))}if(endPage<totalPages){paginationNav.appendChild(createPageButton(currentPage+1,'›'));paginationNav.appendChild(createPageButton(totalPages,'»'))}}
         function createPageButton(page,text){const pageButton=document.createElement('button');pageButton.textContent=text;pageButton.className=`px-3 py-1 rounded-lg text-sm ${page===currentPage?'bg-blue-600 text-white':'themed-input'}`;pageButton.onclick=()=>{currentPage=page;renderTable()};return pageButton}
         const progressStatusSelect=document.getElementById('progress_status'),submissionDateInput=document.getElementById('submission_date'),approvedDateInput=document.getElementById('approved_date'),requestDateInput=document.getElementById('request_date'),deadlineInput=document.getElementById('deadline'),signOffDateInput=document.getElementById('sign_off_date');
         function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
         function getTodayDate(){return new Date().toISOString().slice(0,10)}
+        function setDefaultDates(){const today=getTodayDate();if(!requestDateInput.value){requestDateInput.value=today}const deadline=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=deadline;signOffDateInput.value=deadline}
         function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
         progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
@@ -468,6 +496,7 @@ function getStatusColorClasses($status) {
             startCarousel();
             renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
         if(searchInput){searchInput.addEventListener('input',renderTable)};rowsSelect.addEventListener('change',()=>{currentPage=1;renderTable()});testplanFilterContainer.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'){testplanFilterContainer.querySelector('.active').classList.remove('active');e.target.classList.add('active');activePlanFilter=e.target.dataset.plan;currentPage=1;renderTable()}});
+        statusFilter.addEventListener('change',()=>{activeStatusFilter=statusFilter.value;currentPage=1;renderTable()});
     </script>
 </body>
 </html>
