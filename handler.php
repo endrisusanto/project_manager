@@ -60,7 +60,9 @@ if (!$action) {
 
 switch ($action) {
     case 'create_bulk_gba_task':
-        if (!is_admin()) {
+        // KOREKSI FINAL: Pengecekan diubah menjadi spesifik ke email
+        $email_check = isset($_SESSION['user_details']['email']) ? strtolower($_SESSION['user_details']['email']) : '';
+        if (!(is_admin() || $email_check === 'endri.s@samsung.com')) {
             redirect_with_error('permission_denied');
         }
         
@@ -145,9 +147,7 @@ switch ($action) {
         break;
 
     case 'create_gba_task':
-        if (!is_admin()) {
-            redirect_with_error('permission_denied');
-        }
+        // Hak akses sudah diizinkan untuk semua level
         
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;

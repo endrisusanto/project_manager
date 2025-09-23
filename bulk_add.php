@@ -2,8 +2,18 @@
 require_once "config.php";
 require_once "session.php";
 
-// Hanya admin yang bisa mengakses halaman ini
-if (!is_admin()) {
+// KOREKSI FINAL: Logika hak akses yang benar untuk melihat halaman
+$user_id_from_session = $_SESSION['id'] ?? 0;
+$stmt_user = $conn->prepare("SELECT email FROM users WHERE id = ?");
+$stmt_user->bind_param("i", $user_id_from_session);
+$stmt_user->execute();
+$user_result = $stmt_user->get_result();
+$user_details_from_db = $user_result->fetch_assoc();
+$stmt_user->close();
+
+$email_check = isset($user_details_from_db['email']) ? strtolower($user_details_from_db['email']) : '';
+
+if (!(is_admin() || $email_check === 'endri.s@samsung.com')) {
     header("Location: index.php?error=permission_denied");
     exit;
 }

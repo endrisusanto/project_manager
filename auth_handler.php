@@ -58,7 +58,7 @@ switch ($action) {
                 'email' => $email,
                 'profile_picture' => 'default.png' // default setelah register
             ];
-            header("location: index.php");
+            header("location: gba_tasks.php");
         } else {
             redirect_with_message('register.php', 'error', 'Gagal mendaftar. Terjadi kesalahan tidak terduga.');
         }
@@ -98,7 +98,7 @@ switch ($action) {
                     setcookie("password", "", time() - 3600, "/");
                 }
 
-                header("location: index.php");
+                header("location: gba_tasks.php");
             } else {
                 redirect_with_message('login.php', 'error', 'Password yang Anda masukkan salah.');
             }
