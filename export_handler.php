@@ -12,11 +12,11 @@ $sql = "SELECT * FROM gba_tasks ORDER BY id DESC";
 $result = $conn->query($sql);
 
 // Buat output tabel HTML
-$output = "<table>";
+$output = "<table border='1'>";
 // MODIFIKASI: Menambahkan semua header yang diminta
 $output .= "<tr>
                 <th>ID</th>
-                <th>Project Name</th>
+                <th>Marketing Name</th>
                 <th>Model Name</th>
                 <th>AP</th>
                 <th>CP</th>
@@ -64,7 +64,7 @@ if ($result && $result->num_rows > 0) {
         $output .= "<td>" . ($row['reviewer_email'] ?? '') . "</td>";
         $output .= "<td>" . (($row['is_urgent'] == 1) ? 'Yes' : 'No') . "</td>";
         $output .= "<td>" . ($row['notes'] ?? '') . "</td>";
-        $output .= "<td>" . ($row['test_items_checklist'] ?? '') . "</td>";
+        $output .= "<td style='white-space: nowrap;'>" . ($row['test_items_checklist'] ?? '') . "</td>";
         $output .= "</tr>";
     }
 } else {
