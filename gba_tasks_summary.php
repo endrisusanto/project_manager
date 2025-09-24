@@ -7,7 +7,7 @@ $active_page = 'gba_tasks_summary';
 
 // 3. FUNGSI HELPER TAMPILAN
 function getDynamicColorClasses($identifier, $type = 'pic') {
-    $pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan', 'indigo', 'lime', 'pink', 'fuchsia', 'purple', 'yellow', 'orange'];
+    $pic_colors = ['sky', 'emerald', 'amber', 'rose', 'teal', 'cyan', 'indigo', 'lime', 'pink', 'fuchsia', 'purple', 'yellow', 'orange'];
     $plan_colors = ['indigo', 'lime', 'pink', 'orange', 'fuchsia'];
     $palette = ($type === 'plan') ? $plan_colors : $pic_colors;
     $hash = crc32($identifier);

@@ -4,11 +4,7 @@ require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
 $active_page = 'gba_tasks';
 
-// Tentukan halaman aktif untuk navigasi header
-$active_page = 'gba_tasks';
-
 // 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
-// MODIFIKASI: Query untuk pengecekan duplikat AP (berlaku global)
 $all_tasks_sql = "
     SELECT t.model_name, t.ap, u.username 
     FROM gba_tasks t
@@ -17,21 +13,34 @@ $all_tasks_sql = "
 ";
 $all_tasks_result = $conn->query($all_tasks_sql);
 
-$model_ap_versions = [];
+$model_data = [];
 if ($all_tasks_result) {
     while ($row = $all_tasks_result->fetch_assoc()) {
-        $model_ap_versions[$row['model_name']][] = [
+        $model_name_full = $row['model_name'];
+        $model_data[$model_name_full][] = [
             'ap' => $row['ap'],
-            'user' => $row['username'] ?? strtok($row['pic_email'], '@') // Fallback ke nama dari email
+            'user' => $row['username'] ?? strtok($row['pic_email'], '@')
         ];
     }
 }
 
 $duplicate_ap_tasks = [];
-foreach ($model_ap_versions as $model => $details) {
-    $unique_aps = array_unique(array_column($details, 'ap'));
-    if (count($unique_aps) > 1) {
+foreach ($model_data as $model => $details) {
+    $ap_groups = [];
+    foreach ($details as $detail) {
+        $ap_groups[$detail['ap']][] = $detail['user'];
+    }
+
+    if (count($ap_groups) > 1) {
         $duplicate_ap_tasks[$model] = $details;
+        continue;
+    }
+
+    foreach ($ap_groups as $ap => $users) {
+        if (count(array_unique($users)) > 1) {
+            $duplicate_ap_tasks[$model] = $details;
+            break; 
+        }
     }
 }
 
@@ -51,7 +60,6 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-// $sql .= " ORDER BY is_urgent DESC, request_date DESC";
 $sql .= " ORDER BY id DESC";
 $stmt = $conn->prepare($sql);
 
@@ -164,27 +172,16 @@ function getStatusColorClasses($status) {
         #pagination-rows { color: var(--text-primary); }
         #pagination-rows option { background-color: var(--bg-primary); color: var(--text-primary); }
         
-        .alert-carousel { position: relative; overflow: hidden; }
-        .alert-carousel-inner { display: flex; transition: transform 0.8s ease; }
+        #alert-carousel { position: relative; overflow: hidden; }
+        .alert-carousel-inner { display: flex; transition: transform 0.5s ease-in-out; }
         .alert-carousel-item { min-width: 100%; box-sizing: border-box; }
         .alert-content { padding-left: 3.5rem; padding-right: 3.5rem; }
-        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0,0,0,0.2); border-radius: 9999px; padding: 0.5rem; color: #fff; }
+        .carousel-btn { position: absolute; top: 50%; transform: translateY(-50%); background-color: rgba(0,0,0,0.2); border-radius: 9999px; padding: 0.5rem; color: #fff; z-index: 10; }
         .carousel-btn:hover { background-color: rgba(0,0,0,0.4); }
         .carousel-btn.prev { left: 0.75rem; }
         .carousel-btn.next { right: 0.75rem; }
-        /* CSS Tambahan untuk editor Notes */
-        #task-modal .ql-toolbar {
-            display: true; /* Sembunyikan toolbar editor */
-        }
-        #task-modal .ql-editor {
-            min-height: 42px; /* Atur tinggi minimal */
-            padding-top: 10px;
-            padding-bottom: 10px;
-        }
-        #task-modal .ql-container {
-            border-top: 1px solid var(--glass-border) !important;
-            border-radius: .5rem;
-        }
+        #task-modal .ql-editor { min-height: 42px; padding-top: 10px; padding-bottom: 10px; }
+        #task-modal .ql-container { border-top: 1px solid var(--glass-border) !important; border-radius: .5rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -205,27 +202,27 @@ function getStatusColorClasses($status) {
                         $color_class = $alert_colors[$color_index % count($alert_colors)];
                         $color_index++;
                     ?>
-                    <div class="alert-carousel-item relative p-1 border <?php echo $color_class; ?> text-gray-800 grid items-center " role="alert">
-                        <div class="alert-content">
-                            <div class="flex items-center">
-                                <svg class="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"></path></svg>
-                                <p class="text-sm font-semibold">Peringatan Duplikat Task untuk <span class="font-bold underline"><?php echo htmlspecialchars($model); ?></span></p>
+                    <div class="alert-carousel-item relative p-1 border <?php echo $color_class; ?> text-gray-800 grid items-center text-center" role="alert">
+                        <div>
+                            <div class="flex items-center justify-center">
+                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"></path></svg>
+                                <p class="text-xs font-semibold">Peringatan Duplikat Task untuk Model <span class="font-bold underline"><?php echo htmlspecialchars($model); ?></span></p>
                             </div>
-                            <ul class="mt-2 ml-8 list-disc text-xs space-y-1">
+                            <div class="mt-1 text-xs">
                                 <?php foreach ($details as $info): ?>
-                                    <li>
+                                    <div>
                                         <span class="font-semibold"><?php echo htmlspecialchars($info['ap']); ?></span>
                                         <span class="font-medium">(PIC: <?php echo htmlspecialchars($info['user']); ?>)</span>
-                                    </li>
+                                    </div>
                                 <?php endforeach; ?>
-                            </ul>
+                            </div>
                         </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
                 <?php if (count($duplicate_ap_tasks) > 1): ?>
-                <button type="button" class="carousel-btn prev" onclick="prevSlide()">&#10094;</button>
-                <button type="button" class="carousel-btn next" onclick="nextSlide()">&#10095;</button>
+                <button type="button" class="carousel-btn prev" onclick="moveSlide(-1)">&#10094;</button>
+                <button type="button" class="carousel-btn next" onclick="moveSlide(1)">&#10095;</button>
                 <?php endif; ?>
             </div>
         </div>
@@ -443,57 +440,65 @@ function getStatusColorClasses($status) {
         function setDefaultDates(){const today=getTodayDate();if(!requestDateInput.value){requestDateInput.value=today}const deadline=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=deadline;signOffDateInput.value=deadline}
         function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
         taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
         
+        // --- Carousel Logic ---
         const carousel = document.getElementById('alert-carousel');
+        const inner = carousel ? carousel.querySelector('.alert-carousel-inner') : null;
+        const items = inner ? inner.children : [];
         let carouselInterval;
-        let currentIndex = 0;
+        let currentIndex = 1;
+        let isTransitioning = false;
 
-        function updateCarousel() {
-            if (!carousel) return;
-            const inner = carousel.querySelector('.alert-carousel-inner');
-            const totalItems = inner.children.length;
-            if (totalItems > 0) {
-                inner.style.transform = `translateX(-${currentIndex * 100}%)`;
-            }
+        function setupCarousel() {
+            if (!inner || items.length <= 1) return;
+            const firstClone = items[0].cloneNode(true);
+            const lastClone = items[items.length - 1].cloneNode(true);
+            inner.appendChild(firstClone);
+            inner.insertBefore(lastClone, items[0]);
+            inner.style.transform = `translateX(-100%)`;
         }
 
-        function nextSlide() {
-            if (!carousel) return;
-            const inner = carousel.querySelector('.alert-carousel-inner');
-            const totalItems = inner.children.length;
-            currentIndex = (currentIndex + 1) % totalItems;
-            updateCarousel();
+        function moveSlide(direction) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            currentIndex += direction;
+            inner.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)';
+            inner.style.transform = `translateX(-${currentIndex * 100}%)`;
         }
-
-        function prevSlide() {
-            if (!carousel) return;
-            const inner = carousel.querySelector('.alert-carousel-inner');
-            const totalItems = inner.children.length;
-            currentIndex = (currentIndex - 1 + totalItems) % totalItems;
-            updateCarousel();
+        
+        if (inner) {
+            inner.addEventListener('transitionend', () => {
+                const totalItemsWithClones = items.length;
+                if (currentIndex === 0) {
+                    inner.style.transition = 'none';
+                    currentIndex = totalItemsWithClones - 2;
+                    inner.style.transform = `translateX(-${currentIndex * 100}%)`;
+                }
+                if (currentIndex === totalItemsWithClones - 1) {
+                    inner.style.transition = 'none';
+                    currentIndex = 1;
+                    inner.style.transform = `translateX(-${currentIndex * 100}%)`;
+                }
+                isTransitioning = false;
+            });
         }
 
         function startCarousel() {
-            if (carousel) {
-               const totalItems = carousel.querySelector('.alert-carousel-inner').children.length;
-               if(totalItems > 1) {
-                  carouselInterval = setInterval(nextSlide, 8000);
-               }
+            if (carousel && items.length > 1) {
+                carouselInterval = setInterval(() => moveSlide(1), 5000);
             }
         }
+        function pauseCarousel() { clearInterval(carouselInterval); }
+        function resumeCarousel() { startCarousel(); }
 
-        function pauseCarousel() {
-            clearInterval(carouselInterval);
-        }
-        
-        function resumeCarousel() {
-            startCarousel();
-        }
 
         document.addEventListener('DOMContentLoaded',()=>{
-            startCarousel();
+            if (carousel && inner && items.length > 0) {
+                setupCarousel();
+                startCarousel();
+            }
             renderTable();setupQuill('');updateChecklistVisibility();const profileMenu=document.getElementById('profile-menu');if(profileMenu){const profileButton=profileMenu.querySelector('button'),profileDropdown=document.getElementById('profile-dropdown');profileButton.addEventListener('click',e=>{e.stopPropagation();profileDropdown.classList.toggle('hidden')});document.addEventListener('click',e=>{if(!profileMenu.contains(e.target)){profileDropdown.classList.add('hidden')}})}});
         if(searchInput){searchInput.addEventListener('input',renderTable)};rowsSelect.addEventListener('change',()=>{currentPage=1;renderTable()});testplanFilterContainer.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'){testplanFilterContainer.querySelector('.active').classList.remove('active');e.target.classList.add('active');activePlanFilter=e.target.dataset.plan;currentPage=1;renderTable()}});
         statusFilter.addEventListener('change',()=>{activeStatusFilter=statusFilter.value;currentPage=1;renderTable()});
