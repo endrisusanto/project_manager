@@ -12,7 +12,7 @@ $sql = "SELECT * FROM gba_tasks ORDER BY id DESC";
 $result = $conn->query($sql);
 
 // Buat output tabel HTML
-$output = "<table border='1'>";
+$output = "<table border='1' cellpadding='10'>";
 // MODIFIKASI: Menambahkan semua header yang diminta
 $output .= "<tr>
                 <th>ID</th>
@@ -59,8 +59,8 @@ if ($result && $result->num_rows > 0) {
         $output .= "<td>" . ($row['approved_date'] ?? '') . "</td>";
         $output .= "<td>" . ($row['deadline'] ?? '') . "</td>";
         $output .= "<td>" . ($row['sign_off_date'] ?? '') . "</td>";
-        $output .= "<td>" . ($row['base_submission_id'] ?? '') . "</td>";
-        $output .= "<td>" . ($row['submission_id'] ?? '') . "</td>";
+        $output .= "<td>'" . ($row['base_submission_id'] ?? '') . "</td>";
+        $output .= "<td>'" . ($row['submission_id'] ?? '') . "</td>";
         $output .= "<td>" . ($row['reviewer_email'] ?? '') . "</td>";
         $output .= "<td>" . (($row['is_urgent'] == 1) ? 'Yes' : 'No') . "</td>";
         $output .= "<td>" . ($row['notes'] ?? '') . "</td>";

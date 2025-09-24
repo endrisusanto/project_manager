@@ -113,7 +113,7 @@ if (!empty($all_tasks)) {
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
         :root { --bg-primary: #020617; --text-primary: #e2e8f0; --text-secondary: #94a3b8; --glass-bg: rgba(15, 23, 42, 0.8); --glass-border: rgba(51, 65, 85, 0.6); --text-header: #ffffff; --text-icon: #94a3b8; --input-bg: rgba(30, 41, 59, 0.7); --input-border: #475569; --modal-bg: rgba(15, 23, 42, 0.8); --modal-border: rgba(51, 65, 85, 0.6); }
-        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.7); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; --input-border: #cbd5e1; --modal-bg: rgba(255, 255, 255, 0.9); --modal-border: rgba(0,0,0,0.1); }
+        html.light { --bg-primary: #f1f5f9; --text-primary: #0f172a; --text-secondary: #475569; --glass-bg: rgba(255, 255, 255, 0.7); --glass-border: rgba(0, 0, 0, 0.1); --text-header: #0f172a; --text-icon: #475569; --input-bg: #ffffff; --input-border: #cbd5e1; --modal-bg: #ffffff61; --modal-border: rgba(0,0,0,0.1); }
         
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-primary); color: var(--text-primary); }
         #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
