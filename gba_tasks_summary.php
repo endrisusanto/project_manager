@@ -5,6 +5,20 @@ require_once "session.php"; // Memastikan pengguna sudah login
 
 $active_page = 'gba_tasks_summary';
 
+// 3. FUNGSI HELPER TAMPILAN
+function getDynamicColorClasses($identifier, $type = 'pic') {
+    $pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan', 'indigo', 'lime', 'pink', 'fuchsia', 'purple', 'yellow', 'orange'];
+    $plan_colors = ['indigo', 'lime', 'pink', 'orange', 'fuchsia'];
+    $palette = ($type === 'plan') ? $plan_colors : $pic_colors;
+    $hash = crc32($identifier);
+    return "badge-color-" . $palette[abs($hash) % count($palette)];
+}
+function getStatusColorClasses($status) {
+    $colors = ['Approved'=>'badge-color-green','Passed'=>'badge-color-green','Submitted'=>'badge-color-purple','Test Ongoing'=>'badge-color-yellow','Task Baru'=>'badge-color-blue','Batal'=>'badge-color-gray','Pending Feedback'=>'badge-color-orange','Feedback Sent'=>'badge-color-orange'];
+    return $colors[$status] ?? 'badge-color-gray';
+}
+
+
 // 2. LOGIKA PENGAMBILAN DATA
 $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY id DESC, request_date DESC");
 $tasks = [];
@@ -42,6 +56,11 @@ if ($tasks_result) {
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
         
+        // Menambahkan kelas warna ke data
+        $row['pic_color_class'] = getDynamicColorClasses($row['pic_email'] ?? 'N/A', 'pic');
+        $row['plan_color_class'] = getDynamicColorClasses($row['test_plan_type'] ?? 'N/A', 'plan');
+        $row['status_color_class'] = getStatusColorClasses($row['progress_status']);
+
         // Data ini dikirim ke JavaScript
         $tasks[] = $row;
     }
@@ -239,57 +258,8 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
-        function calculateWorkingDays(startDate, daysToAdd) {
-            let currentDate = new Date(startDate);
-            let addedDays = 0;
-            while (addedDays < daysToAdd) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-                    addedDays++;
-                }
-            }
-            return currentDate.toISOString().slice(0, 10);
-        }
-        
-        function setDefaultDates() {
-            const requestDateInput = document.getElementById('request_date');
-            const deadlineInput = document.getElementById('deadline');
-            const signOffDateInput = document.getElementById('sign_off_date');
-            const today = new Date().toISOString().slice(0, 10);
-            
-            requestDateInput.value = today;
-            const futureDate = calculateWorkingDays(today, 7);
-            deadlineInput.value = futureDate;
-            signOffDateInput.value = futureDate;
-        }
-
-        document.getElementById('request_date').addEventListener('change', function() {
-            if (this.value) {
-                const futureDate = calculateWorkingDays(this.value, 7);
-                document.getElementById('deadline').value = futureDate;
-                document.getElementById('sign_off_date').value = futureDate;
-            }
-        });
-        
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter');
         let currentPage=1,activePlanFilter='All', activeStatusFilter='All';
-        
-        function getDynamicColorClassesJS(identifier, type = 'pic') {
-            const pic_colors = ['sky', 'emerald', 'amber', 'rose', 'violet', 'teal', 'cyan'];
-            const plan_colors = ['indigo', 'lime', 'pink', 'orange', 'fuchsia'];
-            const palette = (type === 'plan') ? plan_colors : pic_colors;
-            let hash = 0;
-            for (let i = 0; i < identifier.length; i++) {
-                hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const index = Math.abs(hash % palette.length);
-            return "badge-color-" + palette[index];
-        }
-
-        function getStatusColorClassesJS(status) {
-            const colors = {'Approved':'badge-color-green','Passed':'badge-color-green','Submitted':'badge-color-purple','Test Ongoing':'badge-color-yellow','Task Baru':'badge-color-blue','Batal':'badge-color-gray','Pending Feedback':'badge-color-orange','Feedback Sent':'badge-color-orange'};
-            return colors[status] || 'badge-color-gray';
-        }
 
         function renderTable() {
             const searchText = searchInput ? searchInput.value.toLowerCase() : "";
@@ -390,9 +360,9 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                             </div>
                         </td>
                         <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}</td>
-                        <td class="p-3"><span class="badge ${getDynamicColorClassesJS(task.pic_email || 'N/A', 'pic')}">${task.pic_email || 'N/A'}</span></td>
-                        <td class="p-3"><span class="badge ${getDynamicColorClassesJS(task.test_plan_type || 'N/A', 'plan')}">${task.test_plan_type || 'N/A'}</span></td>
-                        <td class="p-3"><span class="badge ${getStatusColorClassesJS(task.progress_status)}">${task.progress_status || 'N/A'}</span></td>
+                        <td class="p-3"><span class="badge ${task.pic_color_class}">${task.pic_email || 'N/A'}</span></td>
+                        <td class="p-3"><span class="badge ${task.plan_color_class}">${task.test_plan_type || 'N/A'}</span></td>
+                        <td class="p-3"><span class="badge ${task.status_color_class}">${task.progress_status || 'N/A'}</span></td>
                         <td class="p-3">
                             <div class="w-28"><div class="progress-bar-bg w-full rounded-full h-4 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-4 rounded-full absolute top-0 left-0" style="width: ${task.progress_percentage || 0}%;"></div><span class="relative text-xs font-bold z-10 progress-text pl-2">${Math.round(task.progress_percentage || 0)}%</span></div></div>
                         </td>
