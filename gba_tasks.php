@@ -6,7 +6,7 @@ $active_page = 'gba_tasks';
 
 // 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
 $all_tasks_sql = "
-    SELECT t.model_name, t.ap, u.username, t.pic_email
+    SELECT t.model_name, t.ap, u.username 
     FROM gba_tasks t
     LEFT JOIN users u ON t.pic_email = u.email
     WHERE t.progress_status NOT IN ('Approved', 'Batal') AND t.model_name IS NOT NULL AND t.ap IS NOT NULL AND t.ap != ''
@@ -17,55 +17,32 @@ $model_data = [];
 if ($all_tasks_result) {
     while ($row = $all_tasks_result->fetch_assoc()) {
         $model_name_full = $row['model_name'];
-        // Menggunakan username jika ada, jika tidak, ambil bagian sebelum '@' dari email
-        $pic_identifier = $row['username'] ?? strtok($row['pic_email'], '@');
         $model_data[$model_name_full][] = [
             'ap' => $row['ap'],
-            'user' => $pic_identifier
+            'user' => $row['username'] ?? strtok($row['pic_email'], '@')
         ];
     }
 }
 
-// ===== LOGIKA DUPLIKAT YANG DIPERBARUI =====
 $duplicate_ap_tasks = [];
 foreach ($model_data as $model => $details) {
-    // Lewati jika hanya ada satu task untuk model ini
-    if (count($details) < 2) {
+    $ap_groups = [];
+    foreach ($details as $detail) {
+        $ap_groups[$detail['ap']][] = $detail['user'];
+    }
+
+    if (count($ap_groups) > 1) {
+        $duplicate_ap_tasks[$model] = $details;
         continue;
     }
 
-    $is_duplicate = false;
-    $all_aps = array_column($details, 'ap');
-
-    // KONDISI 1: Terdeteksi jika ada lebih dari satu AP unik untuk model yang sama.
-    // Ini mencakup:
-    // - PIC yang sama, AP berbeda.
-    // - PIC berbeda, AP berbeda.
-    if (count(array_unique($all_aps)) > 1) {
-        $is_duplicate = true;
-    }
-
-    // KONDISI 2: Jika semua AP sama, periksa apakah ada duplikasi entri atau dikerjakan oleh PIC berbeda.
-    if (!$is_duplicate) {
-        // array_count_values akan menghasilkan [AP => jumlah]. Jika ada AP yang jumlahnya lebih dari 1, berarti duplikat.
-        // Ini mencakup:
-        // - AP sama, PIC sama (entri ganda).
-        // - AP sama, PIC berbeda.
-        $ap_counts = array_count_values($all_aps);
-        foreach ($ap_counts as $count) {
-            if ($count > 1) {
-                $is_duplicate = true;
-                break;
-            }
+    foreach ($ap_groups as $ap => $users) {
+        if (count(array_unique($users)) > 1) {
+            $duplicate_ap_tasks[$model] = $details;
+            break; 
         }
     }
-
-    if ($is_duplicate) {
-        $duplicate_ap_tasks[$model] = $details;
-    }
 }
-// ===== AKHIR DARI LOGIKA DUPLIKAT =====
-
 
 // Query untuk menampilkan data di tabel (berlaku sesuai hak akses)
 $sql = "SELECT * FROM gba_tasks";
@@ -461,9 +438,37 @@ function getStatusColorClasses($status) {
         function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
         function getTodayDate(){return new Date().toISOString().slice(0,10)}
         function setDefaultDates(){const today=getTodayDate();if(!requestDateInput.value){requestDateInput.value=today}const deadline=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=deadline;signOffDateInput.value=deadline}
-        function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+        
+        function checkAllVisibleCheckboxes(checked = true) {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) {
+                visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = checked;
+                });
+            }
+        }
+        
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+        
+        progressStatusSelect.addEventListener('change',e=>{
+            const status = e.target.value;
+            if (status === 'Submitted' || status === 'Approved' || status === 'Passed') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = getTodayDate();
+                }
+                if (status === 'Approved' || status === 'Passed') {
+                    if (!approvedDateInput.value) {
+                        approvedDateInput.value = getTodayDate();
+                    }
+                }
+                checkAllVisibleCheckboxes(true);
+            } else if (status === 'Task Baru') {
+                checkAllVisibleCheckboxes(false);
+                submissionDateInput.value = '';
+                approvedDateInput.value = '';
+            }
+        });
+
         taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
         
         // --- Carousel Logic ---
