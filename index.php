@@ -381,9 +381,30 @@ function render_kinerja_status($task) {
     const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date'), requestDateInput = document.getElementById('request_date'), deadlineInput = document.getElementById('deadline'), signOffDateInput = document.getElementById('sign_off_date');
     function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
     function getTodayDate(){return new Date().toISOString().slice(0,10)}
-    function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+    function checkAllVisibleCheckboxes(checked = true) {
+        const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+        if (visibleChecklist) {
+            visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+    }
+
     requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-    progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+    progressStatusSelect.addEventListener('change',e=>{
+        const status=e.target.value;
+        if(status === 'Submitted' || status === 'Approved' || status === 'Passed'){
+            if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}
+            if(status === 'Approved' || status === 'Passed'){
+                if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}
+            }
+            checkAllVisibleCheckboxes(true);
+        } else if (status === 'Task Baru') {
+            checkAllVisibleCheckboxes(false);
+            submissionDateInput.value = '';
+            approvedDateInput.value = '';
+        }
+    });
     taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
     document.addEventListener('DOMContentLoaded', function () {
         if (viewToggleBtn) { const fullIcon = document.getElementById('view-toggle-full-icon'); const accordionIcon = document.getElementById('view-toggle-accordion-icon'); function applyViewMode(mode) { mainContainer.classList.toggle('view-accordion', mode === 'accordion'); fullIcon.classList.toggle('hidden', mode === 'accordion'); accordionIcon.classList.toggle('hidden', mode !== 'accordion'); localStorage.setItem('viewMode', mode); } viewToggleBtn.addEventListener('click', () => { const currentMode = mainContainer.classList.contains('view-accordion') ? 'full' : 'accordion'; applyViewMode(currentMode); }); const savedViewMode = localStorage.getItem('viewMode') || 'full'; applyViewMode(savedViewMode); mainContainer.addEventListener('click', function (e) { if (mainContainer.classList.contains('view-accordion')) { const card = e.target.closest('.task-card'); if (card) { card.classList.toggle('is-expanded'); } } }); }

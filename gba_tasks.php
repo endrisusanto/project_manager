@@ -438,9 +438,37 @@ function getStatusColorClasses($status) {
         function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
         function getTodayDate(){return new Date().toISOString().slice(0,10)}
         function setDefaultDates(){const today=getTodayDate();if(!requestDateInput.value){requestDateInput.value=today}const deadline=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=deadline;signOffDateInput.value=deadline}
-        function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+        
+        function checkAllVisibleCheckboxes(checked = true) {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) {
+                visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = checked;
+                });
+            }
+        }
+        
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+        
+        progressStatusSelect.addEventListener('change',e=>{
+            const status = e.target.value;
+            if (status === 'Submitted' || status === 'Approved' || status === 'Passed') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = getTodayDate();
+                }
+                if (status === 'Approved' || status === 'Passed') {
+                    if (!approvedDateInput.value) {
+                        approvedDateInput.value = getTodayDate();
+                    }
+                }
+                checkAllVisibleCheckboxes(true);
+            } else if (status === 'Task Baru') {
+                checkAllVisibleCheckboxes(false);
+                submissionDateInput.value = '';
+                approvedDateInput.value = '';
+            }
+        });
+
         taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
         
         // --- Carousel Logic ---

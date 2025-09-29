@@ -417,6 +417,44 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
             return pageButton;
         }
 
+        const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date');
+        
+        function checkAllVisibleCheckboxes(checked = true) {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) {
+                visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = checked;
+                });
+            }
+        }
+
+        progressStatusSelect.addEventListener('change', e => {
+            const status = e.target.value;
+            if (status === 'Submitted' || status === 'Approved' || status === 'Passed') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = new Date().toISOString().slice(0, 10);
+                }
+                if (status === 'Approved' || status === 'Passed') {
+                    if (!approvedDateInput.value) {
+                        approvedDateInput.value = new Date().toISOString().slice(0, 10);
+                    }
+                }
+                checkAllVisibleCheckboxes(true);
+            } else if (status === 'Task Baru') {
+                checkAllVisibleCheckboxes(false);
+                submissionDateInput.value = '';
+                approvedDateInput.value = '';
+            }
+        });
+        taskForm.addEventListener('change', e => {
+            if (e.target.matches('input[type="checkbox"][name^="checklist"]')) {
+                const currentStatus = progressStatusSelect.value;
+                if (currentStatus !== 'Approved' && currentStatus !== 'Submitted') {
+                    progressStatusSelect.value = 'Test Ongoing';
+                }
+            }
+        });
+
         // Jalankan semua fungsi setelah DOM siap
         document.addEventListener('DOMContentLoaded', () => {
             renderTable();

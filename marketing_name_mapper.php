@@ -25,6 +25,7 @@ $model_mapping = [
     "SM-A165F" => "Galaxy A16",
     "SM-A166P" => "Galaxy A16 5G",
     "SM-A175F" => "A17 (4G)",
+    "SM-A176B" => "Galaxy A17 5G",
     "SM-A176BE" => "Galaxy A17 5G",
     "SM-A225" => "Galaxy A22",
     "SM-A225F" => "Galaxy A22 5G",
