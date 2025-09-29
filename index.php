@@ -1,3 +1,4 @@
+
 <?php
 // 1. INISIALISASI
 require_once "config.php";
@@ -164,7 +165,7 @@ function render_kinerja_status($task) {
     <style>
         :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff;--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);}
         html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff;--modal-bg:#ffffff61;--modal-border:rgba(0,0,0,.1);}
-        html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#animated-bg{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:cffafe;color:#0e7490}
+        html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:cffafe;color:#0e7490}
         .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.8}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite}html.light .animate-pulse-alert{color:#dc2626}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}html.light .font-semibold.text-yellow-400{color:#a16207}
         .sad-emoji{position:fixed;font-size:2rem;animation:fall 5s linear forwards;opacity:1;z-index:9999}@keyframes fall{to{transform:translateY(100vh) rotate(360deg);opacity:0}}
@@ -196,7 +197,7 @@ function render_kinerja_status($task) {
     </style>
 </head>
 <body class="h-screen flex flex-col">
-    <canvas id="animated-bg"></canvas>
+    <canvas id="neural-canvas"></canvas>
     <div id="toast"></div>
 
     <?php include 'header.php'; ?>
@@ -284,129 +285,74 @@ function render_kinerja_status($task) {
         </div>
     </div>
 <script>
-    // --- Animasi Latar Belakang Partikel ---
-    const canvas = document.getElementById("animated-bg"),
-        ctx = canvas.getContext("2d");
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    let particles = [],
-        particleCount = window.innerWidth > 768 ? 150 : 100,
-        mouse = {
-            x: null,
-            y: null,
-            radius: 100
-        };
-
-    window.addEventListener("mousemove", e => {
-        mouse.x = e.x;
-        mouse.y = e.y;
-    });
-
-    window.addEventListener("mouseout", () => {
-        mouse.x = null;
-        mouse.y = null;
-    });
-
-    class Particle {
-        constructor() {
-            this.x = Math.random() * canvas.width;
-            this.y = Math.random() * canvas.height;
-            this.size = Math.random() * 2.5 + 1;
-            this.baseX = this.x;
-            this.baseY = this.y;
-            this.density = (Math.random() * 30) + 1;
-            this.speedX = (Math.random() * 0.4) - 0.2;
-            this.speedY = (Math.random() * 0.4) - 0.2;
-            this.updateColor();
+    // --- ANIMATION & THEME LOGIC ---
+    const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
+    let particles = [], hue = 210;
+    function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
+    
+    class Particle{
+        constructor(x,y){
+            this.x=x||Math.random()*canvas.width;
+            this.y=y||Math.random()*canvas.height;
+            this.vx=(Math.random()-.5)*.4;
+            this.vy=(Math.random()-.5)*.4;
+            this.size=Math.random()*2 + 1.5;
         }
-
-        updateColor() {
-            this.color = document.documentElement.classList.contains('light') ? "rgba(96, 165, 250, 0.7)" : "rgba(56, 189, 248, 0.7)";
+        update(){
+            this.x+=this.vx;this.y+=this.vy;
+            if(this.x<0||this.x>canvas.width)this.vx*=-1;
+            if(this.y<0||this.y>canvas.height)this.vy*=-1;
         }
-
-        update() {
-            let dx = mouse.x - this.x;
-            let dy = mouse.y - this.y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
-            let forceDirectionX = dx / distance;
-            let forceDirectionY = dy / distance;
-            let maxDistance = mouse.radius;
-            let force = (maxDistance - distance) / maxDistance;
-            let directionX = forceDirectionX * force * this.density;
-            let directionY = forceDirectionY * force * this.density;
-            
-            if (distance < mouse.radius) {
-                this.x -= directionX;
-                this.y -= directionY;
-            } else {
-                if (this.x !== this.baseX) {
-                    let dx_base = this.x - this.baseX;
-                    this.x -= dx_base / 10;
-                }
-                if (this.y !== this.baseY) {
-                    let dy_base = this.y - this.baseY;
-                    this.y -= dy_base / 10;
-                }
-            }
-            this.x += this.speedX;
-            this.y += this.speedY;
-
-            if (this.x > canvas.width || this.x < 0) this.speedX *= -1;
-            if (this.y > canvas.height || this.y < 0) this.speedY *= -1;
-        }
-
-        draw() {
-            ctx.fillStyle = this.color;
+        draw(){
+            ctx.fillStyle=`hsl(${hue},100%,75%)`;
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
             ctx.fill();
         }
     }
 
-    function initParticles() {
+    function init(num){
         particles = [];
-        for (let i = 0; i < particleCount; i++) {
-            particles.push(new Particle());
-        }
+        for(let i=0;i<num;i++)particles.push(new Particle())
     }
 
-    function animateParticles() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        for (let i = 0; i < particles.length; i++) {
+    function handleParticles() {
+        for(let i = 0; i < particles.length; i++) {
             particles[i].update();
             particles[i].draw();
+            for (let j = i; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 120) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
         }
-        requestAnimationFrame(animateParticles);
     }
 
-    initParticles();
-    animateParticles();
-
-    window.addEventListener("resize", () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        particleCount = window.innerWidth > 768 ? 150 : 100;
-        initParticles();
-    });
+    function animate(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        hue = (hue + 0.3) % 360; 
+        handleParticles();
+        requestAnimationFrame(animate);
+    }
+    
+    const particleCount = window.innerWidth > 768 ? 150 : 70;
+    init(particleCount);
+    animate();
     
     // --- PAGE SPECIFIC LOGIC ---
     const themeToggleBtn = document.getElementById('theme-toggle'), modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), taskForm = document.getElementById('task-form'), searchInput = document.getElementById('search-input'), viewToggleBtn = document.getElementById('view-toggle'), mainContainer = document.querySelector('main'); let quill;
     
-    function applyTheme(isLight) { 
-        document.documentElement.classList.toggle('light', isLight); 
-        document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isLight); 
-        document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isLight);
-        initParticles(); // Re-initialize particles to update colors
-    } 
-    const savedTheme = localStorage.getItem('theme'); 
-    applyTheme(savedTheme === 'light'); 
-    themeToggleBtn.addEventListener('click', () => { 
-        const isLight = !document.documentElement.classList.contains('light'); 
-        localStorage.setItem('theme', isLight ? 'light' : 'dark'); 
-        applyTheme(isLight); 
-    });
-    
+    window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);});
+    function applyTheme(isLight) { document.documentElement.classList.toggle('light', isLight); document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isLight); document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isLight); } const savedTheme = localStorage.getItem('theme'); applyTheme(savedTheme === 'light'); themeToggleBtn.addEventListener('click', () => { const isLight = !document.documentElement.classList.contains('light'); localStorage.setItem('theme', isLight ? 'light' : 'dark'); applyTheme(isLight); });
     function showToast(message, isSuccess = true) { const toast = document.getElementById('toast'); toast.textContent = message; toast.style.backgroundColor = isSuccess ? 'var(--toast-bg)' : '#ef4444'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); }
     function triggerConfetti() { const duration = 2.5 * 1000, animationEnd = Date.now() + duration, defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }; function randomInRange(min, max) { return Math.random() * (max - min) + min; } const interval = setInterval(function () { const timeLeft = animationEnd - Date.now(); if (timeLeft <= 0) return clearInterval(interval); const particleCount = 50 * (timeLeft / duration); confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }); confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }); }, 250); }
     function triggerSadAnimation() { for (let i = 0; i < 30; i++) { const e = document.createElement('div'); e.className = 'sad-emoji'; e.innerText = '😢'; e.style.left = `${Math.random() * 100}vw`; e.style.animationDelay = `${Math.random() * 2}s`; document.body.appendChild(e); setTimeout(() => e.remove(), 5000); } }
@@ -436,7 +382,15 @@ function render_kinerja_status($task) {
     const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date'), requestDateInput = document.getElementById('request_date'), deadlineInput = document.getElementById('deadline'), signOffDateInput = document.getElementById('sign_off_date');
     function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
     function getTodayDate(){return new Date().toISOString().slice(0,10)}
-    function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+    function checkAllVisibleCheckboxes(checked = true) {
+        const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+        if (visibleChecklist) {
+            visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+    }
+
     requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
     progressStatusSelect.addEventListener('change',e=>{
         const status=e.target.value;

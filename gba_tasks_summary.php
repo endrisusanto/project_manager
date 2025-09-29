@@ -1,3 +1,4 @@
+
 <?php
 // 1. INISIALISASI
 require_once "config.php";
@@ -22,10 +23,6 @@ function getStatusColorClasses($status) {
 // 2. LOGIKA PENGAMBILAN DATA
 $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY id DESC, request_date DESC");
 $tasks = [];
-$test_plan_items = [
-    'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
-    'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 'Simple Exception MR' => ['STS']
-];
 
 if ($tasks_result) {
     while ($row = $tasks_result->fetch_assoc()) {
@@ -60,19 +57,6 @@ if ($tasks_result) {
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
         
-        // Kalkulasi Progress
-        $checklist = json_decode($row['test_items_checklist'], true);
-        $plan_type = $row['test_plan_type'];
-        $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
-        $completed_items = 0;
-        if ($total_items > 0 && is_array($checklist)) {
-            foreach ($test_plan_items[$plan_type] as $item) {
-                $item_key = str_replace([' ', '-'], '_', $item);
-                if (!empty($checklist[$item_key])) { $completed_items++; }
-            }
-        }
-        $row['progress_percentage'] = $total_items > 0 ? ($completed_items / $total_items) * 100 : 0;
-
         // Menambahkan kelas warna ke data
         $row['pic_color_class'] = getDynamicColorClasses($row['pic_email'] ?? 'N/A', 'pic');
         $row['plan_color_class'] = getDynamicColorClasses($row['test_plan_type'] ?? 'N/A', 'plan');
@@ -100,7 +84,7 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
     <style>
         :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.6);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255,255,255,.6);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
         html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}.glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
-        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:50px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
+        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
         .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{background-color:rgba(0,0,0,.1);padding:0 6px;border-radius:6px;color:#fff}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         .filter-button{background-color:var(--filter-btn-bg);color:var(--text-secondary);transition:all .2s}.filter-button:hover{background-color:rgba(255,255,255,.1)}html.light .filter-button:hover{background-color:rgba(0,0,0,.1)}.filter-button.active{background-color:var(--filter-btn-bg-active);color:#fff}
@@ -272,39 +256,9 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
         function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
         function closeModal(){modal.classList.add('hidden')}
-        
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
-        // ===== FIX BUG: FUNGSI-FUNGSI YANG HILANG DITAMBAHKAN DI SINI =====
-        const requestDateInput = document.getElementById('request_date');
-        const deadlineInput = document.getElementById('deadline');
-        const signOffDateInput = document.getElementById('sign_off_date');
-
-        function calculateWorkingDays(startDate, daysToAdd) {
-            let currentDate = new Date(startDate);
-            let addedDays = 0;
-            while (addedDays < daysToAdd) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                // 0 = Minggu, 6 = Sabtu
-                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-                    addedDays++;
-                }
-            }
-            return currentDate.toISOString().slice(0, 10);
-        }
-
-        function setDefaultDates() {
-            const today = new Date().toISOString().slice(0, 10);
-            if (!requestDateInput.value) {
-                requestDateInput.value = today;
-            }
-            const deadline = calculateWorkingDays(requestDateInput.value, 7);
-            deadlineInput.value = deadline;
-            signOffDateInput.value = deadline;
-        }
-        // ===== AKHIR DARI BAGIAN PERBAIKAN BUG =====
-
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter');
         let currentPage=1,activePlanFilter='All', activeStatusFilter='All';
 

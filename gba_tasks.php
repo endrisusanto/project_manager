@@ -6,7 +6,7 @@ $active_page = 'gba_tasks';
 
 // 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
 $all_tasks_sql = "
-    SELECT t.model_name, t.ap, u.username, t.pic_email
+    SELECT t.model_name, t.ap, u.username 
     FROM gba_tasks t
     LEFT JOIN users u ON t.pic_email = u.email
     WHERE t.progress_status NOT IN ('Approved', 'Batal') AND t.model_name IS NOT NULL AND t.ap IS NOT NULL AND t.ap != ''
@@ -17,55 +17,32 @@ $model_data = [];
 if ($all_tasks_result) {
     while ($row = $all_tasks_result->fetch_assoc()) {
         $model_name_full = $row['model_name'];
-        // Menggunakan username jika ada, jika tidak, ambil bagian sebelum '@' dari email
-        $pic_identifier = $row['username'] ?? strtok($row['pic_email'], '@');
         $model_data[$model_name_full][] = [
             'ap' => $row['ap'],
-            'user' => $pic_identifier
+            'user' => $row['username'] ?? strtok($row['pic_email'], '@')
         ];
     }
 }
 
-// ===== LOGIKA DUPLIKAT YANG DIPERBARUI =====
 $duplicate_ap_tasks = [];
 foreach ($model_data as $model => $details) {
-    // Lewati jika hanya ada satu task untuk model ini
-    if (count($details) < 2) {
+    $ap_groups = [];
+    foreach ($details as $detail) {
+        $ap_groups[$detail['ap']][] = $detail['user'];
+    }
+
+    if (count($ap_groups) > 1) {
+        $duplicate_ap_tasks[$model] = $details;
         continue;
     }
 
-    $is_duplicate = false;
-    $all_aps = array_column($details, 'ap');
-
-    // KONDISI 1: Terdeteksi jika ada lebih dari satu AP unik untuk model yang sama.
-    // Ini mencakup:
-    // - PIC yang sama, AP berbeda.
-    // - PIC berbeda, AP berbeda.
-    if (count(array_unique($all_aps)) > 1) {
-        $is_duplicate = true;
-    }
-
-    // KONDISI 2: Jika semua AP sama, periksa apakah ada duplikasi entri atau dikerjakan oleh PIC berbeda.
-    if (!$is_duplicate) {
-        // array_count_values akan menghasilkan [AP => jumlah]. Jika ada AP yang jumlahnya lebih dari 1, berarti duplikat.
-        // Ini mencakup:
-        // - AP sama, PIC sama (entri ganda).
-        // - AP sama, PIC berbeda.
-        $ap_counts = array_count_values($all_aps);
-        foreach ($ap_counts as $count) {
-            if ($count > 1) {
-                $is_duplicate = true;
-                break;
-            }
+    foreach ($ap_groups as $ap => $users) {
+        if (count(array_unique($users)) > 1) {
+            $duplicate_ap_tasks[$model] = $details;
+            break; 
         }
     }
-
-    if ($is_duplicate) {
-        $duplicate_ap_tasks[$model] = $details;
-    }
 }
-// ===== AKHIR DARI LOGIKA DUPLIKAT =====
-
 
 // Query untuk menampilkan data di tabel (berlaku sesuai hak akses)
 $sql = "SELECT * FROM gba_tasks";
@@ -178,7 +155,7 @@ function getStatusColorClasses($status) {
     <style>
         :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.6);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255,255,255,.6);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
         html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}.glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
-        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:50px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
+        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
         .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{background-color:rgba(0,0,0,.4);padding:0 6px;border-radius:6px;color:#fff}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         .filter-button{background-color:var(--filter-btn-bg);color:var(--text-secondary);transition:all .2s}.filter-button:hover{background-color:rgba(255,255,255,.1)}html.light .filter-button:hover{background-color:rgba(0,0,0,.1)}.filter-button.active{background-color:var(--filter-btn-bg-active);color:#fff}
@@ -461,9 +438,37 @@ function getStatusColorClasses($status) {
         function calculateWorkingDays(startDate,daysToAdd){let currentDate=new Date(startDate);let addedDays=0;while(addedDays<daysToAdd){currentDate.setDate(currentDate.getDate()+1);if(currentDate.getDay()!==0&&currentDate.getDay()!==6){addedDays++}}return currentDate.toISOString().slice(0,10)}
         function getTodayDate(){return new Date().toISOString().slice(0,10)}
         function setDefaultDates(){const today=getTodayDate();if(!requestDateInput.value){requestDateInput.value=today}const deadline=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=deadline;signOffDateInput.value=deadline}
-        function checkAllVisibleCheckboxes(){const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)');if(visibleChecklist){visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{cb.checked=!0})}}
+        
+        function checkAllVisibleCheckboxes(checked = true) {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) {
+                visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.checked = checked;
+                });
+            }
+        }
+        
         requestDateInput.addEventListener('change',()=>{if(requestDateInput.value){const futureDate=calculateWorkingDays(requestDateInput.value,7);deadlineInput.value=futureDate;signOffDateInput.value=futureDate}});
-        progressStatusSelect.addEventListener('change',e=>{const status=e.target.value;if(status==='Submitted'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}else if(status==='Approved'){if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}checkAllVisibleCheckboxes()}});
+        
+        progressStatusSelect.addEventListener('change',e=>{
+            const status = e.target.value;
+            if (status === 'Submitted' || status === 'Approved' || status === 'Passed') {
+                if (!submissionDateInput.value) {
+                    submissionDateInput.value = getTodayDate();
+                }
+                if (status === 'Approved' || status === 'Passed') {
+                    if (!approvedDateInput.value) {
+                        approvedDateInput.value = getTodayDate();
+                    }
+                }
+                checkAllVisibleCheckboxes(true);
+            } else if (status === 'Task Baru') {
+                checkAllVisibleCheckboxes(false);
+                submissionDateInput.value = '';
+                approvedDateInput.value = '';
+            }
+        });
+
         taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
         
         // --- Carousel Logic ---
