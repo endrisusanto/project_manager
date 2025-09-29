@@ -175,7 +175,7 @@ if ($users_result && $users_result->num_rows > 0) {
     </div>
     
     <div>
-        <label for="notes-editor" class="form-label block mb-1 text-sm font-medium">Notes</label>
+        <!-- <label for="notes-editor" class="form-label block mb-1 text-sm font-medium">Notes</label> -->
         <input type="hidden" name="notes" id="notes-hidden-input">
         <div id="notes-editor" class="themed-input rounded-lg"></div>
     </div>
