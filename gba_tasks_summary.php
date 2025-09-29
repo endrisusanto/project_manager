@@ -269,23 +269,42 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
         window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
-        
-        function openAddModal(){
-            taskForm.reset();
-            modalTitle.innerText='Tambah Task Baru';
-            formAction.value='create_gba_task';
-            taskId.value='';
-            setupQuill('');
-            updateChecklistVisibility();
-            setDefaultDates();
-            modal.classList.remove('hidden');
-        }
-
+        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
         function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
         function closeModal(){modal.classList.add('hidden')}
+        
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
+        // ===== FIX BUG: FUNGSI-FUNGSI YANG HILANG DITAMBAHKAN DI SINI =====
+        const requestDateInput = document.getElementById('request_date');
+        const deadlineInput = document.getElementById('deadline');
+        const signOffDateInput = document.getElementById('sign_off_date');
+
+        function calculateWorkingDays(startDate, daysToAdd) {
+            let currentDate = new Date(startDate);
+            let addedDays = 0;
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                // 0 = Minggu, 6 = Sabtu
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    addedDays++;
+                }
+            }
+            return currentDate.toISOString().slice(0, 10);
+        }
+
+        function setDefaultDates() {
+            const today = new Date().toISOString().slice(0, 10);
+            if (!requestDateInput.value) {
+                requestDateInput.value = today;
+            }
+            const deadline = calculateWorkingDays(requestDateInput.value, 7);
+            deadlineInput.value = deadline;
+            signOffDateInput.value = deadline;
+        }
+        // ===== AKHIR DARI BAGIAN PERBAIKAN BUG =====
+
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter');
         let currentPage=1,activePlanFilter='All', activeStatusFilter='All';
 
@@ -443,31 +462,6 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                 renderTable();
             };
             return pageButton;
-        }
-
-        function calculateWorkingDays(startDate, daysToAdd) {
-            let currentDate = new Date(startDate);
-            let addedDays = 0;
-            while (addedDays < daysToAdd) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) { 
-                    addedDays++;
-                }
-            }
-            return currentDate.toISOString().slice(0, 10);
-        }
-
-        function setDefaultDates() {
-            const requestDateInput = document.getElementById('request_date');
-            const deadlineInput = document.getElementById('deadline');
-            const signOffDateInput = document.getElementById('sign_off_date');
-            const today = new Date();
-            const todayString = today.toISOString().slice(0, 10);
-
-            requestDateInput.value = todayString;
-            const futureDate = calculateWorkingDays(todayString, 7);
-            deadlineInput.value = futureDate;
-            signOffDateInput.value = futureDate;
         }
 
         const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date');

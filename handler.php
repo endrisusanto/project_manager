@@ -211,8 +211,14 @@ switch ($action) {
         $new_status = $data['new_status'];
         
         $today = date('Y-m-d');
+        $test_plan_items = [
+            'Regular Variant' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
+            'SKU' => ['CTS_SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
+            'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 
+            'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
+            'Simple Exception MR' => ['STS']
+        ];
         
-        // Ambil info task saat ini untuk menentukan test_plan_type
         $get_task_stmt = $conn->prepare("SELECT test_plan_type FROM gba_tasks WHERE id = ?");
         $get_task_stmt->bind_param("i", $task_id);
         $get_task_stmt->execute();
@@ -235,15 +241,7 @@ switch ($action) {
                 $types .= "s";
             }
             
-            // Logika Checklist
             if ($task_data) {
-                $test_plan_items = [
-                    'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
-                    'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
-                    'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 
-                    'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
-                    'Simple Exception MR' => ['STS']
-                ];
                 $plan_type = $task_data['test_plan_type'];
                 if (isset($test_plan_items[$plan_type])) {
                     $checklist = [];
@@ -256,9 +254,6 @@ switch ($action) {
                     $types .= "s";
                 }
             }
-        } elseif ($new_status === 'Task Baru') {
-            // Reset checklist, submission date, dan approved date
-            $sql .= ", test_items_checklist = NULL, submission_date = NULL, approved_date = NULL";
         }
         
         $sql .= " WHERE id = ?";
