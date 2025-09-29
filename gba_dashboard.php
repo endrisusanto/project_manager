@@ -129,7 +129,7 @@ if (!empty($all_tasks)) {
         .year-picker { background-color: var(--input-bg); border: 1px solid var(--glass-border); color: var(--text-primary); }
         .themed-input { background-color: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); }
         .themed-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
-        .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}
+        .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:50px}
         .modal-content-wrapper { background: var(--modal-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--modal-border); }
         .glow-effect { animation: glow 1.5s infinite alternate; border-radius: 0.5rem; }
         @keyframes glow {
