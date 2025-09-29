@@ -288,21 +288,80 @@ function render_kinerja_status($task) {
     // --- ANIMATION & THEME LOGIC ---
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
     let particles = [], hue = 210;
+    
+    // Variabel untuk menyimpan posisi mouse
+    const mouse = {
+        x: undefined,
+        y: undefined,
+        radius: 120 // Radius interaksi diperluas
+    };
+
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
+
+    // Event listener untuk gerakan mouse dan saat mouse meninggalkan window
+    window.addEventListener('mousemove', function(event) {
+        mouse.x = event.x;
+        mouse.y = event.y;
+    });
+
+    window.addEventListener('mouseout', function(){
+        mouse.x = undefined;
+        mouse.y = undefined;
+    });
     
     class Particle{
         constructor(x,y){
-            this.x=x||Math.random()*canvas.width;
-            this.y=y||Math.random()*canvas.height;
-            this.vx=(Math.random()-.5)*.4;
-            this.vy=(Math.random()-.5)*.4;
-            this.size=Math.random()*2 + 1.5;
+            this.x = x || Math.random() * canvas.width;
+            this.y = y || Math.random() * canvas.height;
+            this.originX = this.x; // Posisi asli partikel
+            this.originY = this.y;
+            this.vx = 0; // Velocity x
+            this.vy = 0; // Velocity y
+            this.ax = 0; // Acceleration x
+            this.ay = 0; // Acceleration y
+            this.size = Math.random() * 2 + 1.5;
+            this.springFactor = 0.01; // Kekuatan pegas
+            this.friction = 0.9;     // Gesekan
+            this.pushFactor = 10;     // Kekuatan dorongan mouse
         }
+
         update(){
-            this.x+=this.vx;this.y+=this.vy;
-            if(this.x<0||this.x>canvas.width)this.vx*=-1;
-            if(this.y<0||this.y>canvas.height)this.vy*=-1;
+            // Gaya dorong dari mouse
+            let dx_mouse = this.x - mouse.x;
+            let dy_mouse = this.y - mouse.y;
+            let distance_mouse = Math.sqrt(dx_mouse * dx_mouse + dy_mouse * dy_mouse);
+            
+            if (distance_mouse < mouse.radius) {
+                // Hitung gaya dorong berdasarkan jarak
+                let force = (mouse.radius - distance_mouse) / mouse.radius;
+                // Terapkan gaya ke akselerasi
+                this.ax += (dx_mouse / distance_mouse) * force * this.pushFactor;
+                this.ay += (dy_mouse / distance_mouse) * force * this.pushFactor;
+            }
+
+            // Gaya pegas yang menarik kembali ke posisi asli
+            let dx_origin = this.originX - this.x;
+            let dy_origin = this.originY - this.y;
+            this.ax += dx_origin * this.springFactor;
+            this.ay += dy_origin * this.springFactor;
+
+            // Update velocity berdasarkan acceleration
+            this.vx += this.ax;
+            this.vy += this.ay;
+            
+            // Terapkan friction
+            this.vx *= this.friction;
+            this.vy *= this.friction;
+
+            // Update posisi berdasarkan velocity
+            this.x += this.vx;
+            this.y += this.vy;
+            
+            // Reset acceleration
+            this.ax = 0;
+            this.ay = 0;
         }
+        
         draw(){
             ctx.fillStyle=`hsl(${hue},100%,75%)`;
             ctx.beginPath();
