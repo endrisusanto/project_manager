@@ -14,6 +14,7 @@ $username = $_SESSION['username'] ?? 'User';
                     <a href="gba_dashboard.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Dashboard</a>
                     <a href="gba_tasks.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">Active Tasks</a>
                     <a href="gba_tasks_summary.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">Summary Data</a>
+                    <a href="ga_submission_tracker.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'ga_tracker') ? 'nav-link-active' : 'nav-link'; ?>">GA Tracker</a>
                 </div>
             </div>
 
@@ -63,6 +64,7 @@ $username = $_SESSION['username'] ?? 'User';
                             <p class="text-xs text-gray-400 truncate"><?php echo htmlspecialchars($user_details['email'] ?? ''); ?></p>
                         </div>
                         <a href="profile.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Profil Saya</a>
+                        <a href="ga_submission_tracker.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">GA Tracker</a>
                         <a href="logout.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Logout</a>
                     </div>
                 </div>

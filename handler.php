@@ -47,6 +47,20 @@ function add_working_days($start_date_str, $days_to_add) {
     return $current_date->format('Y-m-d');
 }
 
+// Helper baru untuk menghitung hari kerja tanpa memengaruhi variabel di luar scope
+function add_working_days_tracker($start_date_str, $days_to_add) {
+    $current_date = new DateTime($start_date_str);
+    $days_added = 0;
+    while ($days_added < $days_to_add) {
+        $current_date->modify('+1 day');
+        $day_of_week = $current_date->format('N');
+        if ($day_of_week < 6) {
+            $days_added++;
+        }
+    }
+    return $current_date->format('Y-m-d');
+}
+
 
 // --- LOGIKA UTAMA ---
 
@@ -274,24 +288,65 @@ switch ($action) {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }
         exit();
-        
-    case 'toggle_urgent':
+
+    case 'update_task_status_tracker': // Aksi baru untuk tracker
         header('Content-Type: application/json');
         $task_id = $data['task_id'] ?? 0;
+        $category = $data['category'] ?? ''; // Kategori: GA Submit, GA Follow Up, GA First Run
+        $ap_version = $data['ap_version'] ?? '';
         
-        $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
-        $stmt->bind_param("i", $task_id);
-        $stmt->execute();
-        $current_status = $stmt->get_result()->fetch_assoc()['is_urgent'] ?? 0;
-        $stmt->close();
+        // Atur timezone sesuai konfigurasi
+        date_default_timezone_set('Asia/Jakarta');
         
-        $new_status = $current_status ? 0 : 1;
+        $now = new DateTime();
+        $today = $now->format('Y-m-d');
+        $tomorrow = add_working_days_tracker($today, 1);
+        $categorized_at = $now->format('Y-m-d H:i:s'); // Timestamp for expiry check
+
+        $target_submit_date = '';
+        $target_approved_date = '';
         
-        $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");
-        $stmt->bind_param("ii", $new_status, $task_id);
+        // Logika Penentuan Tanggal
+        if (in_array($category, ['GA Submit', 'GA Follow Up'])) {
+            // T: Hari Ini, A: Besok
+            $target_submit_date = $today;
+            $target_approved_date = $tomorrow;
+        } elseif ($category === 'GA First Run') {
+            // T: Besok, A: Besok
+            $target_submit_date = $tomorrow;
+            $target_approved_date = $tomorrow;
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Kategori tidak valid.']);
+            exit();
+        }
+        
+        // Format tanggal untuk notes (DD-MM)
+        $target_submit_display = date('d-m', strtotime($target_submit_date));
+        $target_approved_display = date('d-m', strtotime($target_approved_date));
+
+        // Buat string notes yang baru, termasuk timestamp
+        $new_note_string = "{$category}: - {$ap_version} [Target Submit: {$target_submit_display}] [Target Approved: {$target_approved_display}] [CATEGORIZED_AT: {$categorized_at}]";
+
+        $new_status = 'Test Ongoing';
+
+        // UPDATE progress_status DAN notes
+        $sql = "UPDATE gba_tasks SET progress_status = ?, notes = ? WHERE id = ?";
+        $params = [$new_status, $new_note_string, $task_id];
+        $types = "ssi";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
         
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'is_urgent' => (bool)$new_status]);
+            // Kirim kembali data yang dibutuhkan untuk update UI
+            echo json_encode([
+                'success' => true,
+                'category' => $category,
+                'ap_version' => $ap_version,
+                'target_submit' => $target_submit_display,
+                'target_approved' => $target_approved_display,
+                'categorized_at' => $categorized_at // Kirim timestamp untuk UI
+            ]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }
