@@ -220,6 +220,12 @@ function getPicInitials($email) {
             backdrop-filter: blur(5px); 
             -webkit-backdrop-filter: blur(5px);
         }
+        
+        /* --- START OF ADDED NAVIGATION STYLES --- */
+        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}
+        .nav-link:hover{color:var(--text-primary)}
+        .nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}
+        /* --- END OF ADDED NAVIGATION STYLES --- */
 
         /* Calendar Styles */
         .calendar-grid {
@@ -700,319 +706,367 @@ function getPicInitials($email) {
     </div>
     
 <script>
-    // --- ANIMATION & THEME LOGIC (Unchanged) ---
+    // =========================================================================
+    // DARK MODE TOGGLE SCRIPT (REAL-TIME FIX)
+    // Diletakkan di awal agar tema diterapkan secepat mungkin
+    // =========================================================================
+    const root = document.documentElement;
+    const themeToggleBtn = document.getElementById('theme-toggle');
+
+    function applyTheme(isLight) {
+        // Toggles 'light' class on <html> element
+        root.classList.toggle('light', isLight);
+        root.classList.toggle('dark', !isLight); 
+        
+        // Toggles icons (Icons diasumsikan ada di header.php)
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
+        if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
+    }
+
+    // 1. Muat tema awal dari Local Storage (Default ke dark)
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const initialIsLight = savedTheme === 'light';
+    applyTheme(initialIsLight);
+
+    // 2. Attach click listener untuk toggle real-time
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const isCurrentlyLight = root.classList.contains('light');
+            const newIsLight = !isCurrentlyLight;
+
+            localStorage.setItem('theme', newIsLight ? 'light' : 'dark');
+            applyTheme(newIsLight);
+        });
+    }
+    
+    // =========================================================================
+    // INISIALISASI VARIABEL GLOBAL & ANIMASI
+    // =========================================================================
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
+    const modal = document.getElementById('task-modal'); 
+    const modalTitle = document.getElementById('modal-title');
+    const taskForm = document.getElementById('task-form'); 
+    const todoModal = document.getElementById('todo-modal');
+    
+    // Variabel Quill Editor
+    let quill, todoQuill; 
+    
     let particles = [], hue = 210;
+    
+    // Fungsi Animasi (tetap sama)
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
     class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
     function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
     function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
     function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
     const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
-    const themeToggleBtn = document.getElementById('theme-toggle'), modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), taskForm = document.getElementById('task-form'); let quill, todoQuill;
 
+    // Event Listener Resize
     window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);});
-    function applyTheme(isLight) { document.documentElement.classList.toggle('light', isLight); document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isLight); document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isLight); } const savedTheme = localStorage.getItem('theme'); applyTheme(savedTheme === 'light'); themeToggleBtn.addEventListener('click', () => { const isLight = !document.documentElement.classList.contains('light'); localStorage.setItem('theme', isLight ? 'light' : 'dark'); applyTheme(!isLight); });
-    
-    // --- MODAL & FORM LOGIC ---
-    const actionChooserModal = document.getElementById('action-chooser-modal');
-    const actionChooserDateDisplay = document.getElementById('action-chooser-date');
-    const actionChooserDateInput = document.getElementById('selected-date-input');
-    const todoModal = document.getElementById('todo-modal');
+    
+    // =========================================================================
+    // HELPER & MODAL LOGIC (Unchanged from user's submission)
+    // =========================================================================
 
-    const currentMonth = '<?= $current_month ?>';
-    const currentEmail = '<?= $_SESSION['user_details']['email'] ?>';
+    const actionChooserModal = document.getElementById('action-chooser-modal');
+    const actionChooserDateDisplay = document.getElementById('action-chooser-date');
+    const actionChooserDateInput = document.getElementById('selected-date-input');
 
-    function calculateWorkingDays(startDate, daysToAdd) {
-        let currentDate = new Date(startDate);
-        let addedDays = 0;
-        while (addedDays < daysToAdd) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-                addedDays++;
-            }
-        }
-        return currentDate.toISOString().slice(0, 10);
-    }
-    function getTodayDate(){return new Date().toISOString().slice(0, 10)}
+    const currentMonth = '<?= $current_month ?>';
+    const currentEmail = '<?= $_SESSION['user_details']['email'] ?>';
 
-    function setupTodoQuill(content){
-        if(!todoQuill){
-            todoQuill=new Quill('#todo-notes-editor',{
-                theme:'snow',
-                modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}
-            });
-        }
-        todoQuill.root.innerHTML = content;
-    }
+    function calculateWorkingDays(startDate, daysToAdd) {
+        let currentDate = new Date(startDate);
+        let addedDays = 0;
+        while (addedDays < daysToAdd) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                addedDays++;
+            }
+        }
+        return currentDate.toISOString().slice(0, 10);
+    }
+    function getTodayDate(){return new Date().toISOString().slice(0, 10)}
 
-    document.getElementById('todo-form').addEventListener('submit', (e) => {
-        document.getElementById('todo-notes-hidden-input').value = todoQuill.root.innerHTML;
-    });
+    function setupTodoQuill(content){
+        if(!todoQuill){
+            todoQuill=new Quill('#todo-notes-editor',{
+                theme:'snow',
+                modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}
+            });
+        }
+        todoQuill.root.innerHTML = content;
+    }
 
-    // Main Modal Functions
-    // FIX: openDateCellAction now calls startTodo directly
-    window.openDateCellAction = function(cellElement, dateStr, isOtherMonth) {
-        if (isOtherMonth || event.target.closest('.task-item')) {
-            return;
-        }
-        
-        // Langsung panggil startTodo()
-        startTodo(dateStr);
-    }
+    document.getElementById('todo-form').addEventListener('submit', (e) => {
+        document.getElementById('todo-notes-hidden-input').value = todoQuill.root.innerHTML;
+    });
 
-    window.closeActionChooserModal = function() {
-        actionChooserModal.classList.add('hidden');
-    }
+    // Main Modal Functions
+    // FIX: openDateCellAction now calls startTodo directly
+    window.openDateCellAction = function(cellElement, dateStr, isOtherMonth) {
+        if (isOtherMonth || event.target.closest('.task-item')) {
+            return;
+        }
+        
+        // Langsung panggil startTodo()
+        startTodo(dateStr);
+    }
 
-    window.closeTodoModal = function() {
-        todoModal.classList.add('hidden');
-    }
-    
-    // Action Chooser handlers (Keep these functions as they are called by the action chooser buttons)
-    window.startNewTask = function() {
-        closeActionChooserModal();
-        const dateStr = actionChooserDateInput.value;
+    window.closeActionChooserModal = function() {
+        actionChooserModal.classList.add('hidden');
+    }
 
-        taskForm.reset();
-        modalTitle.innerText = 'Tambah Task Baru';
-        taskForm.elements['action'].value = 'create_gba_task';
-        taskForm.elements['id'].value = '';
-        
-        document.getElementById('request_date').value = dateStr;
-        const deadlineDate = calculateWorkingDays(dateStr, 7);
-        document.getElementById('deadline').value = deadlineDate;
-        document.getElementById('sign_off_date').value = deadlineDate;
-        
-        document.getElementById('submission_date').value = '';
-        document.getElementById('approved_date').value = '';
-        document.getElementById('progress_status').value = 'Task Baru';
-        setupQuill('');
-        updateChecklistVisibility();
-        modal.classList.remove('hidden');
-    }
-    
-    // FIX: startTodo modified to accept date directly and skips action chooser
-    window.startTodo = function(dateStr) {
-        // Jika dipanggil dari tombol header 'Task Baru', dateStr mungkin kosong, ambil dari current date
-        dateStr = dateStr || getTodayDate();
-        const dateObj = new Date(dateStr + 'T00:00:00');
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        
-        // Setup for CREATE mode
-        document.getElementById('todo-form').reset();
-        document.getElementById('todo-modal-title').textContent = 'Tambah Catatan / To-Do';
-        document.getElementById('todo-action').value = 'create_todo_note';
-        document.getElementById('todo-id-input').value = '';
-        document.getElementById('todo-delete-container').classList.add('hidden');
-        
-        // Prefill data
-        document.getElementById('todo-date-input').value = dateStr;
-        document.getElementById('todo-date-display').textContent = dateObj.toLocaleDateString('id-ID', options);
-        setupTodoQuill(''); 
+    window.closeTodoModal = function() {
+        todoModal.classList.add('hidden');
+    }
+    
+    // Action Chooser handlers (Keep these functions as they are called by the action chooser buttons)
+    window.startNewTask = function() {
+        // closeActionChooserModal(); // Ini tidak diperlukan jika action chooser tidak dipanggil
+        const dateStr = getTodayDate(); // Menggunakan tanggal hari ini jika dipanggil dari tombol header
 
-        todoModal.classList.remove('hidden');
-    }
+        taskForm.reset();
+        modalTitle.innerText = 'Tambah Task Baru';
+        taskForm.elements['action'].value = 'create_gba_task';
+        taskForm.elements['id'].value = '';
+        
+        document.getElementById('request_date').value = dateStr;
+        const deadlineDate = calculateWorkingDays(dateStr, 7);
+        document.getElementById('deadline').value = deadlineDate;
+        document.getElementById('sign_off_date').value = deadlineDate;
+        
+        document.getElementById('submission_date').value = '';
+        document.getElementById('approved_date').value = '';
+        document.getElementById('progress_status').value = 'Task Baru';
+        setupQuill('');
+        updateChecklistVisibility();
+        modal.classList.remove('hidden');
+    }
+    
+    // FIX: startTodo modified to accept date directly and skips action chooser
+    window.startTodo = function(dateStr) {
+        // Jika dipanggil dari tombol header 'Task Baru', dateStr mungkin kosong, ambil dari current date
+        dateStr = dateStr || getTodayDate();
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        
+        // Setup for CREATE mode
+        document.getElementById('todo-form').reset();
+        document.getElementById('todo-modal-title').textContent = 'Tambah Catatan / To-Do';
+        document.getElementById('todo-action').value = 'create_todo_note';
+        document.getElementById('todo-id-input').value = '';
+        document.getElementById('todo-delete-container').classList.add('hidden');
+        
+        // Prefill data
+        document.getElementById('todo-date-input').value = dateStr;
+        document.getElementById('todo-date-display').textContent = dateObj.toLocaleDateString('id-ID', options);
+        setupTodoQuill(''); 
 
-    window.openEditNoteModal = function(noteData) {
-        const dateObj = new Date(noteData.note_date + 'T00:00:00');
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        
-        // Setup for EDIT mode
-        document.getElementById('todo-form').reset();
-        document.getElementById('todo-modal-title').textContent = 'Edit Catatan / To-Do';
-        document.getElementById('todo-action').value = 'update_todo_note';
-        document.getElementById('todo-id-input').value = noteData.id;
-        
-        // Prefill fields
-        document.getElementById('todo-date-input').value = noteData.note_date;
-        document.getElementById('todo-date-display').textContent = dateObj.toLocaleDateString('id-ID', options);
-        document.getElementById('todo-title-input').value = noteData.title;
-        document.getElementById('todo_pic_email').value = noteData.user_email || '';
-        document.getElementById('todo_priority').value = noteData.priority || 'Low';
-        setupTodoQuill(noteData.content || '');
-        
-        // Show delete button only if it's the current user's note
-        const isUserNote = noteData.user_email === currentEmail;
-        if (isUserNote) {
-             document.getElementById('todo-delete-container').classList.remove('hidden');
-        } else {
-             document.getElementById('todo-delete-container').classList.add('hidden');
-        }
+        todoModal.classList.remove('hidden');
+    }
 
-        todoModal.classList.remove('hidden');
-    }
-    
-    window.deleteTodoNote = function(noteId, currentMonth) {
-        if (!confirm("Apakah Anda yakin ingin menghapus catatan ini?")) {
-            return;
-        }
+    window.openEditNoteModal = function(noteData) {
+        const dateObj = new Date(noteData.note_date + 'T00:00:00');
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        
+        // Setup for EDIT mode
+        document.getElementById('todo-form').reset();
+        document.getElementById('todo-modal-title').textContent = 'Edit Catatan / To-Do';
+        document.getElementById('todo-action').value = 'update_todo_note';
+        document.getElementById('todo-id-input').value = noteData.id;
+        
+        // Prefill fields
+        document.getElementById('todo-date-input').value = noteData.note_date;
+        document.getElementById('todo-date-display').textContent = dateObj.toLocaleDateString('id-ID', options);
+        document.getElementById('todo-title-input').value = noteData.title;
+        document.getElementById('todo_pic_email').value = noteData.user_email || '';
+        document.getElementById('todo_priority').value = noteData.priority || 'Low';
+        setupTodoQuill(noteData.content || '');
+        
+        // Show delete button only if it's the current user's note
+        const isUserNote = noteData.user_email === currentEmail;
+        if (isUserNote) {
+             document.getElementById('todo-delete-container').classList.remove('hidden');
+        } else {
+             document.getElementById('todo-delete-container').classList.add('hidden');
+        }
 
-        fetch('handler.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'delete_todo_note',
-                id: noteId,
-                return_month: currentMonth
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert("Catatan berhasil dihapus! Halaman akan di-refresh.");
-                window.location.reload();
-            } else {
-                alert(`Gagal menghapus catatan: ${data.error}.`);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert("Terjadi kesalahan jaringan saat menghapus.");
-        });
-    }
+        todoModal.classList.remove('hidden');
+    }
+    
+    window.deleteTodoNote = function(noteId, currentMonth) {
+        if (!confirm("Apakah Anda yakin ingin menghapus catatan ini?")) {
+            return;
+        }
 
-    // Existing functions (reused)
-    function openAddModal() {
-        taskForm.reset();
-        modalTitle.innerText = 'Tambah Task Baru';
-        taskForm.elements['action'].value = 'create_gba_task';
-        taskForm.elements['id'].value = '';
-        const today = getTodayDate();
-        document.getElementById('request_date').value = today;
-        const deadlineDate = calculateWorkingDays(today, 7);
-        document.getElementById('deadline').value = deadlineDate;
-        document.getElementById('sign_off_date').value = deadlineDate;
-        document.getElementById('submission_date').value = '';
-        document.getElementById('approved_date').value = '';
-        document.getElementById('progress_status').value = 'Task Baru';
-        setupQuill('');
-        updateChecklistVisibility();
-        modal.classList.remove('hidden');
-    }
+        fetch('handler.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'delete_todo_note',
+                id: noteId,
+                return_month: currentMonth
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("Catatan berhasil dihapus! Halaman akan di-refresh.");
+                window.location.reload();
+            } else {
+                alert(`Gagal menghapus catatan: ${data.error}.`);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Terjadi kesalahan jaringan saat menghapus.");
+        });
+    }
 
-    function openEditModal(taskData) { 
-        taskForm.reset(); 
-        modalTitle.innerText = 'Edit Task'; 
-        taskForm.elements['action'].value = 'update_gba_task'; 
-        
-        for (const key in taskData) { 
-            if (taskForm.elements[key] && !key.endsWith('_obj')) { 
-                if (key === 'is_urgent') { 
-                    document.getElementById('is_urgent_toggle').checked = taskData[key] == 1; 
-                } else { 
-                    taskForm.elements[key].value = taskData[key] || ''; 
-                } 
-            } 
-        } 
-        setupQuill(taskData.notes || ''); 
-        updateChecklistVisibility(); 
-        if (taskData.test_items_checklist) { 
-            try { 
-                const checklist = JSON.parse(taskData.test_items_checklist); 
-                document.querySelectorAll('[name^="checklist["]').forEach(cb => cb.checked = false); 
-                for (const itemName in checklist) { 
-                    const checkbox = document.querySelector(`input[name="checklist[${itemName}]"]`); 
-                    if (checkbox) checkbox.checked = !!checklist[itemName]; 
-                } 
-            } catch (e) { 
-                console.error("Gagal parse checklist JSON:", e); 
-            } 
-        } 
-        modal.classList.remove('hidden'); 
-    }
-    
-    function closeModal() { 
-        modal.classList.add('hidden'); 
-    }
-    
-    function setupQuill(content){if(!quill){quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}else{quill.root.innerHTML=content}}
-    
-    function updateChecklistVisibility(){
-        const testPlan=document.getElementById('test_plan_type').value,
-              placeholder=document.getElementById('checklist-placeholder');
-        let checklistVisible=!1;
-        document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{
-            const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');
-            if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}
-            else{el.classList.add('hidden')}
-        });
-        placeholder.style.display=checklistVisible?'none':'block';
-    }
-    
-    taskForm.addEventListener('submit', () => {
-        document.getElementById('notes-hidden-input').value = quill.root.innerHTML;
-    });
+    // Existing functions (reused)
+    function openAddModal() {
+        taskForm.reset();
+        modalTitle.innerText = 'Tambah Task Baru';
+        taskForm.elements['action'].value = 'create_gba_task';
+        taskForm.elements['id'].value = '';
+        const today = getTodayDate();
+        document.getElementById('request_date').value = today;
+        const deadlineDate = calculateWorkingDays(today, 7);
+        document.getElementById('deadline').value = deadlineDate;
+        document.getElementById('sign_off_date').value = deadlineDate;
+        document.getElementById('submission_date').value = '';
+        document.getElementById('approved_date').value = '';
+        document.getElementById('progress_status').value = 'Task Baru';
+        setupQuill('');
+        updateChecklistVisibility();
+        modal.classList.remove('hidden');
+    }
 
-    // Event listener untuk auto-fill tanggal di modal
-    const submissionDateInput = document.getElementById('submission_date');
-    const approvedDateInput = document.getElementById('approved_date');
-    const progressStatusSelect = document.getElementById('progress_status');
-    
-    progressStatusSelect.addEventListener('change',e=>{
-        const status=e.target.value;
-        if(status === 'Submitted' || status === 'Approved' || status === 'Passed'){
-            if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}
-            if(status === 'Approved' || status === 'Passed'){
-                if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}
-            }
-            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
-            if (visibleChecklist) { visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; }); }
+    function openEditModal(taskData) { 
+        taskForm.reset(); 
+        modalTitle.innerText = 'Edit Task'; 
+        taskForm.elements['action'].value = 'update_gba_task'; 
+        
+        for (const key in taskData) { 
+            if (taskForm.elements[key] && !key.endsWith('_obj')) { 
+                if (key === 'is_urgent') { 
+                    document.getElementById('is_urgent_toggle').checked = taskData[key] == 1; 
+                } else { 
+                    taskForm.elements[key].value = taskData[key] || ''; 
+                } 
+            } 
+        } 
+        setupQuill(taskData.notes || ''); 
+        updateChecklistVisibility(); 
+        if (taskData.test_items_checklist) { 
+            try { 
+                const checklist = JSON.parse(taskData.test_items_checklist); 
+                document.querySelectorAll('[name^="checklist["]').forEach(cb => cb.checked = false); 
+                for (const itemName in checklist) { 
+                    const checkbox = document.querySelector(`input[name="checklist[${itemName}]"]`); 
+                    if (checkbox) checkbox.checked = !!checklist[itemName]; 
+                } 
+            } catch (e) { 
+                console.error("Gagal parse checklist JSON:", e); 
+            } 
+        } 
+        modal.classList.remove('hidden'); 
+    }
+    
+    function closeModal() { 
+        modal.classList.add('hidden'); 
+    }
+    
+    function setupQuill(content){if(!quill){quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}else{quill.root.innerHTML=content}}
+    
+    function updateChecklistVisibility(){
+        const testPlan=document.getElementById('test_plan_type').value,
+              placeholder=document.getElementById('checklist-placeholder');
+        let checklistVisible=!1;
+        document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{
+            const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');
+            if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}
+            else{el.classList.add('hidden')}
+        });
+        placeholder.style.display=checklistVisible?'none':'block';
+    }
+    
+    taskForm.addEventListener('submit', () => {
+        document.getElementById('notes-hidden-input').value = quill.root.innerHTML;
+    });
 
-        } else if (status === 'Task Baru') {
-            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
-            if (visibleChecklist) { visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; }); }
-            submissionDateInput.value = '';
-            approvedDateInput.value = '';
-        }
-    });
+    // Event listener untuk auto-fill tanggal di modal
+    const submissionDateInput = document.getElementById('submission_date');
+    const approvedDateInput = document.getElementById('approved_date');
+    const progressStatusSelect = document.getElementById('progress_status');
+    
+    progressStatusSelect.addEventListener('change',e=>{
+        const status=e.target.value;
+        if(status === 'Submitted' || status === 'Approved' || status === 'Passed'){
+            if(!submissionDateInput.value){submissionDateInput.value=getTodayDate()}
+            if(status === 'Approved' || status === 'Passed'){
+                if(!approvedDateInput.value){approvedDateInput.value=getTodayDate()}
+            }
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) { visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; }); }
+
+        } else if (status === 'Task Baru') {
+            const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+            if (visibleChecklist) { visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; }); }
+            submissionDateInput.value = '';
+            approvedDateInput.value = '';
+        }
+    });
 
 
-    // --- DOM Load ---
-    document.addEventListener('DOMContentLoaded', () => {
-        setupQuill('');
-        setupTodoQuill(''); 
-        updateChecklistVisibility();
-        
-        const profileMenu = document.getElementById('profile-menu');
-        if (profileMenu) {
-            const profileButton = profileMenu.querySelector('button');
-            const profileDropdown = document.getElementById('profile-dropdown');
-            profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
-            document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
-        }
-        
-        // Auto-close success/error alerts and clean URL
-        const successAlert = document.getElementById('success-alert');
-        const errorAlert = document.getElementById('error-alert');
-        
-        if (successAlert || errorAlert) {
-            setTimeout(() => {
-                if (successAlert) successAlert.remove();
-                if (errorAlert) errorAlert.remove();
-                
-                // Clean URL after timeout
-                if (window.location.search.includes('success=') || window.location.search.includes('error=')) {
-                     window.history.replaceState({}, document.title, "monthly_calendar.php?month=<?= $current_month ?>");
-                }
-            }, 3000);
-        }
-        
-        // Close modal on outside click (for all 3 modals)
-        window.onclick = function(event) {
-            if (event.target == document.getElementById('todo-modal')) {
-                if (event.target.classList.contains('modal-backdrop-blur')) {
-                    closeTodoModal();
-                }
-            } else if (event.target == document.getElementById('task-modal')) {
-                if (event.target.classList.contains('modal-backdrop-blur')) {
-                    closeModal();
-                }
-            }
-        }
-    });
+    // --- DOM Load ---
+    document.addEventListener('DOMContentLoaded', () => {
+        setupQuill('');
+        setupTodoQuill(''); 
+        updateChecklistVisibility();
+        
+        const profileMenu = document.getElementById('profile-menu');
+        if (profileMenu) {
+            const profileButton = profileMenu.querySelector('button');
+            const profileDropdown = document.getElementById('profile-dropdown');
+            profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
+            document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
+        }
+        
+        // Auto-close success/error alerts and clean URL
+        const successAlert = document.getElementById('success-alert');
+        const errorAlert = document.getElementById('error-alert');
+        
+        if (successAlert || errorAlert) {
+            setTimeout(() => {
+                if (successAlert) successAlert.remove();
+                if (errorAlert) errorAlert.remove();
+                
+                // Clean URL after timeout
+                if (window.location.search.includes('success=') || window.location.search.includes('error=')) {
+                     window.history.replaceState({}, document.title, "monthly_calendar.php?month=<?= $current_month ?>");
+                }
+            }, 3000);
+        }
+        
+        // Close modal on outside click (for all 3 modals)
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('todo-modal')) {
+                if (event.target.classList.contains('modal-backdrop-blur')) {
+                    closeTodoModal();
+                }
+            } else if (event.target == document.getElementById('task-modal')) {
+                if (event.target.classList.contains('modal-backdrop-blur')) {
+                    closeModal();
+                }
+            }
+        }
+    });
 </script>
 </body>
 </html>
