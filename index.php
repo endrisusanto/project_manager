@@ -161,8 +161,8 @@ function render_kinerja_status($task) {
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
-        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff;--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);}
-        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff;--modal-bg:#ffffff61;--modal-border:rgba(0,0,0,.1);}
+        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff;--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);--title-pill-bg:rgba(55, 65, 81, 0.4);}
+        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff;--modal-bg:#ffffff61;--modal-border:rgba(0,0,0,.1);--title-pill-bg:rgba(209, 213, 219, 0.8);}
         html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:cffafe;color:#0e7490}
         .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.8}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite}html.light .animate-pulse-alert{color:#dc2626}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}html.light .font-semibold.text-yellow-400{color:#a16207}
@@ -171,19 +171,24 @@ function render_kinerja_status($task) {
         .view-accordion .task-card.is-expanded .task-card-full-content{display:block; padding-top: 1rem; }
         .view-accordion .task-card.is-expanded .accordion-summary{display:none}.pic-icon{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
         
-        /* NEW CSS FOR STICKY HEADER */
+        /* MODIFIKASI: kanban-column-header dibuat transparan penuh */
         .kanban-column-header {
-            position: sticky; /* Membuat elemen tetap pada posisinya saat di-scroll */
-            top: 0;          /* Menempel di bagian atas (top) container */
-            z-index: 10;     /* Memastikan judul berada di atas kartu */
-            padding-top: 4px; 
-            padding-bottom: 12px; 
-            margin-bottom: 0 !important; /* Hilangkan margin-bottom asli */
-            background-color: var(--column-bg); /* Menggunakan background kolom */
-            backdrop-filter: blur(8px); /* Efek blur agar lebih modern (opsional) */
-            -webkit-backdrop-filter: blur(8px); /* untuk kompatibilitas Safari */
+            position: sticky; 
+            top: 0;          
+            z-index: 10;     
+            padding: 10px 0; 
+            margin-bottom: 0 !important;
+            background: transparent; /* FULL TRANSPARENT */
+            backdrop-filter: none; /* HILANGKAN BLUR */
+            -webkit-backdrop-filter: none;
         }
-        /* END NEW CSS */
+        /* Style untuk pill background pada h2 (TIDAK BERUBAH) */
+        .kanban-column-header h2 {
+            background-color: var(--title-pill-bg);
+            border-radius: 9999px; /* rounded-full */
+            padding: 8px 12px; /* py-2 px-3 */
+        }
+        /* AKHIR MODIFIKASI */
         
         .strobe-urgent-effect {
             position: relative;
@@ -316,7 +321,7 @@ function render_kinerja_status($task) {
     // Event listener untuk gerakan mouse dan saat mouse meninggalkan window
     window.addEventListener('mousemove', function(event) {
         mouse.x = event.x;
-        mouse.y = event.y;
+        mouse.y = event;
     });
 
     window.addEventListener('mouseout', function(){
