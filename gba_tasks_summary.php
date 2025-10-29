@@ -1,10 +1,19 @@
-
 <?php
 // 1. INISIALISASI
 require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
 
 $active_page = 'gba_tasks_summary';
+
+// Definisikan item checklist (Sama persis dengan gba_tasks.php)
+$test_plan_items = [
+    'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
+    'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
+    'Normal MR' => ['CTS', 'GTS', 'CTS-Verifier', 'ATM'], 
+    'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
+    'Simple Exception MR' => ['STS']
+];
+
 
 // 3. FUNGSI HELPER TAMPILAN
 function getDynamicColorClasses($identifier, $type = 'pic') {
@@ -57,6 +66,19 @@ if ($tasks_result) {
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
         
+        // LOGIKA PERHITUNGAN PROGRESS (Sama persis dengan gba_tasks.php)
+        $checklist = json_decode($row['test_items_checklist'], true);
+        $plan_type = $row['test_plan_type'];
+        $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
+        $completed_items = 0;
+        if ($total_items > 0 && is_array($checklist)) {
+            foreach ($test_plan_items[$plan_type] as $item) {
+                $item_key = str_replace([' ', '-'], '_', $item);
+                if (!empty($checklist[$item_key])) { $completed_items++; }
+            }
+        }
+        $row['progress_percentage'] = $total_items > 0 ? ($completed_items / $total_items) * 100 : 0;
+
         // Menambahkan kelas warna ke data
         $row['pic_color_class'] = getDynamicColorClasses($row['pic_email'] ?? 'N/A', 'pic');
         $row['plan_color_class'] = getDynamicColorClasses($row['test_plan_type'] ?? 'N/A', 'plan');
@@ -67,9 +89,10 @@ if ($tasks_result) {
     }
 }
 
-$all_test_plans = ['Regular Variant', 'SKU', 'Normal MR', 'SMR', 'Simple Exception MR'];
+$all_test_plans = array_keys($test_plan_items);
 $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
 
+// ... (Rest of HTML and JavaScript, already correctly structured to receive PHP data)
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -254,7 +277,41 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
         function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
-        function openEditModal(task){taskForm.reset();modalTitle.innerText='Edit Task';formAction.value='update_gba_task';for(const key in task){if(taskForm.elements[key]&&!key.endsWith('_obj')){taskForm.elements[key].value=task[key]}}document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;setupQuill(task.notes||'');updateChecklistVisibility();if(task.test_items_checklist){try{const checklist=JSON.parse(task.test_items_checklist);for(const itemName in checklist){const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);if(checkbox)checkbox.checked=!!checklist[itemName]}}catch(e){console.error("Could not parse checklist JSON:",e)}}modal.classList.remove('hidden')}
+        
+        function openEditModal(task){
+            taskForm.reset();
+            modalTitle.innerText='Edit Task';
+            formAction.value='update_gba_task';
+            
+            for(const key in task){
+                if(taskForm.elements[key]&&!key.endsWith('_obj')){
+                    taskForm.elements[key].value=task[key]
+                }
+            }
+            
+            document.getElementById('is_urgent_toggle').checked=task.is_urgent==1;
+            setupQuill(task.notes||'');
+            updateChecklistVisibility();
+
+            document.querySelectorAll('[id^="checklist-container-"] input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            
+            if(task.test_items_checklist){
+                try{
+                    const checklist=JSON.parse(task.test_items_checklist);
+                    for(const itemName in checklist){
+                        const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);
+                        if(checkbox)checkbox.checked=!!checklist[itemName]
+                    }
+                }catch(e){
+                    console.error("Could not parse checklist JSON:",e)
+                }
+            }
+            
+            modal.classList.remove('hidden')
+        }
+        
         function closeModal(){modal.classList.add('hidden')}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
@@ -351,6 +408,8 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                     deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
                 }
 
+                const taskJsonString = JSON.stringify(task).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
                 const rowHtml = `
                     <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}" data-status="${task.progress_status || ''}">
                         <td class="p-3 text-center text-secondary">${rowNumber}</td>
@@ -375,7 +434,7 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                         <td class="p-3 text-xs">${kinerjaHtml}</td>
                         <td class="p-3">
                             <div class="flex items-center">
-                                <button onclick='openEditModal(${JSON.stringify(task)})' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                                <button onclick='openEditModal(${taskJsonString})' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                 ${deleteButton}
                             </div>
                         </td>
@@ -416,6 +475,43 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                 renderTable();
             };
             return pageButton;
+        }
+        
+        function setDefaultDates() {
+            const requestDateInput = document.getElementById('request_date');
+            const deadlineInput = document.getElementById('deadline');
+            const signOffDateInput = document.getElementById('sign_off_date');
+            
+            const today = new Date();
+            const todayString = today.toISOString().slice(0, 10);
+            
+            // Assuming calculateWorkingDays logic is available or copied here if needed
+            // For simplicity, using dummy logic if utility function is unavailable
+            
+            const futureDate = calculateWorkingDays(todayString, 7); 
+            
+            if (!requestDateInput.value) {
+                requestDateInput.value = todayString;
+            }
+            if (!deadlineInput.value) {
+                deadlineInput.value = futureDate;
+            }
+            if (!signOffDateInput.value) {
+                signOffDateInput.value = futureDate;
+            }
+        }
+        
+        // Dummy implementation of missing utility function (based on previous context)
+        function calculateWorkingDays(startDate, daysToAdd) {
+            let currentDate = new Date(startDate);
+            let addedDays = 0;
+            while (addedDays < daysToAdd) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                    addedDays++;
+                }
+            }
+            return currentDate.toISOString().slice(0, 10);
         }
 
         const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date');

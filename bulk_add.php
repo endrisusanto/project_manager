@@ -2,18 +2,16 @@
 require_once "config.php";
 require_once "session.php";
 
-// KOREKSI FINAL: Logika hak akses yang benar untuk melihat halaman
-$user_id_from_session = $_SESSION['id'] ?? 0;
-$stmt_user = $conn->prepare("SELECT email FROM users WHERE id = ?");
-$stmt_user->bind_param("i", $user_id_from_session);
-$stmt_user->execute();
-$user_result = $stmt_user->get_result();
-$user_details_from_db = $user_result->fetch_assoc();
-$stmt_user->close();
+// Tentukan fungsi helper
+function is_admin_check() {
+    return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
+}
 
-$email_check = isset($user_details_from_db['email']) ? strtolower($user_details_from_db['email']) : '';
+// Tambahkan akses khusus untuk endri@samsung.com
+$email_check = strtolower($_SESSION['user_details']['email'] ?? '');
 
-if (!(is_admin() || $email_check === 'endri.s@samsung.com')) {
+// MODIFIED ACCESS CHECK
+if (!(is_admin_check() || $email_check === 'endri@samsung.com')) {
     header("Location: index.php?error=permission_denied");
     exit;
 }
@@ -94,7 +92,7 @@ $active_page = 'bulk_add';
         class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
         function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
         function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
-        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate)}
+        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate);}
         const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
         window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
 

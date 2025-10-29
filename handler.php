@@ -16,6 +16,13 @@ function is_admin() {
     return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
 }
 
+// --- NEW HELPER FOR SPECIAL ACCESS ---
+function is_endri_or_admin() {
+    $is_admin = isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
+    $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
+    return $is_admin || $is_endri;
+}
+
 function redirect_with_error($message) {
     $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
     $referer = strtok($referer, '?');
@@ -47,7 +54,6 @@ function add_working_days($start_date_str, $days_to_add) {
     return $current_date->format('Y-m-d');
 }
 
-// Helper baru untuk menghitung hari kerja tanpa memengaruhi variabel di luar scope
 function add_working_days_tracker($start_date_str, $days_to_add) {
     $current_date = new DateTime($start_date_str);
     $days_added = 0;
@@ -73,10 +79,99 @@ if (!$action) {
 }
 
 switch ($action) {
+    
+    // ==========================================================
+    // --- USER NOTES (To-Do List/Catatan) HANDLERS ---
+    // ==========================================================
+    case 'create_todo_note':
+        $note_date = $_POST['todo_date'];
+        $title = $_POST['todo_title'];
+        $content = $_POST['todo_notes_content'];
+        $priority = $_POST['todo_priority'];
+        $pic_email = $_POST['todo_pic_email'] ?: $_SESSION['user_details']['email']; 
+
+        $stmt = $conn->prepare(
+            "INSERT INTO user_notes (user_email, note_date, title, content, priority) 
+             VALUES (?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param("sssss", 
+            $pic_email, $note_date, $title, $content, $priority
+        );
+        
+        if ($stmt->execute()) {
+            redirect('monthly_calendar.php?month=' . date('Y-m', strtotime($note_date)) . '&success=' . urlencode('Catatan berhasil disimpan!'));
+        } else {
+            redirect_with_error('Gagal menyimpan catatan. Error: ' . $stmt->error);
+        }
+        break;
+
+    case 'update_todo_note':
+        $id = $_POST['todo_id'];
+        $note_date = $_POST['todo_date'];
+        $title = $_POST['todo_title'];
+        $content = $_POST['todo_notes_content'];
+        $priority = $_POST['todo_priority'];
+        $pic_email = $_POST['todo_pic_email'];
+
+        $stmt = $conn->prepare(
+            "UPDATE user_notes SET user_email=?, note_date=?, title=?, content=?, priority=? WHERE id=?"
+        );
+        $stmt->bind_param("sssssi", 
+            $pic_email, $note_date, $title, $content, $priority, $id
+        );
+        
+        if ($stmt->execute()) {
+            redirect('monthly_calendar.php?month=' . date('Y-m', strtotime($note_date)) . '&success=' . urlencode('Catatan berhasil diperbarui!'));
+        } else {
+            redirect_with_error('Gagal memperbarui catatan. Error: ' . $stmt->error);
+        }
+        break;
+
+    case 'delete_todo_note':
+        $id = $data['id'] ?? null;
+        $return_month = $data['return_month'] ?? date('Y-m');
+
+        if (!$id) {
+            redirect_with_error('ID Catatan tidak valid.');
+        }
+
+        $user_email = $_SESSION['user_details']['email'];
+        if (!is_admin()) {
+            $check_stmt = $conn->prepare("SELECT user_email FROM user_notes WHERE id = ?");
+            $check_stmt->bind_param("i", $id);
+            $check_stmt->execute();
+            $result = $check_stmt->get_result();
+            if ($result->num_rows === 0 || $result->fetch_assoc()['user_email'] !== $user_email) {
+                redirect_with_error('permission_denied');
+            }
+        }
+        
+        $stmt = $conn->prepare("DELETE FROM user_notes WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        
+        if ($stmt->execute()) {
+            if ($is_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => true]);
+                exit();
+            }
+            redirect('monthly_calendar.php?month=' . $return_month . '&success=' . urlencode('Catatan berhasil dihapus!'));
+        } else {
+             if ($is_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => $stmt->error]);
+                exit();
+            }
+            redirect_with_error('Gagal menghapus catatan. Error: ' . $stmt->error);
+        }
+        break;
+        
+    // ==========================================================
+    // --- GBA TASK HANDLERS (Permission checks added) ---
+    // ==========================================================
     case 'create_bulk_gba_task':
-        // KOREKSI FINAL: Pengecekan diubah menjadi spesifik ke email
-        $email_check = isset($_SESSION['user_details']['email']) ? strtolower($_SESSION['user_details']['email']) : '';
-        if (!(is_admin() || $email_check === 'endri.s@samsung.com')) {
+        // MODIFIED ACCESS CHECK
+        if (!is_endri_or_admin()) {
             redirect_with_error('permission_denied');
         }
         
@@ -161,7 +256,6 @@ switch ($action) {
         break;
 
     case 'create_gba_task':
-        // Hak akses sudah diizinkan untuk semua level
         
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
@@ -221,12 +315,18 @@ switch ($action) {
 
     case 'update_task_status':
         header('Content-Type: application/json');
+        
+        // Cek izin (Kanban drag and drop hanya untuk admin atau endri)
+        if (!is_endri_or_admin()) {
+            echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status task via drag and drop.']);
+            exit();
+        }
+
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
         
         $today = date('Y-m-d');
         
-        // Ambil info task saat ini untuk menentukan test_plan_type
         $get_task_stmt = $conn->prepare("SELECT test_plan_type FROM gba_tasks WHERE id = ?");
         $get_task_stmt->bind_param("i", $task_id);
         $get_task_stmt->execute();
@@ -249,7 +349,6 @@ switch ($action) {
                 $types .= "s";
             }
             
-            // Logika Checklist
             if ($task_data) {
                 $test_plan_items = [
                     'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
@@ -271,7 +370,6 @@ switch ($action) {
                 }
             }
         } elseif ($new_status === 'Task Baru') {
-            // Reset checklist, submission date, dan approved date
             $sql .= ", test_items_checklist = NULL, submission_date = NULL, approved_date = NULL";
         }
         
@@ -289,30 +387,26 @@ switch ($action) {
         }
         exit();
 
-    case 'update_task_status_tracker': // Aksi baru untuk tracker
+    case 'update_task_status_tracker':
         header('Content-Type: application/json');
         $task_id = $data['task_id'] ?? 0;
-        $category = $data['category'] ?? ''; // Kategori: GA Submit, GA Follow Up, GA First Run
+        $category = $data['category'] ?? '';
         $ap_version = $data['ap_version'] ?? '';
         
-        // Atur timezone sesuai konfigurasi
         date_default_timezone_set('Asia/Jakarta');
         
         $now = new DateTime();
         $today = $now->format('Y-m-d');
         $tomorrow = add_working_days_tracker($today, 1);
-        $categorized_at = $now->format('Y-m-d H:i:s'); // Timestamp for expiry check
+        $categorized_at = $now->format('Y-m-d H:i:s');
 
         $target_submit_date = '';
         $target_approved_date = '';
         
-        // Logika Penentuan Tanggal
         if (in_array($category, ['GA Submit', 'GA Follow Up'])) {
-            // T: Hari Ini, A: Besok
             $target_submit_date = $today;
             $target_approved_date = $tomorrow;
         } elseif ($category === 'GA First Run') {
-            // T: Besok, A: Besok
             $target_submit_date = $tomorrow;
             $target_approved_date = $tomorrow;
         } else {
@@ -320,16 +414,13 @@ switch ($action) {
             exit();
         }
         
-        // Format tanggal untuk notes (DD-MM)
         $target_submit_display = date('d-m', strtotime($target_submit_date));
         $target_approved_display = date('d-m', strtotime($target_approved_date));
 
-        // Buat string notes yang baru, termasuk timestamp
         $new_note_string = "{$category}: - {$ap_version} [Target Submit: {$target_submit_display}] [Target Approved: {$target_approved_display}] [CATEGORIZED_AT: {$categorized_at}]";
 
         $new_status = 'Test Ongoing';
 
-        // UPDATE progress_status DAN notes
         $sql = "UPDATE gba_tasks SET progress_status = ?, notes = ? WHERE id = ?";
         $params = [$new_status, $new_note_string, $task_id];
         $types = "ssi";
@@ -338,15 +429,45 @@ switch ($action) {
         $stmt->bind_param($types, ...$params);
         
         if ($stmt->execute()) {
-            // Kirim kembali data yang dibutuhkan untuk update UI
             echo json_encode([
                 'success' => true,
                 'category' => $category,
                 'ap_version' => $ap_version,
                 'target_submit' => $target_submit_display,
                 'target_approved' => $target_approved_display,
-                'categorized_at' => $categorized_at // Kirim timestamp untuk UI
+                'categorized_at' => $categorized_at
             ]);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt->error]);
+        }
+        exit();
+
+    case 'toggle_urgent': // HANDLER UNTUK TOMBOL DI KANBAN
+        header('Content-Type: application/json');
+        
+        // MODIFIED ACCESS CHECK
+        if (!is_endri_or_admin()) {
+            echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status urgent.']);
+            exit();
+        }
+
+        $task_id = $data['task_id'];
+        
+        // Fetch current status
+        $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
+        $stmt->bind_param("i", $task_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $current = $result->fetch_assoc();
+        $new_status = $current['is_urgent'] == 1 ? 0 : 1;
+        $stmt->close();
+        
+        // Update status
+        $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");
+        $stmt->bind_param("ii", $new_status, $task_id);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'is_urgent' => $new_status == 1]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }

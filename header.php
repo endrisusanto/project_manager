@@ -2,6 +2,13 @@
 // File ini mengambil data sesi yang sudah dimulai oleh file pemanggil (misal: index.php)
 $user_details = $_SESSION['user_details'] ?? ['profile_picture' => 'default.png', 'email' => 'user@example.com'];
 $username = $_SESSION['username'] ?? 'User';
+
+// --- NEW HELPER FUNCTION ---
+function has_special_access() {
+    $is_admin = isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
+    $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
+    return $is_admin || $is_endri;
+}
 ?>
 <header class="glass-container sticky top-0 z-20 shadow-sm flex-shrink-0">
     <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -12,9 +19,10 @@ $username = $_SESSION['username'] ?? 'User';
                 <div class="hidden md:flex items-baseline space-x-4 ml-4">
                     <a href="index.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'project_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Kanban Board</a>
                     <a href="gba_dashboard.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Dashboard</a>
+                    <a href="monthly_calendar.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'monthly_calendar') ? 'nav-link-active' : 'nav-link'; ?>">Monthly Calendar</a>
                     <a href="gba_tasks.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">Active Tasks</a>
                     <a href="gba_tasks_summary.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">Summary Data</a>
-                    <a href="ga_submission_tracker.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'ga_tracker') ? 'nav-link-active' : 'nav-link'; ?>">GA Tracker</a>
+                    <!-- <a href="ga_submission_tracker.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'ga_tracker') ? 'nav-link-active' : 'nav-link'; ?>">GA Tracker</a> -->
                 </div>
             </div>
 
@@ -42,7 +50,7 @@ $username = $_SESSION['username'] ?? 'User';
                     Smart Filter
                 </a>
                 
-                <?php if (is_admin() || $username === 'endri'): ?>
+                <?php if (has_special_access()): ?>
                     <a href="bulk_add.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
                         <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 010 2.25H5.625a1.125 1.125 0 010-2.25z" />
@@ -64,7 +72,8 @@ $username = $_SESSION['username'] ?? 'User';
                             <p class="text-xs text-gray-400 truncate"><?php echo htmlspecialchars($user_details['email'] ?? ''); ?></p>
                         </div>
                         <a href="profile.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Profil Saya</a>
-                        <a href="ga_submission_tracker.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">GA Tracker</a>
+                        <a href="ga_submission_tracker.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Reason OT</a>
+                        <a href="monthly_calendar.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Kalender</a>
                         <a href="logout.php" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Logout</a>
                     </div>
                 </div>

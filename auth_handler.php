@@ -142,7 +142,7 @@ switch ($action) {
         if (!isset($_SESSION["loggedin"])) exit('Akses ditolak.');
 
         if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
-            $allowed_types = ['jpg', 'jpeg', 'png', 'gif'];
+            $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             $file_info = pathinfo($_FILES['profile_picture']['name']);
             $file_ext = strtolower($file_info['extension']);
             

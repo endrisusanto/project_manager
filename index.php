@@ -1,9 +1,7 @@
-
 <?php
 // 1. INISIALISASI
 require_once "config.php";
 require_once "session.php";
-$active_page = 'project_dashboard';
 
 // Tentukan halaman aktif untuk navigasi header
 $active_page = 'project_dashboard';
@@ -315,13 +313,13 @@ function render_kinerja_status($task) {
             this.y = y || Math.random() * canvas.height;
             this.originX = this.x; // Posisi asli partikel
             this.originY = this.y;
-            this.vx = 0; // Velocity x
-            this.vy = 0; // Velocity y
+            this.vx = (Math.random() - 0.5) * 0.8; // KECEPATAN AWAL ACAK BARU
+            this.vy = (Math.random() - 0.5) * 0.8; // KECEPATAN AWAL ACAK BARU
             this.ax = 0; // Acceleration x
             this.ay = 0; // Acceleration y
             this.size = Math.random() * 2 + 1.5;
-            this.springFactor = 0.01; // Kekuatan pegas
-            this.friction = 0.9;     // Gesekan
+            this.springFactor = 0.05; // KECEPATAN PEGASS BARU (Lebih Agresif)
+            this.friction = 0.85;     // GESEKAN BARU (Lebih Kecil, momentum bertahan lama)
             this.pushFactor = 10;     // Kekuatan dorongan mouse
         }
 
@@ -360,6 +358,10 @@ function render_kinerja_status($task) {
             // Reset acceleration
             this.ax = 0;
             this.ay = 0;
+            
+            // BOUNDARY CHECK: Jika partikel menjauh dari batas, balikkan arahnya.
+            if(this.x < 0 || this.x > canvas.width) this.vx *= -1;
+            if(this.y < 0 || this.y > canvas.height) this.vy *= -1;
         }
         
         draw(){
@@ -398,7 +400,7 @@ function render_kinerja_status($task) {
 
     function animate(){
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        hue = (hue + 0.3) % 360; 
+        hue = (hue + 1.0) % 360; // PERUBAHAN WARNA CEPAT BARU
         handleParticles();
         requestAnimationFrame(animate);
     }
