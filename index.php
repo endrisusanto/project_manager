@@ -171,6 +171,20 @@ function render_kinerja_status($task) {
         .view-accordion .task-card.is-expanded .task-card-full-content{display:block; padding-top: 1rem; }
         .view-accordion .task-card.is-expanded .accordion-summary{display:none}.pic-icon{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
         
+        /* NEW CSS FOR STICKY HEADER */
+        .kanban-column-header {
+            position: sticky; /* Membuat elemen tetap pada posisinya saat di-scroll */
+            top: 0;          /* Menempel di bagian atas (top) container */
+            z-index: 10;     /* Memastikan judul berada di atas kartu */
+            padding-top: 4px; 
+            padding-bottom: 12px; 
+            margin-bottom: 0 !important; /* Hilangkan margin-bottom asli */
+            background-color: var(--column-bg); /* Menggunakan background kolom */
+            backdrop-filter: blur(8px); /* Efek blur agar lebih modern (opsional) */
+            -webkit-backdrop-filter: blur(8px); /* untuk kompatibilitas Safari */
+        }
+        /* END NEW CSS */
+        
         .strobe-urgent-effect {
             position: relative;
             border-radius: .75rem;
@@ -204,12 +218,15 @@ function render_kinerja_status($task) {
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-6 h-full">
             <?php foreach ($statuses as $status): ?>
             <div class="flex flex-col">
-                <h2 class="text-base font-semibold mb-4 flex items-center justify-between text-header">
-                    <?= htmlspecialchars($status) ?>
-                    <span class="text-sm font-bold bg-gray-500/10 text-header rounded-full px-2 py-0.5 count-<?= str_replace(' ', '', $status) ?>">
-                        <?= count($tasksToDisplay[$status]) ?>
-                    </span>
-                </h2>
+                
+                <div class="kanban-column-header">
+                    <h2 class="text-base font-semibold flex items-center justify-between text-header">
+                        <?= htmlspecialchars($status) ?>
+                        <span class="text-sm font-bold bg-gray-500/10 text-header rounded-full px-2 py-0.5 count-<?= str_replace(' ', '', $status) ?>">
+                            <?= count($tasksToDisplay[$status]) ?>
+                        </span>
+                    </h2>
+                </div>
                 <div id="status-<?= str_replace(' ', '', $status) ?>" data-status="<?= $status ?>" class="kanban-column space-y-4 p-2 rounded-lg h-full overflow-y-auto">
                     <?php foreach ($tasksToDisplay[$status] as $task): ?>
                     <?php
