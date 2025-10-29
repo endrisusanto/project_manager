@@ -317,10 +317,10 @@ switch ($action) {
         header('Content-Type: application/json');
         
         // Cek izin (Kanban drag and drop hanya untuk admin atau endri)
-        if (!is_endri_or_admin()) {
-            echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status task via drag and drop.']);
-            exit();
-        }
+        // if (!is_endri_or_admin()) {
+        //     echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status task via drag and drop.']);
+        //     exit();
+        // }
 
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
@@ -446,10 +446,10 @@ switch ($action) {
         header('Content-Type: application/json');
         
         // MODIFIED ACCESS CHECK
-        if (!is_endri_or_admin()) {
-            echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status urgent.']);
-            exit();
-        }
+        // if (!is_endri_or_admin()) {
+        //     echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status urgent.']);
+        //     exit();
+        // }
 
         $task_id = $data['task_id'];
         

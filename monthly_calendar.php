@@ -154,6 +154,20 @@ if ($stmt_notes) {
     }
     $stmt_notes->close();
 }
+// 4. LOGIKA PENGURUTAN: Memastikan 'note' muncul sebelum 'task'
+foreach ($tasks_by_date as $date => $items) {
+    usort($tasks_by_date[$date], function($a, $b) {
+        if ($a['type'] === 'note' && $b['type'] === 'task') {
+            return -1; // 'note' (a) datang sebelum 'task' (b)
+        }
+        if ($a['type'] === 'task' && $b['type'] === 'note') {
+            return 1; // 'task' (a) datang setelah 'note' (b)
+        }
+        // Jika keduanya sama (keduanya note atau keduanya task), pertahankan urutan asli
+        return 0;
+    });
+}
+// --------------------------------------------------------------------------------
 
 // Ambil daftar user untuk dropdown di modal edit
 $users_result = $conn->query("SELECT email, username FROM users ORDER BY username ASC");
@@ -333,6 +347,19 @@ function getPicInitials($email) {
             justify-content: center;
             background-color: #60a5fa;
         }
+        /* Tambahkan CSS baru ini untuk efek kedipan pada catatan */
+        .note-glow-effect {
+            position: relative;
+            animation: note-glow 2s infinite alternate; /* Animasi kedip */
+            border: 1px solid transparent !important; /* Hilangkan border default */
+        }
+        
+        /* Keyframes untuk efek glow/kedip (AKSEN MERAH) */
+        @keyframes note-glow {
+            0% { box-shadow: 0 0 2px #ef4444, 0 0 4px #ef4444; } /* Merah gelap (Red-600) */
+            50% { box-shadow: 0 0 6px #fca5a5, 0 0 10px #fca5a5; } /* Merah terang (Red-300) */
+            100% { box-shadow: 0 0 2px #ef4444, 0 0 4px #ef4444; }
+        }
         
     </style>
 </head>
@@ -343,7 +370,7 @@ function getPicInitials($email) {
 
     <main class="main-container">
         <div class="flex-shrink-0 flex justify-between items-center mb-4">
-            <h1 class="text-3xl font-bold text-header">Calendar View: <?= date('F Y', $timestamp) ?></h1>
+            <h1 class="text-3xl font-bold text-header">Schedule <?= date('F Y', $timestamp) ?></h1>
             <div class="flex items-center space-x-3">
                 <a href="?month=<?= $prev_month ?>" class="p-2 rounded-full hover:bg-gray-700/50 text-icon">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -456,7 +483,7 @@ function getPicInitials($email) {
                             <?php elseif ($item['type'] === 'note'): ?>
                                 <?php $note_color = getNotePriorityColor($item['priority']); ?>
                                 <div 
-                                    class="task-item <?= $note_color ?> bg-opacity-70 hover:bg-opacity-90 border border-indigo-400" 
+                                    class="task-item <?= $note_color ?> bg-opacity-70 hover:bg-opacity-90 note-glow-effect" 
                                     title="[Catatan: <?= htmlspecialchars($item['priority']) ?>] <?= htmlspecialchars($item_title) ?>"
                                     onclick='event.stopPropagation(); openEditNoteModal(<?= $item['json_data'] ?>)'
                                 >
