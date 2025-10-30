@@ -384,7 +384,7 @@ function getPicInitials($email) {
                 
                 <div class="flex items-center space-x-4 border-l border-gray-600 pl-4">
                     <div class="flex items-center">
-                        <input id="filter-task" type="checkbox" checked class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer">
+                        <input id="filter-task" type="checkbox" class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer">
                         <label for="filter-task" class="ml-2 text-sm font-medium text-primary cursor-pointer">Tampilkan Task</label>
                     </div>
                     <div class="flex items-center">
@@ -1062,16 +1062,25 @@ function getPicInitials($email) {
 
 
     // =========================================================================
-    // CALENDAR FILTER LOGIC (NEW)
+    // CALENDAR FILTER LOGIC (MODIFIED DEFAULT)
     // =========================================================================
     const filterTaskCheckbox = document.getElementById('filter-task');
     const filterNoteCheckbox = document.getElementById('filter-note');
 
     function loadFilters() {
-        // Load state from localStorage, default to true
-        // Note: localStorage stores strings, so 'false' string means false
-        const showTasks = localStorage.getItem('filterTask') !== 'false';
-        const showNotes = localStorage.getItem('filterNote') !== 'false';
+        // Load state from localStorage, default to:
+        // filterTask: false (default tidak tampil)
+        // filterNote: true (default tampil)
+        
+        // Cek apakah ada nilai di localStorage. Jika tidak ada, gunakan default.
+        // Jika localStorage.getItem('filterTask') MENGEMBALIKAN NULL, maka defaultnya adalah 'false'.
+        const showTasks = localStorage.getItem('filterTask') !== null 
+                         ? localStorage.getItem('filterTask') === 'true' 
+                         : false; // DEFAULT BARU: false
+                         
+        const showNotes = localStorage.getItem('filterNote') !== null 
+                         ? localStorage.getItem('filterNote') === 'true' 
+                         : true; // DEFAULT: true
         
         if (filterTaskCheckbox) {
             filterTaskCheckbox.checked = showTasks;
@@ -1094,7 +1103,7 @@ function getPicInitials($email) {
     }
     
     function applyFilters(showTasks, showNotes) {
-        // Default values if not passed (e.g., first run)
+        // Gunakan nilai dari checkbox jika parameter tidak disediakan (hanya dipanggil saat DOMContentLoaded)
         showTasks = showTasks === undefined ? (filterTaskCheckbox ? filterTaskCheckbox.checked : true) : showTasks;
         showNotes = showNotes === undefined ? (filterNoteCheckbox ? filterNoteCheckbox.checked : true) : showNotes;
         
@@ -1121,6 +1130,7 @@ function getPicInitials($email) {
         updateChecklistVisibility();
         
         // Panggil fungsi filter baru
+        // Ini akan memuat status dari localStorage atau menggunakan default (Task: false, Note: true)
         loadFilters();
         applyFilters(); 
         
