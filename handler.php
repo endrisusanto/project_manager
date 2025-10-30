@@ -10,13 +10,35 @@ if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true) {
     die('Akses ditolak. Silakan login terlebih dahulu.');
 }
 
-// --- FUNGSI HELPER ---
+// Tambahkan variabel email pengguna yang sedang login
+$user_email = $_SESSION['user_details']['email'] ?? null;
+if (!$user_email) {
+    // Jika sesi user_details belum diset dengan email, fallback ke error.
+    die('Akses ditolak: Informasi pengguna tidak ditemukan.');
+}
+
+// --- NEW HELPER FOR LOGGING ---
+function log_activity($conn, $task_id, $action_type, $details, $user_email) {
+    // Pastikan $task_id adalah integer atau null
+    $task_id_param = is_numeric($task_id) ? (int)$task_id : null;
+    
+    $log_stmt = $conn->prepare(
+        "INSERT INTO activity_log (task_id, action_type, details, user_email) 
+         VALUES (?, ?, ?, ?)"
+    );
+    // Bind parameter, 'i' untuk task_id (integer), 'sss' untuk action, details, user_email (string)
+    $log_stmt->bind_param("isss", $task_id_param, $action_type, $details, $user_email);
+    @$log_stmt->execute(); 
+    @$log_stmt->close();
+}
+
+
+// --- FUNGSI HELPER LAIN ---
 
 function is_admin() {
     return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
 }
 
-// --- NEW HELPER FOR SPECIAL ACCESS ---
 function is_endri_or_admin() {
     $is_admin = isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
     $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
@@ -135,13 +157,13 @@ switch ($action) {
             redirect_with_error('ID Catatan tidak valid.');
         }
 
-        $user_email = $_SESSION['user_details']['email'];
+        $current_user_email = $_SESSION['user_details']['email'];
         if (!is_admin()) {
             $check_stmt = $conn->prepare("SELECT user_email FROM user_notes WHERE id = ?");
             $check_stmt->bind_param("i", $id);
             $check_stmt->execute();
             $result = $check_stmt->get_result();
-            if ($result->num_rows === 0 || $result->fetch_assoc()['user_email'] !== $user_email) {
+            if ($result->num_rows === 0 || $result->fetch_assoc()['user_email'] !== $current_user_email) {
                 redirect_with_error('permission_denied');
             }
         }
@@ -167,7 +189,7 @@ switch ($action) {
         break;
         
     // ==========================================================
-    // --- GBA TASK HANDLERS (Permission checks added) ---
+    // --- GBA TASK HANDLERS (LOGGING IMPLEMENTED) ---
     // ==========================================================
     case 'create_bulk_gba_task':
         // MODIFIED ACCESS CHECK
@@ -191,10 +213,11 @@ switch ($action) {
 
         require_once 'marketing_name_mapper.php';
         $pic_index = 0;
+        $created_count = 0;
         
         $stmt = $conn->prepare(
-            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?)"
+            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date, updated_by_email) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?, ?)" 
         );
 
         foreach ($lines as $line) {
@@ -243,16 +266,22 @@ switch ($action) {
             $deadline = add_working_days($request_date, 7);
             $sign_off_date = $deadline;
             
-            $stmt->bind_param("ssssssssssss", 
+            $stmt->bind_param("sssssssssssss", 
                 $marketing_name, $model_name, $pic_email, $ap, $cp, $csc, 
                 $qb_user, $qb_userdebug, $request_date, $test_plan_type,
-                $deadline, $sign_off_date
+                $deadline, $sign_off_date,
+                $user_email 
             );
-            $stmt->execute();
+            
+            if ($stmt->execute()) {
+                $last_id = $conn->insert_id;
+                log_activity($conn, $last_id, 'TASK_CREATED', "New task for model {$model_name} created via bulk add.", $user_email);
+                $created_count++;
+            }
         }
 
         $stmt->close();
-        redirect('index.php');
+        redirect('index.php?success=' . urlencode("Berhasil membuat {$created_count} task baru."));
         break;
 
     case 'create_gba_task':
@@ -261,42 +290,139 @@ switch ($action) {
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
         
         $stmt = $conn->prepare(
-            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, test_plan_type, progress_status, request_date, submission_date, deadline, sign_off_date, approved_date, base_submission_id, submission_id, reviewer_email, is_urgent, notes, test_items_checklist, updated_by_email) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" 
         );
-        $stmt->bind_param("ssssssssssssssssssiss",
+        $stmt->bind_param("sssssssssssssssssssssi", 
             $data['project_name'], $data['model_name'], $data['pic_email'], 
             null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
             null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
             null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
             null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
             null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
-            $is_urgent, $data['notes'], $checklist_json
+            $is_urgent, $data['notes'], $checklist_json,
+            $user_email 
         );
         
         $stmt->execute();
+        $last_id = $conn->insert_id;
+        log_activity($conn, $last_id, 'TASK_CREATED', "New task '{$data['model_name']}' created.", $user_email); 
         redirect('index.php');
         break;
 
     case 'update_gba_task':
+        $id = $data['id'];
+
+        // 1. Fetch OLD data before update
+        $old_task_stmt = $conn->prepare("SELECT * FROM gba_tasks WHERE id = ?");
+        $old_task_stmt->bind_param("i", $id);
+        $old_task_stmt->execute();
+        $old_task_result = $old_task_stmt->get_result();
+        $old_task_data = $old_task_result->fetch_assoc();
+        $old_task_stmt->close();
+        
+        if (!$old_task_data) {
+            redirect_with_error('Task tidak ditemukan.');
+        }
+
         $checklist_json = isset($data['checklist']) ? json_encode($data['checklist']) : null;
         $is_urgent = isset($data['is_urgent']) && $data['is_urgent'] == 1 ? 1 : 0;
         
+        // --- 2. COMPARE DATA AND BUILD DETAILS LOG ---
+        $changes = [];
+        $fields_to_check = [
+            'project_name' => 'Marketing Name', 'model_name' => 'Model Name', 'pic_email' => 'PIC', 
+            'ap' => 'AP', 'cp' => 'CP', 'csc' => 'CSC', 'qb_user' => 'QB User', 'qb_userdebug' => 'QB Userdebug',
+            'test_plan_type' => 'Test Plan Type', 'progress_status' => 'Status Progress',
+            'request_date' => 'Request Date', 'submission_date' => 'Submission Date', 'deadline' => 'Deadline',
+            'sign_off_date' => 'Sign-Off Date', 'approved_date' => 'Approved Date',
+            'base_submission_id' => 'Base Submission ID', 'submission_id' => 'Submission ID', 'reviewer_email' => 'Reviewer Email',
+            'notes' => 'Notes'
+        ];
+        
+        // Check simple fields
+        foreach ($fields_to_check as $db_field => $display_name) {
+            // Handle null_if_empty normalization for POST data
+            $new_value = $db_field === 'notes' ? $data[$db_field] : null_if_empty($data[$db_field]);
+            $old_value = $old_task_data[$db_field];
+            
+            // Normalize date and null values for comparison
+            $normalized_new = $new_value === null ? '' : (is_string($new_value) ? trim($new_value) : $new_value);
+            $normalized_old = $old_value === null ? '' : (is_string($old_value) ? trim($old_value) : $old_value);
+            
+            if ($db_field === 'notes') {
+                // Notes use HTML content, just check if it's different.
+                if ($normalized_new !== $normalized_old) {
+                    // Check if there is meaningful content difference (e.g., ignoring whitespace/tags changes if content is same)
+                    // For simplicity and assuming structured notes, we just flag it as changed.
+                    $changes[] = "{$display_name} has been modified (view Task details for content).";
+                }
+            } else if ($normalized_new !== $normalized_old) {
+                 // For dates, display 'empty' instead of ''
+                $old_display = empty($normalized_old) ? 'empty' : $normalized_old;
+                $new_display = empty($normalized_new) ? 'empty' : $normalized_new;
+                $changes[] = "{$display_name} changed from '{$old_display}' to '{$new_display}'";
+            }
+        }
+
+        // Check is_urgent toggle
+        $old_is_urgent = (int)($old_task_data['is_urgent'] ?? 0);
+        if ($old_is_urgent !== $is_urgent) {
+            $old_display = $old_is_urgent ? 'YES' : 'NO';
+            $new_display = $is_urgent ? 'YES' : 'NO';
+            $changes[] = "Urgency status toggled from '{$old_display}' to '{$new_display}'";
+        }
+
+        // Check checklist changes (complex - assumes JSON content comparison)
+        $old_checklist = json_decode($old_task_data['test_items_checklist'] ?? '{}', true) ?: [];
+        $new_checklist = json_decode($checklist_json ?? '{}', true) ?: [];
+        
+        $checklist_changes = [];
+        $all_keys = array_unique(array_merge(array_keys($old_checklist), array_keys($new_checklist)));
+        
+        foreach ($all_keys as $key) {
+            // Convert to boolean check based on value '1'
+            $old_val = isset($old_checklist[$key]) && (string)$old_checklist[$key] === '1';
+            $new_val = isset($new_checklist[$key]) && (string)$new_checklist[$key] === '1';
+            $item_name = str_replace('_', ' ', $key);
+
+            if ($old_val !== $new_val) {
+                $status = $new_val ? 'CHECKED' : 'UNCHECKED';
+                $checklist_changes[] = "Item '{$item_name}' set to {$status}";
+            }
+        }
+
+        if (!empty($checklist_changes)) {
+             $changes[] = "Test Checklist modified: " . implode(', ', $checklist_changes);
+        } else if (($old_task_data['test_items_checklist'] ?? '') !== ($checklist_json ?? '')) {
+             // Fallback for technical JSON change (e.g., re-saving empty JSON, key order, etc.)
+             $changes[] = "Test Checklist data was technically saved again.";
+        }
+        
+        $log_details = empty($changes) 
+                     ? "Task '{$old_task_data['model_name']}' updated, but no measurable field change detected." 
+                     : "Task '{$old_task_data['model_name']}' updated. Changes: " . implode(' | ', $changes);
+        
+        // --- 3. Execute Update ---
         $stmt = $conn->prepare(
-            "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?
-            WHERE id=?"
+            "UPDATE gba_tasks SET project_name=?, model_name=?, pic_email=?, ap=?, cp=?, csc=?, qb_user=?, qb_userdebug=?, test_plan_type=?, progress_status=?, request_date=?, submission_date=?, deadline=?, sign_off_date=?, approved_date=?, base_submission_id=?, submission_id=?, reviewer_email=?, is_urgent=?, notes=?, test_items_checklist=?, updated_by_email=?
+            WHERE id=?" 
         );
-        $stmt->bind_param("ssssssssssssssssssissi",
+        
+        $stmt->bind_param("ssssssssssssssssssisssi",
             $data['project_name'], $data['model_name'], $data['pic_email'], 
             null_if_empty($data['ap']), null_if_empty($data['cp']), null_if_empty($data['csc']),
             null_if_empty($data['qb_user']), null_if_empty($data['qb_userdebug']), $data['test_plan_type'], $data['progress_status'],
             null_if_empty($data['request_date']), null_if_empty($data['submission_date']), null_if_empty($data['deadline']),
             null_if_empty($data['sign_off_date']), null_if_empty($data['approved_date']),
             null_if_empty($data['base_submission_id']), null_if_empty($data['submission_id']), null_if_empty($data['reviewer_email']),
-            $is_urgent, $data['notes'], $checklist_json, $data['id']
+            $is_urgent, $data['notes'], $checklist_json,
+            $user_email,
+            $data['id']
         );
         
         $stmt->execute();
+        log_activity($conn, $data['id'], 'TASK_UPDATED', $log_details, $user_email); 
         $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
         redirect($referer);
         break;
@@ -306,9 +432,18 @@ switch ($action) {
         if (!is_admin()) {
             redirect_with_error('permission_denied');
         }
+        
+        // Ambil model name untuk log
+        $get_model_name_stmt = $conn->prepare("SELECT model_name FROM gba_tasks WHERE id = ?");
+        $get_model_name_stmt->bind_param("i", $data['id']);
+        $get_model_name_stmt->execute();
+        $model_name = $get_model_name_stmt->get_result()->fetch_assoc()['model_name'] ?? "ID #{$data['id']}";
+        $get_model_name_stmt->close();
+        
         $stmt = $conn->prepare("DELETE FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $data['id']);
         $stmt->execute();
+        log_activity($conn, $data['id'], 'TASK_DELETED', "Task '{$model_name}' deleted by admin.", $user_email);
         $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
         redirect($referer);
         break;
@@ -316,27 +451,25 @@ switch ($action) {
     case 'update_task_status':
         header('Content-Type: application/json');
         
-        // Cek izin (Kanban drag and drop hanya untuk admin atau endri)
-        // if (!is_endri_or_admin()) {
-        //     echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status task via drag and drop.']);
-        //     exit();
-        // }
-
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
-        
         $today = date('Y-m-d');
         
-        $get_task_stmt = $conn->prepare("SELECT test_plan_type FROM gba_tasks WHERE id = ?");
-        $get_task_stmt->bind_param("i", $task_id);
-        $get_task_stmt->execute();
-        $task_result = $get_task_stmt->get_result();
-        $task_data = $task_result->fetch_assoc();
-        $get_task_stmt->close();
+        // 1. Fetch original status and model name for logging
+        $get_old_status_stmt = $conn->prepare("SELECT progress_status, model_name, test_plan_type FROM gba_tasks WHERE id = ?");
+        $get_old_status_stmt->bind_param("i", $task_id);
+        $get_old_status_stmt->execute();
+        $old_task_data = $get_old_status_stmt->get_result()->fetch_assoc();
+        $get_old_status_stmt->close();
+        
+        $original_status = $old_task_data['progress_status'] ?? 'N/A';
+        $model_name = $old_task_data['model_name'] ?? "ID #{$task_id}";
 
-        $sql = "UPDATE gba_tasks SET progress_status = ?";
-        $params = [$new_status];
-        $types = "s";
+
+        // 2. Prepare update query
+        $sql = "UPDATE gba_tasks SET progress_status = ?, updated_by_email = ?";
+        $params = [$new_status, $user_email]; 
+        $types = "ss";
 
         if (in_array($new_status, ['Submitted', 'Approved', 'Passed'])) {
             $sql .= ", submission_date = COALESCE(submission_date, ?)";
@@ -349,7 +482,8 @@ switch ($action) {
                 $types .= "s";
             }
             
-            if ($task_data) {
+            if ($old_task_data) {
+                // Logic to auto-check checklist when status moves past Task Baru
                 $test_plan_items = [
                     'Regular Variant' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'], 
                     'SKU' => ['CTS SKU', 'GTS-variant', 'ATM', 'CTS-Verifier'],
@@ -357,7 +491,7 @@ switch ($action) {
                     'SMR' => ['CTS', 'GTS', 'STS', 'SCAT'], 
                     'Simple Exception MR' => ['STS']
                 ];
-                $plan_type = $task_data['test_plan_type'];
+                $plan_type = $old_task_data['test_plan_type'];
                 if (isset($test_plan_items[$plan_type])) {
                     $checklist = [];
                     foreach ($test_plan_items[$plan_type] as $item) {
@@ -381,6 +515,8 @@ switch ($action) {
         $stmt->bind_param($types, ...$params);
         
         if ($stmt->execute()) {
+            $details = "Status task '{$model_name}' updated: '{$original_status}' -> '{$new_status}' (via Kanban/Drag-Drop).";
+            log_activity($conn, $task_id, 'STATUS_CHANGE', $details, $user_email);
             echo json_encode(['success' => true]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
@@ -421,14 +557,21 @@ switch ($action) {
 
         $new_status = 'Test Ongoing';
 
-        $sql = "UPDATE gba_tasks SET progress_status = ?, notes = ? WHERE id = ?";
-        $params = [$new_status, $new_note_string, $task_id];
-        $types = "ssi";
+        $sql = "UPDATE gba_tasks SET progress_status = ?, notes = ?, updated_by_email = ? WHERE id = ?"; 
+        $params = [$new_status, $new_note_string, $user_email, $task_id]; 
+        $types = "sssi";
         
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param($types, ...$params);
+        // Get model name for log
+        $get_model_name_stmt = $conn->prepare("SELECT model_name FROM gba_tasks WHERE id = ?");
+        $get_model_name_stmt->bind_param("i", $task_id);
+        $get_model_name_stmt->execute();
+        $model_name = $get_model_name_stmt->get_result()->fetch_assoc()['model_name'] ?? "ID #{$task_id}";
+        $get_model_name_stmt->close();
         
         if ($stmt->execute()) {
+            $details = "Task '{$model_name}' categorized as '{$category}' (Status set to Test Ongoing). Note detail: AP Version set to '{$ap_version}'.";
+            log_activity($conn, $task_id, 'STATUS_TRACKER_CHANGE', $details, $user_email);
+            
             echo json_encode([
                 'success' => true,
                 'category' => $category,
@@ -445,28 +588,27 @@ switch ($action) {
     case 'toggle_urgent': // HANDLER UNTUK TOMBOL DI KANBAN
         header('Content-Type: application/json');
         
-        // MODIFIED ACCESS CHECK
-        // if (!is_endri_or_admin()) {
-        //     echo json_encode(['success' => false, 'error' => 'Akses ditolak: Anda tidak diizinkan mengubah status urgent.']);
-        //     exit();
-        // }
-
         $task_id = $data['task_id'];
         
         // Fetch current status
-        $stmt = $conn->prepare("SELECT is_urgent FROM gba_tasks WHERE id = ?");
+        $stmt = $conn->prepare("SELECT is_urgent, model_name FROM gba_tasks WHERE id = ?");
         $stmt->bind_param("i", $task_id);
         $stmt->execute();
         $result = $stmt->get_result();
         $current = $result->fetch_assoc();
         $new_status = $current['is_urgent'] == 1 ? 0 : 1;
+        $model_name = $current['model_name'] ?? "ID #{$task_id}";
         $stmt->close();
         
         // Update status
-        $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ? WHERE id = ?");
-        $stmt->bind_param("ii", $new_status, $task_id);
+        $stmt = $conn->prepare("UPDATE gba_tasks SET is_urgent = ?, updated_by_email = ? WHERE id = ?"); 
+        $stmt->bind_param("isi", $new_status, $user_email, $task_id); 
+        
+        $action_detail = $new_status == 1 ? 'marked as URGENT (NO -> YES)' : 'unmarked as URGENT (YES -> NO)';
         
         if ($stmt->execute()) {
+            $details = "Task '{$model_name}' {$action_detail}.";
+            log_activity($conn, $task_id, 'TOGGLE_URGENT', $details, $user_email);
             echo json_encode(['success' => true, 'is_urgent' => $new_status == 1]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
