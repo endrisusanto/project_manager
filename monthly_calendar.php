@@ -382,6 +382,16 @@ function getPicInitials($email) {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 </a>
                 
+                <div class="flex items-center space-x-4 border-l border-gray-600 pl-4">
+                    <div class="flex items-center">
+                        <input id="filter-task" type="checkbox" checked class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer">
+                        <label for="filter-task" class="ml-2 text-sm font-medium text-primary cursor-pointer">Tampilkan Task</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input id="filter-note" type="checkbox" checked class="w-4 h-4 text-indigo-600 bg-gray-700 border-gray-600 rounded focus:ring-indigo-500 cursor-pointer">
+                        <label for="filter-note" class="ml-2 text-sm font-medium text-primary cursor-pointer">Tampilkan Catatan</label>
+                    </div>
+                </div>
                 <a onclick="openAddModal()" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 cursor-pointer">
                     + Task Baru
                 </a>
@@ -476,7 +486,7 @@ function getPicInitials($email) {
                                     class="task-item <?= $status_class ?> hover:bg-opacity-80" 
                                     title="[Task: Deadline] <?= htmlspecialchars($item_title) ?> - PIC: <?= htmlspecialchars($item['username'] ?: $item['pic_email']) ?>"
                                     onclick='event.stopPropagation(); openEditModal(<?= $item['json_data'] ?>)'
-                                >
+                                    data-item-type="task" >
                                     <img src="uploads/<?= htmlspecialchars($profile_pic) ?>" onerror="this.style.display='none'" alt="P" class="pic-icon-sm">
                                     <?= htmlspecialchars($item_title) ?>
                                 </div>
@@ -486,7 +496,7 @@ function getPicInitials($email) {
                                     class="task-item <?= $note_color ?> bg-opacity-70 hover:bg-opacity-90 note-glow-effect" 
                                     title="[Catatan: <?= htmlspecialchars($item['priority']) ?>] <?= htmlspecialchars($item_title) ?>"
                                     onclick='event.stopPropagation(); openEditNoteModal(<?= $item['json_data'] ?>)'
-                                >
+                                    data-item-type="note" >
                                     <img src="uploads/<?= htmlspecialchars($profile_pic) ?>" onerror="this.style.display='none'" alt="P" class="pic-icon-sm">
                                     <?= htmlspecialchars($item_title) ?>
                                 </div>
@@ -1051,11 +1061,68 @@ function getPicInitials($email) {
     });
 
 
-    // --- DOM Load ---
-    document.addEventListener('DOMContentLoaded', () => {
+    // =========================================================================
+    // CALENDAR FILTER LOGIC (NEW)
+    // =========================================================================
+    const filterTaskCheckbox = document.getElementById('filter-task');
+    const filterNoteCheckbox = document.getElementById('filter-note');
+
+    function loadFilters() {
+        // Load state from localStorage, default to true
+        // Note: localStorage stores strings, so 'false' string means false
+        const showTasks = localStorage.getItem('filterTask') !== 'false';
+        const showNotes = localStorage.getItem('filterNote') !== 'false';
+        
+        if (filterTaskCheckbox) {
+            filterTaskCheckbox.checked = showTasks;
+            filterTaskCheckbox.addEventListener('change', saveAndApplyFilters);
+        }
+        if (filterNoteCheckbox) {
+            filterNoteCheckbox.checked = showNotes;
+            filterNoteCheckbox.addEventListener('change', saveAndApplyFilters);
+        }
+    }
+
+    function saveAndApplyFilters() {
+        const showTasks = filterTaskCheckbox ? filterTaskCheckbox.checked : true;
+        const showNotes = filterNoteCheckbox ? filterNoteCheckbox.checked : true;
+        
+        localStorage.setItem('filterTask', showTasks);
+        localStorage.setItem('filterNote', showNotes);
+        
+        applyFilters(showTasks, showNotes);
+    }
+    
+    function applyFilters(showTasks, showNotes) {
+        // Default values if not passed (e.g., first run)
+        showTasks = showTasks === undefined ? (filterTaskCheckbox ? filterTaskCheckbox.checked : true) : showTasks;
+        showNotes = showNotes === undefined ? (filterNoteCheckbox ? filterNoteCheckbox.checked : true) : showNotes;
+        
+        // Iterate through all task items and toggle visibility
+        document.querySelectorAll('.task-item').forEach(item => {
+            const itemType = item.getAttribute('data-item-type');
+            let isVisible = true;
+            
+            if (itemType === 'task' && !showTasks) {
+                isVisible = false;
+            } else if (itemType === 'note' && !showNotes) {
+                isVisible = false;
+            }
+            
+            // Menggunakan style.display: 'flex' karena task-item memiliki display: flex
+            item.style.display = isVisible ? 'flex' : 'none';
+        });
+    }
+
+    // --- DOM Load ---
+    document.addEventListener('DOMContentLoaded', () => {
         setupQuill('');
         setupTodoQuill(''); 
         updateChecklistVisibility();
+        
+        // Panggil fungsi filter baru
+        loadFilters();
+        applyFilters(); 
         
         const profileMenu = document.getElementById('profile-menu');
         if (profileMenu) {
