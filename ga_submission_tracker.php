@@ -56,7 +56,8 @@ if ($tasks_result) {
                 if ($categorized_at && $categorized_at > $cutoff_time) {
                     if (!isset($clipboard_tasks[$pic_email])) {
                         $clipboard_tasks[$pic_email] = ['name' => $pic_name, 'categories' => [
-                            'GA Submit' => [], 'GA Follow Up' => [], 'GA First Run' => []
+                            // Inisialisasi semua kategori termasuk yang baru untuk konsistensi
+                            'GA Submit' => [], 'GA Follow Up' => [], 'GA Follow Up Besok' => [], 'GA First Run' => [] 
                         ]];
                     }
                     
@@ -74,7 +75,8 @@ if ($tasks_result) {
 // Clean up empty categories from clipboard_tasks before JSON encoding
 foreach ($clipboard_tasks as $email => &$data) {
     $data['categories'] = array_filter($data['categories']);
-    if (empty($data['categories'])) {
+    // NOTE: Tidak menghapus 'GA Follow Up Besok' jika kosong di sini. Biarkan JS yang mengurus penggabungan.
+    if (empty($data['categories']) && !isset($data['categories']['GA Follow Up']) && !isset($data['categories']['GA Follow Up Besok'])) {
         unset($clipboard_tasks[$email]);
     }
 }
@@ -182,6 +184,7 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             <div class="modal-buttons">
                 <button onclick="processTaskCategory('GA Submit')">GA Submit (Target Submit: Hari Ini, Target Approved: Besok)</button>
                 <button onclick="processTaskCategory('GA Follow Up')">GA Follow Up (Target Submit: Hari Ini, Target Approved: Besok)</button>
+                <button onclick="processTaskCategory('GA Follow Up Besok')">GA Follow Up (Target Submit: Besok, Target Approved: Besok)</button>
                 <button onclick="processTaskCategory('GA First Run')">GA First Run (Target Submit: Besok, Target Approved: Besok)</button>
             </div>
             
@@ -251,6 +254,7 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     const picEmail = cardElement.dataset.picEmail;
                     // Hapus kartu dari tampilan dan struktur data
                     if (clipboardData[picEmail]) {
+                        // Hapus data card secara total karena sudah kedaluwarsa
                         delete clipboardData[picEmail];
                     }
                     cardElement.remove();
@@ -376,17 +380,31 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 let hasContent = false;
                 let newestTimestamp = null; // Track newest time for countdown
 
+                // 1. Definisikan Kategori yang Digabungkan
+                let groupedCategories = {
+                    'GA Submit': data.categories['GA Submit'] || [],
+                    // GABUNGKAN: GA Follow Up (Hari Ini) + GA Follow Up Besok
+                    'GA Follow Up': [
+                        ...(data.categories['GA Follow Up'] || []),
+                        ...(data.categories['GA Follow Up Besok'] || [])
+                    ],
+                    'GA First Run': data.categories['GA First Run'] || []
+                };
+
+                // 2. Definisikan Urutan Tampilan Akhir (tanpa 'GA Follow Up Besok')
                 const categoriesOrder = ['GA Submit', 'GA Follow Up', 'GA First Run'];
 
                 categoriesOrder.forEach(category => {
-                    const tasks = data.categories[category];
+                    const tasks = groupedCategories[category];
+                    
+                    // Hanya tampilkan jika grup gabungan/tunggal memiliki item
                     if (tasks && tasks.length > 0) {
                         outputContent += `<div class="category-group mb-4 last:mb-0" data-category="${category}">\n`;
                         outputContent += `<h4 class="font-semibold text-primary mb-1">${category}:</h4>\n`;
                         outputContent += `<ul class="output-list pl-4 list-none text-secondary">`;
                         
                         tasks.forEach(taskObj => {
-                            // Update newest timestamp
+                            // Update newest timestamp (must check all tasks, including merged ones)
                             const currentTimestamp = taskObj.timestamp;
                             if (!newestTimestamp || new Date(currentTimestamp) > new Date(newestTimestamp)) {
                                 newestTimestamp = currentTimestamp;
@@ -433,10 +451,21 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             
             let textToCopy = '';
             
+            // 1. Definisikan Kategori yang Digabungkan
+            let groupedCategories = {
+                'GA Submit': data.categories['GA Submit'] || [],
+                // GABUNGKAN: GA Follow Up (Hari Ini) + GA Follow Up Besok
+                'GA Follow Up': [
+                    ...(data.categories['GA Follow Up'] || []),
+                    ...(data.categories['GA Follow Up Besok'] || [])
+                ],
+                'GA First Run': data.categories['GA First Run'] || []
+            };
+            
             const categoriesOrder = ['GA Submit', 'GA Follow Up', 'GA First Run'];
 
             categoriesOrder.forEach(category => {
-                const tasks = data.categories[category];
+                const tasks = groupedCategories[category];
                 if (tasks && tasks.length > 0) {
                     textToCopy += `${category}:\n`;
                     tasks.forEach(taskObj => {

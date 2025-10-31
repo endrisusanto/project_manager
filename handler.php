@@ -17,16 +17,14 @@ if (!$user_email) {
     die('Akses ditolak: Informasi pengguna tidak ditemukan.');
 }
 
-// --- NEW HELPER FOR LOGGING ---
+// --- NEW HELPER FOR LOGGING (Assumed to be present or re-added) ---
 function log_activity($conn, $task_id, $action_type, $details, $user_email) {
-    // Pastikan $task_id adalah integer atau null
     $task_id_param = is_numeric($task_id) ? (int)$task_id : null;
     
     $log_stmt = $conn->prepare(
         "INSERT INTO activity_log (task_id, action_type, details, user_email) 
          VALUES (?, ?, ?, ?)"
     );
-    // Bind parameter, 'i' untuk task_id (integer), 'sss' untuk action, details, user_email (string)
     $log_stmt->bind_param("isss", $task_id_param, $action_type, $details, $user_email);
     @$log_stmt->execute(); 
     @$log_stmt->close();
@@ -525,26 +523,34 @@ switch ($action) {
 
     case 'update_task_status_tracker':
         header('Content-Type: application/json');
+        
         $task_id = $data['task_id'] ?? 0;
         $category = $data['category'] ?? '';
         $ap_version = $data['ap_version'] ?? '';
         
+        $current_user_email = $user_email; 
+
         date_default_timezone_set('Asia/Jakarta');
         
         $now = new DateTime();
         $today = $now->format('Y-m-d');
-        $tomorrow = add_working_days_tracker($today, 1);
+        // Mendefinisikan HARI KERJA BERIKUTNYA
+        $next_working_day = add_working_days_tracker($today, 1); 
+        
         $categorized_at = $now->format('Y-m-d H:i:s');
 
         $target_submit_date = '';
         $target_approved_date = '';
         
-        if (in_array($category, ['GA Submit', 'GA Follow Up'])) {
+        // --- LOGIKA BARU UNTUK KATEGORI GA SUBMISSION TRACKER ---
+        if ($category === 'GA Submit' || $category === 'GA Follow Up') {
+            // Target Submit: HARI INI, Target Approved: HARI KERJA BERIKUTNYA
             $target_submit_date = $today;
-            $target_approved_date = $tomorrow;
-        } elseif ($category === 'GA First Run') {
-            $target_submit_date = $tomorrow;
-            $target_approved_date = $tomorrow;
+            $target_approved_date = $next_working_day;
+        } elseif (in_array($category, ['GA Follow Up Besok', 'GA First Run'])) {
+            // Target Submit: HARI KERJA BERIKUTNYA, Target Approved: HARI KERJA BERIKUTNYA
+            $target_submit_date = $next_working_day;
+            $target_approved_date = $next_working_day;
         } else {
             echo json_encode(['success' => false, 'error' => 'Kategori tidak valid.']);
             exit();
@@ -557,21 +563,31 @@ switch ($action) {
 
         $new_status = 'Test Ongoing';
 
+        // 1. Kueri UPDATE Task (dengan updated_by_email)
         $sql = "UPDATE gba_tasks SET progress_status = ?, notes = ?, updated_by_email = ? WHERE id = ?"; 
-        $params = [$new_status, $new_note_string, $user_email, $task_id]; 
-        $types = "sssi";
+        $params = [$new_status, $new_note_string, $current_user_email, $task_id]; 
+        $types = "sssi"; // s (progress_status), s (notes), s (updated_by_email), i (id)
         
-        // Get model name for log
-        $get_model_name_stmt = $conn->prepare("SELECT model_name FROM gba_tasks WHERE id = ?");
-        $get_model_name_stmt->bind_param("i", $task_id);
-        $get_model_name_stmt->execute();
-        $model_name = $get_model_name_stmt->get_result()->fetch_assoc()['model_name'] ?? "ID #{$task_id}";
-        $get_model_name_stmt->close();
+        $stmt = $conn->prepare($sql);
+        
+        if (!$stmt->bind_param($types, ...$params)) {
+             echo json_encode(['success' => false, 'error' => 'Gagal binding parameter untuk update task.']);
+             exit();
+        }
         
         if ($stmt->execute()) {
-            $details = "Task '{$model_name}' categorized as '{$category}' (Status set to Test Ongoing). Note detail: AP Version set to '{$ap_version}'.";
-            log_activity($conn, $task_id, 'STATUS_TRACKER_CHANGE', $details, $user_email);
             
+            // 2. Logging Aktivitas
+            $get_model_name_stmt = $conn->prepare("SELECT model_name FROM gba_tasks WHERE id = ?");
+            $get_model_name_stmt->bind_param("i", $task_id);
+            $get_model_name_stmt->execute();
+            $model_name = $get_model_name_stmt->get_result()->fetch_assoc()['model_name'] ?? "ID #{$task_id}";
+            $get_model_name_stmt->close();
+            
+            $details = "Task '{$model_name}' categorized as '{$category}' (Status set to Test Ongoing). Note detail: AP Version set to '{$ap_version}'.";
+            log_activity($conn, $task_id, 'STATUS_TRACKER_CHANGE', $details, $current_user_email);
+            
+            // 3. Response Sukses
             echo json_encode([
                 'success' => true,
                 'category' => $category,
@@ -581,6 +597,7 @@ switch ($action) {
                 'categorized_at' => $categorized_at
             ]);
         } else {
+            // Kegagalan eksekusi kueri
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }
         exit();
