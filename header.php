@@ -4,11 +4,11 @@ $user_details = $_SESSION['user_details'] ?? ['profile_picture' => 'default.png'
 $username = $_SESSION['username'] ?? 'User';
 
 // --- NEW HELPER FUNCTION ---
-function has_special_access() {
-    $is_admin = isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
-    $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
-    return $is_admin || $is_endri;
-}
+// function has_special_access() {
+//     $is_admin = isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
+//     $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
+//     return $is_admin || $is_endri;
+// }
 ?>
 <header class="glass-container sticky top-0 z-20 shadow-sm flex-shrink-0">
     <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
@@ -22,7 +22,7 @@ function has_special_access() {
                     <a href="monthly_calendar.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'monthly_calendar') ? 'nav-link-active' : 'nav-link'; ?>">Calendar</a>
                     <a href="gba_tasks.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">Active Tasks</a>
                     <a href="gba_tasks_summary.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">Summary</a>
-                    <a href="activity_log.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'activity_log') ? 'nav-link-active' : 'nav-link'; ?>">Log</a>
+                    <a href="activity_log.php" class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'activity_log') ? 'nav-link-active' : 'nav-link'; ?>">Activity Log</a>
                     </div>
             </div>
 
@@ -50,14 +50,12 @@ function has_special_access() {
                     Smart Filter
                 </a>
                 
-                <?php if (has_special_access()): ?>
                     <a href="bulk_add.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
                         <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 010 2.25H5.625a1.125 1.125 0 010-2.25z" />
                         </svg>
                         Bulk Add
                     </a>
-                <?php endif; ?>
 
                 <button onclick="openAddModal()" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"><svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>Task Baru</button>
 

@@ -11,10 +11,10 @@ function is_admin_check() {
 $email_check = strtolower($_SESSION['user_details']['email'] ?? '');
 
 // MODIFIED ACCESS CHECK
-if (!(is_admin_check() || $email_check === 'endri@samsung.com')) {
-    header("Location: index.php?error=permission_denied");
-    exit;
-}
+// if (!(is_admin_check() || $email_check === 'endri.s@samsung.com')) {
+//     header("Location: index.php?error=permission_denied");
+//     exit;
+// }
 
 $active_page = 'bulk_add';
 ?>

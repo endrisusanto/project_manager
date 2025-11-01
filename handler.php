@@ -191,9 +191,9 @@ switch ($action) {
     // ==========================================================
 case 'create_bulk_gba_task':
     // MODIFIED ACCESS CHECK
-    if (!is_endri_or_admin()) {
-        redirect_with_error('permission_denied');
-    }
+    // if (!is_endri_or_admin()) {
+    //     redirect_with_error('permission_denied');
+    // }
     
     $bulk_data = trim($_POST['bulk_data']);
     $lines = explode("\n", $bulk_data);
