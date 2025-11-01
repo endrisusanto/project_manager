@@ -140,6 +140,11 @@ function getPicInitials($email) {
             transition-delay: 0.1s; /* Staggered effect for every item */
         }
         /* End Scroll Animation CSS */
+        .nav-link-active{
+            color:var(--text-primary)!important;
+            font-weight:500;
+            border-bottom:2px solid #3b82f6 /* Ini yang menciptakan underline */
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">

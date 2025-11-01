@@ -150,6 +150,17 @@ if (!empty($all_tasks)) {
             75% { transform: rotateZ(5deg) translate3d(0,0,0); }
             100% { transform: rotateZ(0deg) translate3d(0,0,0); }
         }
+        
+        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
+        .glow-highlight-red {
+            animation: red-glow-text 1.5s infinite alternate;
+            color: #f87171 !important; /* text-red-400 */
+        }
+        @keyframes red-glow-text {
+            from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
+            to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
+        }
+        /* --- END NEW CSS --- */
     </style>
 </head>
 <body class="min-h-screen">

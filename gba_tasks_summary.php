@@ -123,6 +123,17 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         .table-container td { vertical-align: middle; }
         #pagination-rows { color: var(--text-primary); }
         #pagination-rows option { background-color: var(--bg-primary); color: var(--text-primary); }
+
+        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
+        .glow-highlight-red {
+            animation: red-glow-text 1.5s infinite alternate;
+            color: #f87171 !important; /* text-red-400 */
+        }
+        @keyframes red-glow-text {
+            from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
+            to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
+        }
+        /* --- END NEW CSS --- */
     </style>
 </head>
 <body class="min-h-screen">
@@ -372,6 +383,13 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                 const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link">${task.qb_user}</a></div>` : '';
                 const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
                 
+                // --- NEW JS LOGIC FOR CP MISMATCH ---
+                const apVersion = (task.ap || '').trim();
+                const cpVersion = (task.cp || '').trim();
+                const isMismatch = apVersion && cpVersion && apVersion !== cpVersion;
+                const cpMismatchClass = isMismatch ? 'text-red-400 font-bold glow-highlight-red' : '';
+                // --- END NEW JS LOGIC ---
+
                 let kinerjaHtml = '';
                 if(task.progress_status === 'Batal') {
                     kinerjaHtml = `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
@@ -416,7 +434,9 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                         <td class="p-3">
                             <div class="font-medium text-primary">${task.model_name || '-'}</div>
                             <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
-                                <div>AP: ${task.ap || '-'}</div> <div>CP: ${task.cp || '-'}</div> <div>CSC: ${task.csc || '-'}</div>
+                                <div>AP: ${task.ap || '-'}</div> 
+                                <div class="${cpMismatchClass}">CP: ${task.cp || '-'}</div> 
+                                <div>CSC: ${task.csc || '-'}</div>
                             </div>
                         </td>
                         <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}</td>

@@ -211,6 +211,17 @@ function render_kinerja_status($task) {
             from { box-shadow: 0 0 2px #3b82f6, 0 0 4px #3b82f6, 0 0 6px #3b82f6; }
             to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
         }
+        
+        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
+        .glow-highlight-red {
+            animation: red-glow-text 1.5s infinite alternate;
+            color: #f87171 !important; /* text-red-400 */
+        }
+        @keyframes red-glow-text {
+            from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
+            to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
+        }
+        /* --- END NEW CSS --- */
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -237,6 +248,12 @@ function render_kinerja_status($task) {
                     <?php
                         $cardClasses = 'task-card flex flex-col glass-container';
                         if ($task['is_urgent'] == 1) $cardClasses .= ' strobe-urgent-effect';
+
+                        // LOGIKA BARU UNTUK CP MISMATCH
+                        $ap_version = trim($task['ap'] ?? '');
+                        $cp_version = trim($task['cp'] ?? '');
+                        $cp_class = (!empty($ap_version) && !empty($cp_version) && $ap_version !== $cp_version) ? 'text-red-400 font-bold glow-highlight-red' : '';
+                        // AKHIR LOGIKA BARU
                     ?>
                     <div id="task-<?= $task['id'] ?>" data-id="<?= $task['id'] ?>" data-task='<?= json_encode($task, JSON_HEX_APOS | JSON_HEX_QUOT) ?>' class="<?= $cardClasses ?>">
                         <div class="glass-container-content p-4">
@@ -269,7 +286,7 @@ function render_kinerja_status($task) {
                                 <p class="text-sm font-medium text-card-body model-name"><?= htmlspecialchars($task['model_name']) ?></p>
                                 <div class="text-xs text-secondary font-mono space-y-0.5 mt-2 pt-2 border-t border-[var(--glass-border)]">
                                     <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div>
-                                    <div>CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div>
+                                    <div class="<?= $cp_class ?>">CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div>
                                     <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
                                 </div>
                                 <div class="mt-2 pt-2 border-t border-[var(--glass-border)] text-xs space-y-1">

@@ -182,6 +182,17 @@ function getStatusColorClasses($status) {
         .carousel-btn.next { right: 0.75rem; }
         #task-modal .ql-editor { min-height: 42px; padding-top: 10px; padding-bottom: 10px; }
         #task-modal .ql-container { border-top: 1px solid var(--glass-border) !important; border-radius: .5rem; }
+
+        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
+        .glow-highlight-red {
+            animation: red-glow-text 1.5s infinite alternate;
+            color: #f87171 !important; /* text-red-400 */
+        }
+        @keyframes red-glow-text {
+            from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
+            to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
+        }
+        /* --- END NEW CSS --- */
     </style>
 </head>
 <body class="min-h-screen">
@@ -275,13 +286,22 @@ function getStatusColorClasses($status) {
                             <tr><td colspan="10" class="text-center p-4 text-secondary">Tidak ada task aktif yang ditemukan.</td></tr>
                         <?php else: ?>
                             <?php $row_number = 1; ?>
-                            <?php foreach ($tasks as $task): ?>
+                            <?php foreach ($tasks as $task): 
+                                // --- NEW LOGIC FOR CP MISMATCH ---
+                                $ap_version = trim($task['ap'] ?? '');
+                                $cp_version = trim($task['cp'] ?? '');
+                                $is_mismatch = !empty($ap_version) && !empty($cp_version) && $ap_version !== $cp_version;
+                                $cp_mismatch_class = $is_mismatch ? 'text-red-400 font-bold glow-highlight-red' : '';
+                                // --- END NEW LOGIC ---
+                            ?>
                             <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 <?php if ($task['is_urgent']) echo 'urgent-row'; ?>" data-plan="<?= htmlspecialchars($task['test_plan_type']) ?>" data-status="<?= htmlspecialchars($task['progress_status']) ?>">
                                 <td class="p-3 text-center text-secondary"><?= $row_number++ ?></td>
                                 <td class="p-3">
                                     <div class="font-medium text-primary"><?= htmlspecialchars($task['model_name']) ?></div>
                                     <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
-                                        <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div> <div>CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div> <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
+                                        <div>AP: <?= htmlspecialchars($task['ap'] ?: '-') ?></div> 
+                                        <div class="<?= $cp_mismatch_class ?>">CP: <?= htmlspecialchars($task['cp'] ?: '-') ?></div> 
+                                        <div>CSC: <?= htmlspecialchars($task['csc'] ?: '-') ?></div>
                                     </div>
                                 </td>
                                 <td class="p-3 text-xs text-secondary font-mono">
@@ -491,8 +511,8 @@ function getStatusColorClasses($status) {
         function moveSlide(direction) {
             if (isTransitioning) return;
             isTransitioning = true;
-            currentIndex += direction;
             inner.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)';
+            currentIndex += direction;
             inner.style.transform = `translateX(-${currentIndex * 100}%)`;
         }
         
