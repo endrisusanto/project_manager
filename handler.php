@@ -189,36 +189,61 @@ switch ($action) {
     // ==========================================================
     // --- GBA TASK HANDLERS (LOGGING IMPLEMENTED) ---
     // ==========================================================
-    case 'create_bulk_gba_task':
-        // MODIFIED ACCESS CHECK
-        if (!is_endri_or_admin()) {
-            redirect_with_error('permission_denied');
-        }
+case 'create_bulk_gba_task':
+    // MODIFIED ACCESS CHECK
+    if (!is_endri_or_admin()) {
+        redirect_with_error('permission_denied');
+    }
+    
+    $bulk_data = trim($_POST['bulk_data']);
+    $lines = explode("\n", $bulk_data);
+    array_shift($lines);
+
+    $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
+    $pic_list = [];
+    while ($user = $users_result->fetch_assoc()) {
+        $pic_list[] = $user['email'];
+    }
+
+    if (empty($pic_list)) {
+        redirect_with_error('Tidak ada user yang bisa di-assign sebagai PIC.');
+    }
+
+    require_once 'marketing_name_mapper.php';
+    
+    // START: MODIFIED LOGIC TO CONTINUE PIC PATTERN
+    $pic_index = 0; // Default start from the first PIC
+    $last_pic_email = null;
+    
+    // 1. Get the PIC from the last created task
+    $last_task_stmt = $conn->prepare("SELECT pic_email FROM gba_tasks ORDER BY id DESC LIMIT 1");
+    if ($last_task_stmt && $last_task_stmt->execute()) {
+        $last_task_result = $last_task_stmt->get_result();
         
-        $bulk_data = trim($_POST['bulk_data']);
-        $lines = explode("\n", $bulk_data);
-        array_shift($lines);
-
-        $users_result = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
-        $pic_list = [];
-        while ($user = $users_result->fetch_assoc()) {
-            $pic_list[] = $user['email'];
+        if ($last_task_result->num_rows > 0) {
+            $last_pic_email = $last_task_result->fetch_assoc()['pic_email'];
         }
+        $last_task_stmt->close();
+    }
 
-        if (empty($pic_list)) {
-            redirect_with_error('Tidak ada user yang bisa di-assign sebagai PIC.');
+    // 2. Find the index of the last PIC and set the starting index to the next PIC
+    if ($last_pic_email) {
+        $last_index = array_search($last_pic_email, $pic_list);
+        if ($last_index !== false) {
+            // Set pic_index to the index of the next person in the list (round-robin)
+            $pic_index = ($last_index + 1) % count($pic_list);
         }
+    }
+    // END: MODIFIED LOGIC
+    
+    $created_count = 0;
+    
+    $stmt = $conn->prepare(
+        "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date, updated_by_email) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?, ?)" 
+    );
 
-        require_once 'marketing_name_mapper.php';
-        $pic_index = 0;
-        $created_count = 0;
-        
-        $stmt = $conn->prepare(
-            "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date, updated_by_email) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Task Baru', ?, ?, ?, ?, ?)" 
-        );
-
-        foreach ($lines as $line) {
+    foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
             
