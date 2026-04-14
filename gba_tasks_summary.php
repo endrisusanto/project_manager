@@ -24,7 +24,7 @@ function getDynamicColorClasses($identifier, $type = 'pic') {
     return "badge-color-" . $palette[abs($hash) % count($palette)];
 }
 function getStatusColorClasses($status) {
-    $colors = ['Approved'=>'badge-color-green','Passed'=>'badge-color-green','Submitted'=>'badge-color-purple','Test Ongoing'=>'badge-color-yellow','Task Baru'=>'badge-color-blue','Batal'=>'badge-color-gray','Pending Feedback'=>'badge-color-orange','Feedback Sent'=>'badge-color-orange'];
+    $colors = ['Approved'=>'badge-color-green','Passed'=>'badge-color-green','Submitted'=>'badge-color-purple','Test Ongoing'=>'badge-color-yellow','Task Baru'=>'badge-color-blue','Downloaded'=>'badge-color-cyan','Batal'=>'badge-color-gray','Pending Feedback'=>'badge-color-orange','Feedback Sent'=>'badge-color-orange'];
     return $colors[$status] ?? 'badge-color-gray';
 }
 
@@ -90,7 +90,7 @@ if ($tasks_result) {
 }
 
 $all_test_plans = array_keys($test_plan_items);
-$all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
+$all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
 
 // ... (Rest of HTML and JavaScript, already correctly structured to receive PHP data)
 ?>
@@ -134,6 +134,35 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
             to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
         }
         /* --- END NEW CSS --- */
+
+        /* --- COPY TOOLTIP CSS --- */
+        .copy-tooltip {
+            position: fixed;
+            background-color: var(--toast-bg, #16a34a);
+            color: var(--toast-text, #fff);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .copy-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--toast-bg, #16a34a) transparent transparent transparent;
+        }
+        /* --- END COPY TOOLTIP CSS --- */
     </style>
 </head>
 <body class="min-h-screen">
@@ -160,11 +189,23 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <button id="redistribute-btn" onclick="openRedistributeModal()" class="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-500">
+                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z" />
+                        </svg>
+                        Distribusi Tanggal
+                    </button>
                     <a id="export-button" href="export_handler.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
                         <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clip-rule="evenodd" />
                         </svg>
                         Export Excel
+                    </a>
+                    <a id="export-latest-ap-button" href="export_latest_ap.php" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Export All AP
                     </a>
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-secondary">Baris:</span>
@@ -199,6 +240,58 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
             <div id="pagination-nav" class="flex justify-center items-center gap-2 py-4 text-secondary"></div>
         </div>
     </main>
+
+    <!-- ============ REDISTRIBUTE MODAL ============ -->
+    <div id="redistribute-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
+        <div class="glassmorphism-modal rounded-xl shadow-2xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div>
+                    <h2 class="text-xl font-bold text-primary">🗓️ Preview Distribusi Request Date</h2>
+                    <p class="text-sm text-secondary mt-1">Maks <strong class="text-violet-400">3 task/PIC/hari</strong> — hanya task yang belum submit yang akan diubah</p>
+                </div>
+                <button onclick="closeRedistributeModal()" class="p-2 rounded-lg hover:bg-white/10 text-secondary">✕</button>
+            </div>
+
+            <!-- Loading State -->
+            <div id="redistribute-loading" class="flex-grow flex items-center justify-center py-12">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-violet-400 mx-auto mb-3"></div>
+                    <p class="text-secondary text-sm">Menghitung distribusi...</p>
+                </div>
+            </div>
+
+            <!-- Preview Table -->
+            <div id="redistribute-content" class="hidden flex-grow overflow-auto">
+                <div id="redistribute-summary" class="mb-3 text-sm"></div>
+                <div class="glassmorphism-table rounded-lg overflow-hidden">
+                    <table class="w-full text-sm text-left">
+                        <thead>
+                            <tr class="border-b border-[var(--glass-border)]">
+                                <th class="p-3 sticky top-0 bg-[var(--glass-bg)] backdrop-blur-sm text-secondary">PIC</th>
+                                <th class="p-3 sticky top-0 bg-[var(--glass-bg)] backdrop-blur-sm text-secondary">Model</th>
+                                <th class="p-3 sticky top-0 bg-[var(--glass-bg)] backdrop-blur-sm text-secondary">Request Date Lama</th>
+                                <th class="p-3 sticky top-0 bg-[var(--glass-bg)] backdrop-blur-sm text-secondary">Request Date Baru</th>
+                                <th class="p-3 sticky top-0 bg-[var(--glass-bg)] backdrop-blur-sm text-secondary">Deadline Baru</th>
+                            </tr>
+                        </thead>
+                        <tbody id="redistribute-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="redistribute-error" class="hidden flex-grow flex items-center justify-center text-red-400 text-sm py-8"></div>
+
+            <!-- Footer Buttons -->
+            <div class="flex justify-end gap-3 mt-4 flex-shrink-0">
+                <button onclick="closeRedistributeModal()" class="px-4 py-2 rounded-lg themed-input text-sm">Batal</button>
+                <button id="redistribute-confirm-btn" onclick="executeRedistribute()" class="hidden px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-sm font-semibold">
+                    ✅ Terapkan Perubahan
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- ============ END REDISTRIBUTE MODAL ============ -->
 
     <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
         <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
@@ -307,13 +400,19 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
             document.querySelectorAll('[id^="checklist-container-"] input[type="checkbox"]').forEach(cb => {
                 cb.checked = false;
             });
-            
-            if(task.test_items_checklist){
+
+            const autoCheckStatuses = ['Approved', 'Submitted', 'Passed', 'Pending Feedback', 'Feedback Sent'];
+            if (autoCheckStatuses.includes(task.progress_status)) {
+                checkAllVisibleCheckboxes(true);
+            } else if(task.test_items_checklist){
                 try{
                     const checklist=JSON.parse(task.test_items_checklist);
-                    for(const itemName in checklist){
-                        const checkbox=document.querySelector(`input[name="checklist[${itemName}]"]`);
-                        if(checkbox)checkbox.checked=!!checklist[itemName]
+                    const visibleContainer = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+                    if (visibleContainer) {
+                        for(const itemName in checklist){
+                            const checkbox=visibleContainer.querySelector(`input[name="checklist[${itemName}]"]`);
+                            if(checkbox)checkbox.checked=!!checklist[itemName];
+                        }
                     }
                 }catch(e){
                     console.error("Could not parse checklist JSON:",e)
@@ -325,7 +424,7 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
         
         function closeModal(){modal.classList.add('hidden')}
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
-        taskForm.addEventListener('submit',function(){document.getElementById('notes-hidden-input').value=quill.root.innerHTML});function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
+        taskForm.addEventListener('submit',function(){ document.getElementById('notes-hidden-input').value=quill.root.innerHTML; const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)'); if(visibleChecklist){ document.querySelectorAll('[id^="checklist-hidden-"]').forEach(el=>el.remove()); visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ const hidden=document.createElement('input'); hidden.type='hidden'; hidden.id='checklist-hidden-'+cb.name.replace(/[\[\]]/g,'_'); hidden.name=cb.name; hidden.value=cb.checked?'1':'0'; taskForm.appendChild(hidden); cb.disabled=true; }); } });function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
         const searchInput=document.getElementById('search-input'),rowsSelect=document.getElementById('pagination-rows'),tableBody=document.getElementById('task-table-body'),paginationNav=document.getElementById('pagination-nav'),testplanFilterContainer=document.getElementById('testplan-filter-container'),statusFilter=document.getElementById('status-filter');
         let currentPage=1,activePlanFilter='All', activeStatusFilter='All';
@@ -335,12 +434,23 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
             const rowsPerPage = parseInt(rowsSelect.value);
             
             const filteredTasks = allTasksData.filter(task => {
+                // Search di semua kolom yang ada di tabel
                 const searchContent = (
                     (task.model_name || '') +
                     (task.pic_email || '') +
                     (task.progress_status || '') +
                     (task.ap || '') +
-                    (task.project_name || '')
+                    (task.cp || '') +
+                    (task.csc || '') +
+                    (task.project_name || '') +
+                    (task.test_plan_type || '') +
+                    (task.qb_user || '') +
+                    (task.qb_userdebug || '') +
+                    (task.request_date || '') +
+                    (task.submission_date || '') +
+                    (task.deadline || '') +
+                    (task.approved_date || '') +
+                    (task.notes || '')
                 ).toLowerCase();
                 const matchesSearch = searchContent.includes(searchText);
                 const matchesPlan = activePlanFilter === 'All' || task.test_plan_type === activePlanFilter;
@@ -432,11 +542,11 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                     <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}" data-status="${task.progress_status || ''}">
                         <td class="p-3 text-center text-secondary">${rowNumber}</td>
                         <td class="p-3">
-                            <div class="font-medium text-primary">${task.model_name || '-'}</div>
+                            <div class="font-medium text-primary"><span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.model_name || '-'}</span></div>
                             <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
-                                <div>AP: ${task.ap || '-'}</div> 
-                                <div class="${cpMismatchClass}">CP: ${task.cp || '-'}</div> 
-                                <div>CSC: ${task.csc || '-'}</div>
+                                <div>AP: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.ap || '-'}</span></div> 
+                                <div class="${cpMismatchClass}">CP: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.cp || '-'}</span></div> 
+                                <div>CSC: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.csc || '-'}</span></div>
                             </div>
                         </td>
                         <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}</td>
@@ -603,6 +713,167 @@ $all_statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent
                 renderTable();
             });
         });
+
+        // ============ REDISTRIBUTE REQUEST DATE LOGIC ============
+        function openRedistributeModal() {
+            document.getElementById('redistribute-modal').classList.remove('hidden');
+            document.getElementById('redistribute-loading').classList.remove('hidden');
+            document.getElementById('redistribute-content').classList.add('hidden');
+            document.getElementById('redistribute-error').classList.add('hidden');
+            document.getElementById('redistribute-confirm-btn').classList.add('hidden');
+
+            fetch('handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'preview_redistribute_dates' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('redistribute-loading').classList.add('hidden');
+                if (!data.success) {
+                    const errEl = document.getElementById('redistribute-error');
+                    errEl.textContent = 'Error: ' + (data.error || 'Terjadi kesalahan.');
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+                renderRedistributePreview(data.preview);
+            })
+            .catch(err => {
+                document.getElementById('redistribute-loading').classList.add('hidden');
+                const errEl = document.getElementById('redistribute-error');
+                errEl.textContent = 'Gagal menghubungi server: ' + err.message;
+                errEl.classList.remove('hidden');
+            });
+        }
+
+        function closeRedistributeModal() {
+            document.getElementById('redistribute-modal').classList.add('hidden');
+        }
+
+        function renderRedistributePreview(preview) {
+            const tbody = document.getElementById('redistribute-table-body');
+            tbody.innerHTML = '';
+
+            if (!preview || preview.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-6 text-secondary">Tidak ada task yang perlu didistribusikan ulang.</td></tr>';
+                document.getElementById('redistribute-content').classList.remove('hidden');
+                document.getElementById('redistribute-summary').innerHTML = '<span class="text-secondary">Semua task sudah terdistribusi dengan baik.</span>';
+                return;
+            }
+
+            const fmt = (d) => {
+                if (!d) return '-';
+                return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+            };
+
+            let changedCount = 0;
+            preview.forEach(row => {
+                const changed = row.old_date !== row.new_date;
+                if (changed) changedCount++;
+                const rowClass = changed ? 'bg-violet-500/10' : '';
+                const oldDateHtml = changed
+                    ? `<span class="line-through text-secondary">${fmt(row.old_date)}</span>`
+                    : `<span class="text-secondary">${fmt(row.old_date)}</span>`;
+                const newDateHtml = changed
+                    ? `<span class="text-violet-300 font-semibold">${fmt(row.new_date)}</span>`
+                    : `<span class="text-secondary">${fmt(row.new_date)}</span>`;
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="border-b border-[var(--glass-border)] ${rowClass}">
+                        <td class="p-3 text-xs">${row.pic_email}</td>
+                        <td class="p-3 font-medium">${row.model_name}</td>
+                        <td class="p-3 text-xs">${oldDateHtml}</td>
+                        <td class="p-3 text-xs">${newDateHtml}</td>
+                        <td class="p-3 text-xs text-secondary">${fmt(row.deadline)}</td>
+                    </tr>
+                `);
+            });
+
+            document.getElementById('redistribute-summary').innerHTML =
+                `<span class="text-primary">Total <strong>${preview.length}</strong> task akan diproses — <strong class="text-violet-400">${changedCount}</strong> tanggal akan berubah.</span>`;
+
+            document.getElementById('redistribute-content').classList.remove('hidden');
+            if (changedCount > 0) {
+                document.getElementById('redistribute-confirm-btn').classList.remove('hidden');
+            }
+        }
+
+        function executeRedistribute() {
+            const btn = document.getElementById('redistribute-confirm-btn');
+            btn.disabled = true;
+            btn.textContent = 'Memproses...';
+
+            fetch('handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'redistribute_request_dates' })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    closeRedistributeModal();
+                    // Reload page to refresh data
+                    window.location.reload();
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = '✅ Terapkan Perubahan';
+                    alert('Gagal: ' + (data.error || 'Terjadi kesalahan.'));
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.textContent = '✅ Terapkan Perubahan';
+                alert('Gagal menghubungi server: ' + err.message);
+            });
+        }
+        // ============ END REDISTRIBUTE LOGIC ============
+
+        // --- Copy on Right Click QB Link & Model/Build ---
+        document.addEventListener('contextmenu', function(e) {
+            const isCopyText = e.target.closest('.copy-text');
+            if (e.target.classList.contains('qb-link') || isCopyText) {
+                e.preventDefault();
+                const textToCopy = (isCopyText ? isCopyText.textContent : e.target.textContent).trim();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        showCopyTooltip(e.clientX, e.clientY);
+                    }).catch(err => console.error('Gagal menyalin:', err));
+                } else {
+                    // Fallback using textarea
+                    const textarea = document.createElement('textarea');
+                    textarea.value = textToCopy;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        document.execCommand('copy');
+                        showCopyTooltip(e.clientX, e.clientY);
+                    } catch (err) {
+                        console.error('Gagal menyalin via execCommand:', err);
+                    }
+                    document.body.removeChild(textarea);
+                }
+            }
+        });
+
+        function showCopyTooltip(x, y) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'copy-tooltip';
+            tooltip.textContent = 'copied!';
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+            document.body.appendChild(tooltip);
+            
+            // Trigger reflow
+            void tooltip.offsetWidth;
+            tooltip.style.opacity = '1';
+            
+            setTimeout(() => {
+                tooltip.style.opacity = '0';
+                setTimeout(() => tooltip.remove(), 200);
+            }, 1000);
+        }
     </script>
 </body>
 </html>

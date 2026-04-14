@@ -7,7 +7,8 @@ require_once "session.php";
 $active_page = 'project_dashboard';
 
 // 2. LOGIKA PENGAMBILAN DATA TUGAS (TASK)
-$statuses = ['Task Baru', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
+// MODIFIKASI: Menambahkan 'Downloaded' agar muat 9 kolom
+$statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
 $tasksToDisplay = [];
 foreach ($statuses as $status) {
     $tasksToDisplay[$status] = [];
@@ -33,8 +34,6 @@ if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
 
-// $sql .= " ORDER BY t.id DESC, t.request_date DESC";
-// $sql .= " ORDER BY t.request_date DESC";
 $sql .= " ORDER BY t.id DESC";
 
 $stmt = $conn->prepare($sql);
@@ -45,13 +44,12 @@ if ($stmt) {
     $stmt->execute();
     $result = $stmt->get_result();
 } else {
-    $result = false; // Handle error jika statement gagal
+    $result = false; 
 }
 
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        // Kalkulasi tanggal dan status
         $row['request_date_obj'] = $row['request_date'] ? new DateTime($row['request_date']) : null;
         $row['submission_date_obj'] = $row['submission_date'] ? new DateTime($row['submission_date']) : null;
         $row['approved_date_obj'] = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
@@ -163,7 +161,12 @@ function render_kinerja_status($task) {
     <style>
         :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--column-bg:rgba(255,255,255,.03);--text-header:#fff;--text-card-title:#fff;--text-card-body:#cbd5e1;--text-icon:#94a3b8;--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0;--toast-bg:#22c55e;--toast-text:#fff;--modal-bg:rgba(15,23,42,.8);--modal-border:rgba(51,65,85,.6);--title-pill-bg:rgba(55, 65, 81, 0.4);}
         html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--column-bg:rgba(0,0,0,.03);--text-header:#0f172a;--text-card-title:#1e293b;--text-card-body:#334155;--text-icon:#475569;--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a;--toast-bg:#16a34a;--toast-text:#fff;--modal-bg:#ffffff61;--modal-border:rgba(0,0,0,.1);--title-pill-bg:rgba(209, 213, 219, 0.8);}
-        html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}main{height:calc(100% - 64px);overflow-y:auto}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:cffafe;color:#0e7490}
+        html,body{overflow-x:hidden;height:100%}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}
+        
+        /* REVERTING TO ORIGINAL SCROLL UX */
+        main{height:calc(100% - 64px);overflow-y:auto}
+        
+        #neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border)}.kanban-column{background:var(--column-bg);border-radius:1rem}.task-card{position:relative;cursor:grab;transition:all .2s ease-in-out;border-radius:.75rem}.task-card:hover{transform:translateY(-4px);box-shadow:0 10px 20px rgba(0,0,0,.2)}.sortable-ghost{opacity:.4;background:rgba(59,130,246,.2);border:2px dashed #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}.badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}html.light .badge-color-cyan{background-color:cffafe;color:#0e7490}
         .nav-link{color:var(--text-secondary);border-bottom:2px solid transparent;transition:all .2s}.nav-link:hover{border-color:var(--text-secondary);color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;border-bottom:2px solid #3b82f6;font-weight:600}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:80px}#toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.8}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite}html.light .animate-pulse-alert{color:#dc2626}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}html.light .font-semibold.text-yellow-400{color:#a16207}
         .sad-emoji{position:fixed;font-size:2rem;animation:fall 5s linear forwards;opacity:1;z-index:9999}@keyframes fall{to{transform:translateY(100vh) rotate(360deg);opacity:0}}
@@ -171,24 +174,21 @@ function render_kinerja_status($task) {
         .view-accordion .task-card.is-expanded .task-card-full-content{display:block; padding-top: 1rem; }
         .view-accordion .task-card.is-expanded .accordion-summary{display:none}.pic-icon{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0}
         
-        /* MODIFIKASI: kanban-column-header dibuat transparan penuh */
         .kanban-column-header {
             position: sticky; 
             top: 0;          
             z-index: 10;     
             padding: 10px 0; 
             margin-bottom: 0 !important;
-            background: transparent; /* FULL TRANSPARENT */
-            backdrop-filter: none; /* HILANGKAN BLUR */
+            background: transparent; 
+            backdrop-filter: none; 
             -webkit-backdrop-filter: none;
         }
-        /* Style untuk pill background pada h2 (TIDAK BERUBAH) */
         .kanban-column-header h2 {
             background-color: var(--title-pill-bg);
-            border-radius: 9999px; /* rounded-full */
-            padding: 8px 12px; /* py-2 px-3 */
+            border-radius: 9999px; 
+            padding: 8px 12px; 
         }
-        /* AKHIR MODIFIKASI */
         
         .strobe-urgent-effect {
             position: relative;
@@ -212,16 +212,14 @@ function render_kinerja_status($task) {
             to { box-shadow: 0 0 4px #60a5fa, 0 0 8px #60a5fa, 0 0 12px #60a5fa; }
         }
         
-        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
         .glow-highlight-red {
             animation: red-glow-text 1.5s infinite alternate;
-            color: #f87171 !important; /* text-red-400 */
+            color: #f87171 !important; 
         }
         @keyframes red-glow-text {
             from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
             to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
         }
-        /* --- END NEW CSS --- */
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -231,7 +229,8 @@ function render_kinerja_status($task) {
     <?php include 'header.php'; ?>
 
     <main class="w-full p-4 sm:p-6 lg:p-8 flex-grow">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-6 h-full">
+        <!-- MODIFIKASI: Menggunakan grid-cols-9 untuk menampung seluruh status tanpa wrap pada layar lebar -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-9 gap-2 h-full">
             <?php foreach ($statuses as $status): ?>
             <div class="flex flex-col">
                 
@@ -243,17 +242,16 @@ function render_kinerja_status($task) {
                         </span>
                     </h2>
                 </div>
+                <!-- REVERTING TO INDEPENDENT COLUMN SCROLLING -->
                 <div id="status-<?= str_replace(' ', '', $status) ?>" data-status="<?= $status ?>" class="kanban-column space-y-4 p-2 rounded-lg h-full overflow-y-auto">
                     <?php foreach ($tasksToDisplay[$status] as $task): ?>
                     <?php
                         $cardClasses = 'task-card flex flex-col glass-container';
                         if ($task['is_urgent'] == 1) $cardClasses .= ' strobe-urgent-effect';
 
-                        // LOGIKA BARU UNTUK CP MISMATCH
                         $ap_version = trim($task['ap'] ?? '');
                         $cp_version = trim($task['cp'] ?? '');
                         $cp_class = (!empty($ap_version) && !empty($cp_version) && $ap_version !== $cp_version) ? 'text-red-400 font-bold glow-highlight-red' : '';
-                        // AKHIR LOGIKA BARU
                     ?>
                     <div id="task-<?= $task['id'] ?>" data-id="<?= $task['id'] ?>" data-task='<?= json_encode($task, JSON_HEX_APOS | JSON_HEX_QUOT) ?>' class="<?= $cardClasses ?>">
                         <div class="glass-container-content p-4">
@@ -322,23 +320,17 @@ function render_kinerja_status($task) {
         </div>
     </div>
 <script>
-    // --- ANIMATION & THEME LOGIC ---
+    // --- ANIMATION & THEME LOGIC (KEEPING IMPROVEMENTS) ---
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
     let particles = [], hue = 210;
     
-    // Variabel untuk menyimpan posisi mouse
-    const mouse = {
-        x: undefined,
-        y: undefined,
-        radius: 120 // Radius interaksi diperluas
-    };
+    const mouse = { x: undefined, y: undefined, radius: 120 };
 
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
 
-    // Event listener untuk gerakan mouse dan saat mouse meninggalkan window
     window.addEventListener('mousemove', function(event) {
-        mouse.x = event.x;
-        mouse.y = event;
+        mouse.x = event.clientX;
+        mouse.y = event.clientY;
     });
 
     window.addEventListener('mouseout', function(){
@@ -347,60 +339,19 @@ function render_kinerja_status($task) {
     });
     
     class Particle{
-        constructor(x,y){
+        constructor(x, y){
             this.x = x || Math.random() * canvas.width;
             this.y = y || Math.random() * canvas.height;
-            this.originX = this.x; // Posisi asli partikel
-            this.originY = this.y;
-            this.vx = (Math.random() - 0.5) * 0.8; // KECEPATAN AWAL ACAK BARU
-            this.vy = (Math.random() - 0.5) * 0.8; // KECEPATAN AWAL ACAK BARU
-            this.ax = 0; // Acceleration x
-            this.ay = 0; // Acceleration y
-            this.size = Math.random() * 2 + 1.5;
-            this.springFactor = 0.05; // KECEPATAN PEGASS BARU (Lebih Agresif)
-            this.friction = 0.85;     // GESEKAN BARU (Lebih Kecil, momentum bertahan lama)
-            this.pushFactor = 10;     // Kekuatan dorongan mouse
+            this.vx = (Math.random() - 0.5) * 1.5; 
+            this.vy = (Math.random() - 0.5) * 1.5; 
+            this.size = Math.random() * 2 + 1;
         }
 
         update(){
-            // Gaya dorong dari mouse
-            let dx_mouse = this.x - mouse.x;
-            let dy_mouse = this.y - mouse.y;
-            let distance_mouse = Math.sqrt(dx_mouse * dx_mouse + dy_mouse * dy_mouse);
-            
-            if (distance_mouse < mouse.radius) {
-                // Hitung gaya dorong berdasarkan jarak
-                let force = (mouse.radius - distance_mouse) / mouse.radius;
-                // Terapkan gaya ke akselerasi
-                this.ax += (dx_mouse / distance_mouse) * force * this.pushFactor;
-                this.ay += (dy_mouse / distance_mouse) * force * this.pushFactor;
-            }
-
-            // Gaya pegas yang menarik kembali ke posisi asli
-            let dx_origin = this.originX - this.x;
-            let dy_origin = this.originY - this.y;
-            this.ax += dx_origin * this.springFactor;
-            this.ay += dy_origin * this.springFactor;
-
-            // Update velocity berdasarkan acceleration
-            this.vx += this.ax;
-            this.vy += this.ay;
-            
-            // Terapkan friction
-            this.vx *= this.friction;
-            this.vy *= this.friction;
-
-            // Update posisi berdasarkan velocity
             this.x += this.vx;
             this.y += this.vy;
-            
-            // Reset acceleration
-            this.ax = 0;
-            this.ay = 0;
-            
-            // BOUNDARY CHECK: Jika partikel menjauh dari batas, balikkan arahnya.
-            if(this.x < 0 || this.x > canvas.width) this.vx *= -1;
-            if(this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+            if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
         }
         
         draw(){
@@ -417,9 +368,34 @@ function render_kinerja_status($task) {
     }
 
     function handleParticles() {
+        if (mouse.x !== undefined && mouse.y !== undefined) {
+            ctx.beginPath();
+            let gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, mouse.radius);
+            gradient.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.15)`);
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         for(let i = 0; i < particles.length; i++) {
             particles[i].update();
             particles[i].draw();
+
+            if (mouse.x !== undefined && mouse.y !== undefined) {
+                const dxM = particles[i].x - mouse.x;
+                const dyM = particles[i].y - mouse.y;
+                const distM = Math.sqrt(dxM * dxM + dyM * dyM);
+                if (distM < mouse.radius) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${1 - distM / mouse.radius})`;
+                    ctx.lineWidth = 0.8;
+                    ctx.moveTo(mouse.x, mouse.y);
+                    ctx.lineTo(particles[i].x, particles[i].y);
+                    ctx.stroke();
+                }
+            }
+
             for (let j = i; j < particles.length; j++) {
                 const dx = particles[i].x - particles[j].x;
                 const dy = particles[i].y - particles[j].y;
@@ -439,7 +415,7 @@ function render_kinerja_status($task) {
 
     function animate(){
         ctx.clearRect(0,0,canvas.width,canvas.height);
-        hue = (hue + 1.0) % 360; // PERUBAHAN WARNA CEPAT BARU
+        hue = (hue + 1.0) % 360; 
         handleParticles();
         requestAnimationFrame(animate);
     }
@@ -473,7 +449,38 @@ function render_kinerja_status($task) {
         modal.classList.remove('hidden');
     }
 
-    function openEditModal(button) { const card = button.closest('.task-card'), taskData = JSON.parse(card.getAttribute('data-task')); taskForm.reset(); modalTitle.innerText = 'Edit Task'; taskForm.elements['action'].value = 'update_gba_task'; for (const key in taskData) { if (taskForm.elements[key] && !key.endsWith('_obj')) { if (key === 'is_urgent') { document.getElementById('is_urgent_toggle').checked = taskData[key] == 1; } else { taskForm.elements[key].value = taskData[key]; } } } setupQuill(taskData.notes || ''); updateChecklistVisibility(); if (taskData.test_items_checklist) { try { const checklist = JSON.parse(taskData.test_items_checklist); for (const itemName in checklist) { const checkbox = document.querySelector(`input[name="checklist[${itemName}]"]`); if (checkbox) checkbox.checked = !!checklist[itemName]; } } catch (e) { console.error("Gagal parse checklist JSON:", e); } } modal.classList.remove('hidden'); }
+    // MODIFIKASI: Menggunakan visibleContainer scope
+    function openEditModal(button) { 
+        const card = button.closest('.task-card'), taskData = JSON.parse(card.getAttribute('data-task')); 
+        taskForm.reset(); 
+        modalTitle.innerText = 'Edit Task'; 
+        taskForm.elements['action'].value = 'update_gba_task'; 
+        for (const key in taskData) { 
+            if (taskForm.elements[key] && !key.endsWith('_obj')) { 
+                if (key === 'is_urgent') { 
+                    document.getElementById('is_urgent_toggle').checked = taskData[key] == 1; 
+                } else { 
+                    taskForm.elements[key].value = taskData[key]; 
+                } 
+            } 
+        } 
+        setupQuill(taskData.notes || ''); 
+        updateChecklistVisibility(); 
+        if (taskData.test_items_checklist) { 
+            try { 
+                const checklist = JSON.parse(taskData.test_items_checklist); 
+                const visibleContainer = document.querySelector('[id^="checklist-container-"]:not(.hidden)');
+                if (visibleContainer) {
+                    for (const itemName in checklist) { 
+                        const checkbox = visibleContainer.querySelector(`input[name="checklist[${itemName}]"]`); 
+                        if (checkbox) checkbox.checked = !!checklist[itemName]; 
+                    } 
+                }
+            } catch (e) { console.error("Gagal parse checklist JSON:", e); } 
+        } 
+        modal.classList.remove('hidden'); 
+    }
+    
     function closeModal() { modal.classList.add('hidden'); }
     
     function setupQuill(content) { if (!quill) { quill = new Quill('#notes-editor', { theme: 'snow', modules: { toolbar: [['bold', 'italic'], ['link'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } }); } quill.root.innerHTML = content; }

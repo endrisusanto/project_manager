@@ -93,6 +93,7 @@ if ($users_result && $users_result->num_rows > 0) {
             <label for="progress_status" class="form-label block mb-1 text-sm font-medium">Status Progress</label>
             <select id="progress_status" name="progress_status" class="themed-input w-full p-2.5 text-sm rounded-lg important-field" required>
                 <option>Task Baru</option>
+                <option>Downloaded</option>
                 <option>Test Ongoing</option>
                 <option>Passed</option>
                 <option>Submitted</option>
