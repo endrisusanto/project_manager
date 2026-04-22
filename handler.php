@@ -855,7 +855,7 @@ switch ($action) {
         // Urutkan per PIC, lalu request_date ASC, lalu id ASC — agar urutan existing date terjaga
         $pending_sql = "SELECT id, pic_email, request_date FROM gba_tasks 
                         WHERE (progress_status = 'Task Baru' OR progress_status = 'Test Ongoing' OR progress_status = 'Pending Feedback' OR progress_status = 'Feedback Sent' OR progress_status = 'Downloaded')
-                        AND submission_date IS NULL
+                        AND submission_date IS NULL AND is_urgent = 0
                         ORDER BY pic_email ASC, request_date ASC, id ASC";
         $pending_result = $conn->query($pending_sql);
 
@@ -958,7 +958,7 @@ switch ($action) {
 
         $pending_sql = "SELECT id, pic_email, model_name, request_date FROM gba_tasks 
                         WHERE (progress_status = 'Task Baru' OR progress_status = 'Test Ongoing' OR progress_status = 'Pending Feedback' OR progress_status = 'Feedback Sent' OR progress_status = 'Downloaded')
-                        AND submission_date IS NULL
+                        AND submission_date IS NULL AND is_urgent = 0
                         ORDER BY pic_email ASC, request_date ASC, id ASC";
         $pending_result = $conn->query($pending_sql);
 

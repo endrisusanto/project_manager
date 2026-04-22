@@ -247,7 +247,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             <div class="flex justify-between items-center mb-4 flex-shrink-0">
                 <div>
                     <h2 class="text-xl font-bold text-primary">🗓️ Preview Distribusi Request Date</h2>
-                    <p class="text-sm text-secondary mt-1">Maks <strong class="text-violet-400">3 task/PIC/hari</strong> — hanya task yang belum submit yang akan diubah</p>
+                    <p class="text-sm text-secondary mt-1">Maks <strong class="text-violet-400">3 task/PIC/hari</strong> — hanya task belum submit dan <strong class="text-red-400">bukan Urgent</strong> yang akan diubah</p>
                 </div>
                 <button onclick="closeRedistributeModal()" class="p-2 rounded-lg hover:bg-white/10 text-secondary">✕</button>
             </div>
