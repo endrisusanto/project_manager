@@ -17,6 +17,32 @@ $email_check = strtolower($_SESSION['user_details']['email'] ?? '');
 // }
 
 $active_page = 'bulk_add';
+
+// Hitung next PIC untuk modal (round-robin sama seperti di handler.php)
+$next_pic_email = null;
+$users_result_pic = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
+$pic_list_for_modal = [];
+if ($users_result_pic) {
+    while ($u = $users_result_pic->fetch_assoc()) {
+        $pic_list_for_modal[] = $u['email'];
+    }
+}
+if (!empty($pic_list_for_modal)) {
+    $pic_index_modal = 0;
+    $last_task_stmt_modal = $conn->prepare("SELECT pic_email FROM gba_tasks ORDER BY id DESC LIMIT 1");
+    if ($last_task_stmt_modal && $last_task_stmt_modal->execute()) {
+        $last_task_result_modal = $last_task_stmt_modal->get_result();
+        if ($last_task_result_modal->num_rows > 0) {
+            $last_pic_email_modal = $last_task_result_modal->fetch_assoc()['pic_email'];
+            $last_index_modal = array_search($last_pic_email_modal, $pic_list_for_modal);
+            if ($last_index_modal !== false) {
+                $pic_index_modal = ($last_index_modal + 1) % count($pic_list_for_modal);
+            }
+        }
+        $last_task_stmt_modal->close();
+    }
+    $next_pic_email = $pic_list_for_modal[$pic_index_modal];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -37,6 +63,14 @@ $active_page = 'bulk_add';
         .glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
         .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}
         .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}
+        /* PIC Mode Toggle */
+        .pic-toggle-track{display:flex;align-items:center;background:var(--input-bg);border:1px solid var(--input-border);border-radius:9999px;padding:3px;gap:2px;width:fit-content}
+        .pic-toggle-track button{padding:5px 14px;border-radius:9999px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s;color:var(--text-secondary);background:transparent}
+        .pic-toggle-track button.active-rr{background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.45)}
+        .pic-toggle-track button.active-hist{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.4)}
+        .pic-mode-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;transition:all .3s}
+        .pic-mode-badge.rr{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3)}
+        .pic-mode-badge.hist{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3)}
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -49,16 +83,45 @@ $active_page = 'bulk_add';
         </div>
 
         <div class="form-container p-6 rounded-2xl">
-            <form action="handler.php" method="POST">
+            <form action="handler.php" method="POST" id="bulk-form">
                 <input type="hidden" name="action" value="create_bulk_gba_task">
+                <input type="hidden" name="pic_mode" id="pic_mode_input" value="round_robin">
+
+                <!-- PIC Mode Selector -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-xl" style="background:var(--input-bg);border:1px solid var(--input-border)">
+                    <div>
+                        <p class="text-sm font-semibold" style="color:var(--text-primary)">Mode Assign PIC</p>
+                        <p id="pic-mode-desc" class="text-xs mt-0.5" style="color:var(--text-secondary)">
+                            Distribusi merata ke semua PIC secara bergantian
+                        </p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
+                        <div class="pic-toggle-track" id="pic-toggle-track">
+                            <button type="button" id="btn-rr" onclick="setPicMode('round_robin')" class="active-rr">
+                                &#8635; Round-Robin
+                            </button>
+                            <button type="button" id="btn-hist" onclick="setPicMode('history')">
+                                &#128336; History PIC
+                            </button>
+                        </div>
+                        <span id="pic-mode-badge" class="pic-mode-badge rr">
+                            <span>&#9679;</span> Round-Robin aktif
+                        </span>
+                    </div>
+                </div>
+
                 <div>
-                    <label for="bulk_data" class="block mb-2 text-sm font-medium text-secondary">
+                    <label for="bulk_data" class="block mb-2 text-sm font-medium" style="color:var(--text-secondary)">
                         Paste data dari Excel (Format: MODEL | AP | CP | CSC | TYPE REQUEST | QB USER | QB USERDEBUG)
                     </label>
                     <textarea id="bulk_data" name="bulk_data" rows="15" class="themed-input block w-full text-sm rounded-lg p-2.5 font-mono" placeholder="Contoh:&#10;model ap cp csc type qb_user qb_userdebug&#10;SM-S918B_SEA_15_DX S918BXXS8DYI3 S918BXXS8DYI3 S918BOLE8DYI3 SMR 100733179 100733181&#10;SM-F946B_SEA_16_DX F946BXXU5FYI8 F946BXXU5FYI8 F946BOLE5FYI8 NORMAL 100733177 100733180"></textarea>
                 </div>
-                <div class="mt-6 text-right">
-                    <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">
+                <div class="mt-6 flex items-center justify-between gap-4">
+                    <p class="text-xs" style="color:var(--text-secondary)">
+                        <span id="bulk-mode-hint-rr">&#8635; <b>Round-Robin:</b> PIC dibagi rata secara bergantian melanjutkan dari task terakhir.</span>
+                        <span id="bulk-mode-hint-hist" class="hidden">&#128336; <b>History PIC:</b> Jika model pernah dikerjakan, PIC yang sama akan dipakai. Model baru → round-robin.</span>
+                    </p>
+                    <button type="submit" class="flex-shrink-0 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
                         Tambah Tasks
                     </button>
                 </div>
@@ -116,6 +179,48 @@ $active_page = 'bulk_add';
             applyTheme(isLight);
         });
         
+        // Next PIC dari server (round-robin berdasarkan task terakhir)
+        const nextPicEmail = <?= json_encode($next_pic_email) ?>;
+
+        // --- PIC Mode Toggle Logic ---
+        const PIC_MODE_KEY = 'bulk_pic_mode';
+
+        function setPicMode(mode) {
+            localStorage.setItem(PIC_MODE_KEY, mode);
+            document.getElementById('pic_mode_input').value = mode;
+
+            const btnRR   = document.getElementById('btn-rr');
+            const btnHist = document.getElementById('btn-hist');
+            const badge   = document.getElementById('pic-mode-badge');
+            const desc    = document.getElementById('pic-mode-desc');
+            const hintRR  = document.getElementById('bulk-mode-hint-rr');
+            const hintHist= document.getElementById('bulk-mode-hint-hist');
+
+            if (mode === 'round_robin') {
+                btnRR.className   = 'active-rr';
+                btnHist.className = '';
+                badge.className   = 'pic-mode-badge rr';
+                badge.innerHTML   = '<span>&#9679;</span> Round-Robin aktif';
+                desc.textContent  = 'Distribusi merata ke semua PIC secara bergantian';
+                hintRR.classList.remove('hidden');
+                hintHist.classList.add('hidden');
+            } else {
+                btnHist.className = 'active-hist';
+                btnRR.className   = '';
+                badge.className   = 'pic-mode-badge hist';
+                badge.innerHTML   = '<span>&#9679;</span> History PIC aktif';
+                desc.textContent  = 'PIC diambil dari history model yang pernah dikerjakan';
+                hintRR.classList.add('hidden');
+                hintHist.classList.remove('hidden');
+            }
+        }
+
+        // Restore saved mode on page load
+        (function() {
+            const saved = localStorage.getItem(PIC_MODE_KEY) || 'round_robin';
+            setPicMode(saved);
+        })();
+
         function openAddModal() {
             taskForm.reset();
             modalTitle.innerText = 'Tambah Task Baru';
@@ -124,6 +229,11 @@ $active_page = 'bulk_add';
             setDefaultDates(); // Panggil fungsi untuk set tanggal otomatis
             setupQuill('');
             updateChecklistVisibility();
+            // Set PIC otomatis mengikuti PIC dari task terakhir (round-robin)
+            if (nextPicEmail) {
+                const picSelect = document.getElementById('pic_email');
+                if (picSelect) picSelect.value = nextPicEmail;
+            }
             modal.classList.remove('hidden');
         }
 

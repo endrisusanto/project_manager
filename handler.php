@@ -312,7 +312,15 @@ switch ($action) {
         }
         // END: MODIFIED LOGIC
 
+        // Baca pic_mode dari POST (round_robin | history)
+        $pic_mode = $_POST['pic_mode'] ?? 'round_robin';
+
         $created_count = 0;
+
+        // Prepare statement untuk lookup history PIC per model (mode history)
+        $hist_stmt = $conn->prepare(
+            "SELECT pic_email FROM gba_tasks WHERE model_name = ? ORDER BY id DESC LIMIT 1"
+        );
 
         $stmt = $conn->prepare(
             "INSERT INTO gba_tasks (project_name, model_name, pic_email, ap, cp, csc, qb_user, qb_userdebug, progress_status, request_date, test_plan_type, deadline, sign_off_date, updated_by_email) 
@@ -342,8 +350,25 @@ switch ($action) {
                 }
             }
 
-            $pic_email = $pic_list[$pic_index % count($pic_list)];
-            $pic_index++;
+            // Tentukan PIC berdasarkan mode
+            if ($pic_mode === 'history' && $hist_stmt) {
+                // Cari PIC terakhir yang pernah handle model ini
+                $hist_stmt->bind_param("s", $model_name);
+                $hist_stmt->execute();
+                $hist_result = $hist_stmt->get_result();
+                if ($hist_result->num_rows > 0) {
+                    // Model pernah ada → pakai PIC yang sama
+                    $pic_email = $hist_result->fetch_assoc()['pic_email'];
+                } else {
+                    // Model baru → fallback round-robin
+                    $pic_email = $pic_list[$pic_index % count($pic_list)];
+                    $pic_index++;
+                }
+            } else {
+                // Mode round-robin (default)
+                $pic_email = $pic_list[$pic_index % count($pic_list)];
+                $pic_index++;
+            }
 
             $request_date = date('Y-m-d');
 
@@ -401,6 +426,7 @@ switch ($action) {
         }
 
         $stmt->close();
+        if ($hist_stmt) $hist_stmt->close();
         redirect('index.php?success=' . urlencode("Berhasil membuat {$created_count} task baru."));
         break;
 
