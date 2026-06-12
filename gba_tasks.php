@@ -829,6 +829,31 @@ function getStatusColorClasses($status)
                         </svg>
                         Export New Task
                     </button>
+                    <?php
+                    $new_tasks_qb_ids = [];
+                    if (!empty($tasks)) {
+                        foreach ($tasks as $t) {
+                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru') {
+                                if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
+                                    $new_tasks_qb_ids[] = trim($t['qb_user']);
+                                }
+                                if (!empty($t['qb_userdebug']) && trim($t['qb_userdebug']) !== '-') {
+                                    $new_tasks_qb_ids[] = trim($t['qb_userdebug']);
+                                }
+                            }
+                        }
+                    }
+                    $new_tasks_qb_ids_str = implode(',', array_unique(array_filter($new_tasks_qb_ids)));
+                    ?>
+                    <button onclick="copyNewTasksQbIds(event, this)"
+                        data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
+                        title="Copy all QB Build IDs for New Tasks"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376A8.965 8.965 0 0012 12.75a8.965 8.965 0 00-3.75 4.5m0 0H18M12 9a2.25 2.25 0 00-2.25 2.25v2.25H12V9z" />
+                        </svg>
+                        Copy New Task QB IDs
+                    </button>
                 </div>
             </div>
         </div>
@@ -1263,6 +1288,47 @@ function getStatusColorClasses($status)
                 button.innerHTML = originalText;
                 button.disabled = false;
             }
+        }
+
+        function copyNewTasksQbIds(event, button) {
+            const textToCopy = button.getAttribute('data-qb-ids');
+            if (!textToCopy) {
+                alert('Tidak ada QB Build ID untuk status "Task Baru" saat ini.');
+                return;
+            }
+            
+            const copyAction = () => {
+                const rect = button.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top;
+                showCopyTooltip(x, y);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(copyAction).catch(err => {
+                    console.error('Gagal menyalin:', err);
+                    fallbackCopy(textToCopy, copyAction);
+                });
+            } else {
+                fallbackCopy(textToCopy, copyAction);
+            }
+        }
+
+        function fallbackCopy(text, callback) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                callback();
+            } catch (err) {
+                console.error('Gagal menyalin via execCommand:', err);
+                alert('Gagal menyalin ke clipboard.');
+            }
+            document.body.removeChild(textarea);
         }
 
 
