@@ -513,6 +513,23 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
             animation: flow-dash-dashed 1.2s linear infinite;
         }
 
+        /* Navigation link styles for header */
+        .nav-link {
+            color: var(--text-secondary);
+            transition: color .2s, border-color .2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-link-active {
+            color: var(--text-primary) !important;
+            font-weight: 500;
+            border-bottom: 2px solid #3b82f6;
+        }
+
         /* Hide Manager avatar in Kanban view */
         .view-kanban #node-manager-avatar {
             display: none !important;
@@ -1380,6 +1397,22 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                 });
             });
             
+            // Profile dropdown toggle
+            const profileMenu = document.getElementById('profile-menu');
+            if (profileMenu) {
+                const profileButton = profileMenu.querySelector('button');
+                const profileDropdown = document.getElementById('profile-dropdown');
+                profileButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    profileDropdown.classList.toggle('hidden');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!profileMenu.contains(e.target)) {
+                        profileDropdown.classList.add('hidden');
+                    }
+                });
+            }
+
             // Event listener klik di luar untuk menutup slide-over drawer
             document.addEventListener('click', (e) => {
                 const drawer = document.getElementById('task-drawer');
