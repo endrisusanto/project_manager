@@ -41,9 +41,6 @@ Berikut adalah beberapa tampilan utama dari aplikasi **GBA Task Manager**:
 ![Log Aktivitas](uploads/107.102.39.55_tkdn_activity_log.php.png)
 
 ### 3. Peta Jalan Proyek (Project Roadmap)
-![Peta Jalan Proyek](uploads/107.102.39.55_tkdn_project_roadmap.php.png)
-
-### 4. Peta Jalan Proyek - Tampilan Alternatif / Detail
 ![Peta Jalan Proyek - Detail](uploads/107.102.39.55_tkdn_project_roadmap.php%20%281%29.png)
 
 ## Teknologi yang Digunakan 🛠️
