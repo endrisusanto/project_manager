@@ -1,6 +1,6 @@
 # Google Build Approval (GBA) Task Manager
 
-![Project Screenshot](https://i.imgur.com/your-screenshot-url.png) **GBA Task Manager** adalah aplikasi web berbasis PHP yang dirancang untuk mengelola dan melacak tugas-tugas yang terkait dengan proses *Google Build Approval* (GBA). Aplikasi ini menyediakan antarmuka Kanban, dasbor analitik, dan manajemen tugas terpusat untuk meningkatkan efisiensi tim.
+![Project Screenshot](uploads/107.102.39.55_tkdn_index.php.png) **GBA Task Manager** adalah aplikasi web berbasis PHP yang dirancang untuk mengelola dan melacak tugas-tugas yang terkait dengan proses *Google Build Approval* (GBA). Aplikasi ini menyediakan antarmuka Kanban, dasbor analitik, dan manajemen tugas terpusat untuk meningkatkan efisiensi tim.
 
 Aplikasi ini dibangun menggunakan PHP native, MySQL, dan Tailwind CSS untuk *styling*.
 
@@ -30,6 +30,21 @@ Aplikasi ini dibangun menggunakan PHP native, MySQL, dan Tailwind CSS untuk *sty
     * Pembaruan foto profil dan *password* oleh pengguna.
     * *Mapping* otomatis dari *Model Name* ke *Marketing Name*.
     * Tampilan tema terang (*light mode*) dan gelap (*dark mode*).
+## Tangkapan Layar (Screenshots) 📸
+
+Berikut adalah beberapa tampilan utama dari aplikasi **GBA Task Manager**:
+
+### 1. Dasbor & Papan Kanban (Halaman Utama)
+![Dasbor & Papan Kanban](uploads/107.102.39.55_tkdn_index.php.png)
+
+### 2. Log Aktivitas (Activity Log)
+![Log Aktivitas](uploads/107.102.39.55_tkdn_activity_log.php.png)
+
+### 3. Peta Jalan Proyek (Project Roadmap)
+![Peta Jalan Proyek](uploads/107.102.39.55_tkdn_project_roadmap.php.png)
+
+### 4. Peta Jalan Proyek - Tampilan Alternatif / Detail
+![Peta Jalan Proyek - Detail](uploads/107.102.39.55_tkdn_project_roadmap.php%20%281%29.png)
 
 ## Teknologi yang Digunakan 🛠️
 
