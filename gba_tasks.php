@@ -833,7 +833,8 @@ function getStatusColorClasses($status)
                     $new_tasks_qb_ids = [];
                     if (!empty($tasks)) {
                         foreach ($tasks as $t) {
-                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru') {
+                            // ponytail: include Task Baru, Downloaded, and Test Ongoing for new tasks QB copy
+                            if (isset($t['progress_status']) && in_array($t['progress_status'], ['Task Baru', 'Downloaded', 'Test Ongoing'])) {
                                 if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
                                     $new_tasks_qb_ids[] = trim($t['qb_user']);
                                 }
@@ -847,7 +848,7 @@ function getStatusColorClasses($status)
                     ?>
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
-                        title="Copy all QB Build IDs for New Tasks"
+                        title="Copy all QB Build IDs for New, Downloaded, and Test Ongoing Tasks"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/30">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376A8.965 8.965 0 0012 12.75a8.965 8.965 0 00-3.75 4.5m0 0H18M12 9a2.25 2.25 0 00-2.25 2.25v2.25H12V9z" />
@@ -1116,7 +1117,7 @@ function getStatusColorClasses($status)
         function closeModal() { modal.classList.add('hidden') }
         document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility); function setupQuill(content) { if (quill) { quill.root.innerHTML = content } else { quill = new Quill('#notes-editor', { theme: 'snow', modules: { toolbar: [['bold', 'italic', 'underline'], ['link'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } }); quill.root.innerHTML = content } }
         taskForm.addEventListener('submit', function () { document.getElementById('notes-hidden-input').value = quill.root.innerHTML; const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)'); if (visibleChecklist) { document.querySelectorAll('[id^="checklist-hidden-"]').forEach(el => el.remove()); visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { const hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.id = 'checklist-hidden-' + cb.name.replace(/[\[\]]/g,'_'); hidden.name = cb.name; hidden.value = cb.checked ? '1' : '0'; taskForm.appendChild(hidden); cb.disabled = true; }); } }); function updateChecklistVisibility() { const testPlan = document.getElementById('test_plan_type').value, placeholder = document.getElementById('checklist-placeholder'); let checklistVisible = !1; document.querySelectorAll('[id^="checklist-container-"]').forEach(el => { const planName = el.id.replace('checklist-container-', '').replace(/_/g, ' '); if (planName === testPlan) { el.classList.remove('hidden'); checklistVisible = !0 } else { el.classList.add('hidden') } }); placeholder.style.display = checklistVisible ? 'none' : 'block' }
-        const searchInput = document.getElementById('search-input'), rowsSelect = document.getElementById('pagination-rows'), tableBody = document.getElementById('task-table-body'), paginationNav = document.getElementById('pagination-nav'), testplanFilterContainer = document.getElementById('testplan-filter-container'), statusFilter = document.getElementById('status-filter'), allRows = Array.from(tableBody.querySelectorAll('tr')); let currentPage = 1, activePlanFilter = 'All', activeStatusFilter = 'All'; function renderTable() { const searchText = searchInput.value.toLowerCase(), rowsPerPage = parseInt(rowsSelect.value), filteredRows = allRows.filter(row => { const matchesSearch = row.textContent.toLowerCase().includes(searchText), matchesPlan = activePlanFilter === 'All' || row.dataset.plan === activePlanFilter, matchesStatus = activeStatusFilter === 'All' || row.dataset.status === activeStatusFilter; return matchesSearch && matchesPlan && matchesStatus }), totalPages = Math.ceil(filteredRows.length / rowsPerPage); currentPage = Math.min(currentPage, totalPages) || 1; tableBody.innerHTML = ''; const start = (currentPage - 1) * rowsPerPage, end = start + rowsPerPage; filteredRows.slice(start, end).forEach(row => tableBody.appendChild(row)); renderPagination(totalPages) }
+        const searchInput = document.getElementById('search-input'), rowsSelect = document.getElementById('pagination-rows'), tableBody = document.getElementById('task-table-body'), paginationNav = document.getElementById('pagination-nav'), testplanFilterContainer = document.getElementById('testplan-filter-container'), statusFilter = document.getElementById('status-filter'), allRows = Array.from(tableBody.querySelectorAll('tr')); let currentPage = 1, activePlanFilter = 'All', activeStatusFilter = 'All'; function renderTable() { const searchText = searchInput.value.toLowerCase(), rowsPerPage = parseInt(rowsSelect.value), filteredRows = allRows.filter(row => { const matchesSearch = row.textContent.toLowerCase().includes(searchText), matchesPlan = activePlanFilter === 'All' || row.dataset.plan === activePlanFilter, matchesStatus = activeStatusFilter === 'All' || (Array.isArray(activeStatusFilter) ? activeStatusFilter.includes(row.dataset.status) : row.dataset.status === activeStatusFilter); return matchesSearch && matchesPlan && matchesStatus }), totalPages = Math.ceil(filteredRows.length / rowsPerPage); currentPage = Math.min(currentPage, totalPages) || 1; tableBody.innerHTML = ''; const start = (currentPage - 1) * rowsPerPage, end = start + rowsPerPage; filteredRows.slice(start, end).forEach(row => tableBody.appendChild(row)); renderPagination(totalPages) }
         function renderPagination(totalPages) { paginationNav.innerHTML = ''; if (totalPages <= 1) return; const maxButtons = 5; let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2)), endPage = Math.min(totalPages, startPage + maxButtons - 1); if (endPage - startPage + 1 < maxButtons) { startPage = Math.max(1, endPage - maxButtons + 1) } if (startPage > 1) { paginationNav.appendChild(createPageButton(1, '«')); paginationNav.appendChild(createPageButton(currentPage - 1, '‹')) } for (let i = startPage; i <= endPage; i++) { paginationNav.appendChild(createPageButton(i, i)) } if (endPage < totalPages) { paginationNav.appendChild(createPageButton(currentPage + 1, '›')); paginationNav.appendChild(createPageButton(totalPages, '»')) } }
         function createPageButton(page, text) { const pageButton = document.createElement('button'); pageButton.textContent = text; pageButton.className = `px-3 py-1 rounded-lg text-sm ${page === currentPage ? 'bg-blue-600 text-white' : 'themed-input'}`; pageButton.onclick = () => { currentPage = page; renderTable() }; return pageButton }
         const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date'), requestDateInput = document.getElementById('request_date'), deadlineInput = document.getElementById('deadline'), signOffDateInput = document.getElementById('sign_off_date');
@@ -1218,9 +1219,10 @@ function getStatusColorClasses($status)
             const originalSearch = searchInput ? searchInput.value : '';
 
             try {
-                // Set filter to 'Task Baru' and show all
-                statusFilter.value = 'Task Baru';
-                activeStatusFilter = 'Task Baru';
+                // Set filter to 'Task Baru', 'Downloaded', and 'Test Ongoing' and show all
+                // ponytail: simplify status filter check for multi-state export
+                statusFilter.value = 'All';
+                activeStatusFilter = ['Task Baru', 'Downloaded', 'Test Ongoing'];
                 if (searchInput) searchInput.value = '';
 
                 const hugeOption = document.createElement('option');
@@ -1293,7 +1295,7 @@ function getStatusColorClasses($status)
         function copyNewTasksQbIds(event, button) {
             const textToCopy = button.getAttribute('data-qb-ids');
             if (!textToCopy) {
-                alert('Tidak ada QB Build ID untuk status "Task Baru" saat ini.');
+                alert('Tidak ada QB Build ID untuk status "Task Baru", "Downloaded", atau "Test Ongoing" saat ini.');
                 return;
             }
             
