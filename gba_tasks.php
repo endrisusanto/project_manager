@@ -833,8 +833,7 @@ function getStatusColorClasses($status)
                     $new_tasks_qb_ids = [];
                     if (!empty($tasks)) {
                         foreach ($tasks as $t) {
-                            // ponytail: include Task Baru, Downloaded, and Test Ongoing for new tasks QB copy
-                            if (isset($t['progress_status']) && in_array($t['progress_status'], ['Task Baru', 'Downloaded', 'Test Ongoing'])) {
+                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru') {
                                 if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
                                     $new_tasks_qb_ids[] = trim($t['qb_user']);
                                 }
@@ -848,7 +847,7 @@ function getStatusColorClasses($status)
                     ?>
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
-                        title="Copy all QB Build IDs for New, Downloaded, and Test Ongoing Tasks"
+                        title="Copy all QB Build IDs for New Tasks"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/30">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376A8.965 8.965 0 0012 12.75a8.965 8.965 0 00-3.75 4.5m0 0H18M12 9a2.25 2.25 0 00-2.25 2.25v2.25H12V9z" />
@@ -1295,7 +1294,7 @@ function getStatusColorClasses($status)
         function copyNewTasksQbIds(event, button) {
             const textToCopy = button.getAttribute('data-qb-ids');
             if (!textToCopy) {
-                alert('Tidak ada QB Build ID untuk status "Task Baru", "Downloaded", atau "Test Ongoing" saat ini.');
+                alert('Tidak ada QB Build ID untuk status "Task Baru" saat ini.');
                 return;
             }
             
