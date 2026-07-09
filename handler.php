@@ -752,7 +752,52 @@ switch ($action) {
         if ($stmt->execute()) {
             $details = "Status task '{$model_name}' updated: '{$original_status}' -> '{$new_status}' (via Kanban/Drag-Drop).";
             log_activity($conn, $task_id, 'STATUS_CHANGE', $details, $user_email);
-            echo json_encode(['success' => true]);
+
+            // ponytail: fetch fully updated task row with calculated performance fields to avoid client reload
+            $fetch_stmt = $conn->prepare("SELECT t.*, u.profile_picture FROM gba_tasks t LEFT JOIN users u ON t.pic_email = u.email WHERE t.id = ?");
+            $fetch_stmt->bind_param("i", $task_id);
+            $fetch_stmt->execute();
+            $updated_task = $fetch_stmt->get_result()->fetch_assoc();
+            $fetch_stmt->close();
+
+            if ($updated_task) {
+                $req_date = $updated_task['request_date'] ? new DateTime($updated_task['request_date']) : null;
+                $sub_date = $updated_task['submission_date'] ? new DateTime($updated_task['submission_date']) : null;
+                $app_date = $updated_task['approved_date'] ? new DateTime($updated_task['approved_date']) : null;
+                $dl_date = $updated_task['deadline'] ? new DateTime($updated_task['deadline']) : null;
+
+                $updated_task['ontime_submission_status'] = null;
+                if ($sub_date && $req_date) {
+                    $diff = $sub_date->diff($req_date)->days;
+                    $updated_task['ontime_submission_status'] = $diff <= 7 ? 'Ontime' : 'Delay';
+                }
+
+                $updated_task['ontime_approved_status'] = null;
+                if ($app_date && $sub_date) {
+                    $diff = $app_date->diff($sub_date)->days;
+                    $updated_task['ontime_approved_status'] = $diff <= 3 ? 'Ontime' : 'Delay';
+                }
+
+                $updated_task['deadline_countdown'] = null;
+                if (!$sub_date && $dl_date) {
+                    $now = new DateTime(); $now->setTime(0,0,0); $dl_date->setTime(0,0,0);
+                    $diff = $now->diff($dl_date);
+                    $updated_task['deadline_countdown'] = ($now <= $dl_date) ? $diff->days : -$diff->days;
+                }
+
+                $updated_task['approval_countdown'] = null;
+                if ($sub_date && !$app_date) {
+                    $app_deadline = (clone $sub_date)->modify('+3 days');
+                    $now = new DateTime(); $now->setTime(0,0,0); $app_deadline->setTime(0,0,0);
+                    $diff = $now->diff($app_deadline);
+                    $updated_task['approval_countdown'] = ($now <= $app_deadline) ? $diff->days : -$diff->days;
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'task' => $updated_task
+            ]);
         } else {
             echo json_encode(['success' => false, 'error' => $stmt->error]);
         }

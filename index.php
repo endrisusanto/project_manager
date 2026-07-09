@@ -7,8 +7,9 @@ require_once "session.php";
 $active_page = 'project_dashboard';
 
 // 2. LOGIKA PENGAMBILAN DATA TUGAS (TASK)
-// MODIFIKASI: Menambahkan 'Downloaded' agar muat 9 kolom
-$statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
+// MODIFIKASI: Menambahkan 'Downloaded' agar muat 8 kolom (Passed disembunyikan)
+// ponytail: remove 'Passed' from Kanban statuses per user request
+$statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Approved', 'Batal'];
 $tasksToDisplay = [];
 foreach ($statuses as $status) {
     $tasksToDisplay[$status] = [];
@@ -229,8 +230,8 @@ function render_kinerja_status($task) {
     <?php include 'header.php'; ?>
 
     <main class="w-full p-4 sm:p-6 lg:p-8 flex-grow">
-        <!-- MODIFIKASI: Menggunakan grid-cols-9 untuk menampung seluruh status tanpa wrap pada layar lebar -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-9 gap-2 h-full">
+        <!-- MODIFIKASI: Menggunakan grid-cols-8 untuk menampung seluruh status tanpa wrap pada layar lebar (Passed disembunyikan) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-2 h-full">
             <?php foreach ($statuses as $status): ?>
             <div class="flex flex-col">
                 
@@ -516,7 +517,48 @@ function render_kinerja_status($task) {
     taskForm.addEventListener('change',e=>{if(e.target.matches('input[type="checkbox"][name^="checklist"]')){const currentStatus=progressStatusSelect.value;if(currentStatus!=='Approved'&&currentStatus!=='Submitted'){progressStatusSelect.value='Test Ongoing'}}});
     document.addEventListener('DOMContentLoaded', function () {
         if (viewToggleBtn) { const fullIcon = document.getElementById('view-toggle-full-icon'); const accordionIcon = document.getElementById('view-toggle-accordion-icon'); function applyViewMode(mode) { mainContainer.classList.toggle('view-accordion', mode === 'accordion'); fullIcon.classList.toggle('hidden', mode === 'accordion'); accordionIcon.classList.toggle('hidden', mode !== 'accordion'); localStorage.setItem('viewMode', mode); } viewToggleBtn.addEventListener('click', () => { const currentMode = mainContainer.classList.contains('view-accordion') ? 'full' : 'accordion'; applyViewMode(currentMode); }); const savedViewMode = localStorage.getItem('viewMode') || 'full'; applyViewMode(savedViewMode); mainContainer.addEventListener('click', function (e) { if (mainContainer.classList.contains('view-accordion')) { const card = e.target.closest('.task-card'); if (card) { card.classList.toggle('is-expanded'); } } }); }
-        const columns = document.querySelectorAll('.kanban-column'); columns.forEach(column => { new Sortable(column, { group: 'kanban', animation: 150, ghostClass: 'sortable-ghost', onEnd: function (evt) { const card = evt.item, taskId = card.dataset.id, newStatus = evt.to.dataset.status; let reloadDelay = 800; if (newStatus === 'Approved') { triggerConfetti(); reloadDelay = 3000; } if (newStatus === 'Batal') { triggerSadAnimation(); reloadDelay = 3000; } fetch('handler.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_task_status', task_id: taskId, new_status: newStatus }) }).then(response => response.json()).then(data => { if (data.success) { showToast(`Status task #${taskId} diperbarui`); setTimeout(() => window.location.reload(), reloadDelay); } else { showAlertModal('Gagal Update', data.error || 'Gagal memperbarui status task.'); evt.from.appendChild(card); } }).catch(() => { showAlertModal('Error', 'Terjadi kesalahan jaringan.'); evt.from.appendChild(card); }); } }); });
+        // ponytail: function to update the kinerja performance section of the card dynamically without page reload
+        function updateCardKinerja(card, task) {
+            let html = '';
+            if (task.progress_status === 'Batal') {
+                html = `<div class="flex items-center justify-between"><span class="text-secondary">Status:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
+            } else {
+                html += '<div class="flex items-center justify-between"><span class="text-secondary">Submission:</span>';
+                if (task.ontime_submission_status) {
+                    const colorClass = task.ontime_submission_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+                    html += `<span class="font-semibold ${colorClass}">${task.ontime_submission_status}</span>`;
+                } else if (task.deadline_countdown !== null && task.deadline_countdown !== undefined) {
+                    const days = parseInt(task.deadline_countdown);
+                    const colorClass = days < 0 ? 'text-red-400' : (days <= 3 ? 'text-yellow-400' : 'text-secondary');
+                    const iconHtml = (days <= 3 && days >= 0) ? '<svg class="w-4 h-4 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg>' : '';
+                    const text = days >= 0 ? `${days} hari lagi` : 'Lewat ' + Math.abs(days) + ' hari';
+                    html += `<span class="flex items-center gap-1 font-semibold ${colorClass}">${iconHtml}${text}</span>`;
+                } else {
+                    html += '<span class="text-secondary">-</span>';
+                }
+                html += '</div>';
+
+                html += '<div class="flex items-center justify-between"><span class="text-secondary">Approval:</span>';
+                if (task.ontime_approved_status) {
+                    const colorClass = task.ontime_approved_status === 'Delay' ? 'text-red-400' : 'text-green-400';
+                    html += `<span class="font-semibold ${colorClass}">${task.ontime_approved_status}</span>`;
+                } else if (task.approval_countdown !== null && task.approval_countdown !== undefined) {
+                    const days = parseInt(task.approval_countdown);
+                    const colorClass = days < 0 ? 'text-red-400' : (days <= 1 ? 'text-yellow-400' : 'text-secondary');
+                    const iconHtml = (days <= 1 && days >= 0) ? '<svg class="w-4 h-4 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg>' : '';
+                    const text = days >= 0 ? `${days} hari lagi` : 'Lewat ' + Math.abs(days) + ' hari';
+                    html += `<span class="flex items-center gap-1 font-semibold ${colorClass}">${iconHtml}${text}</span>`;
+                } else {
+                    html += '<span class="text-secondary">-</span>';
+                }
+                html += '</div>';
+            }
+            card.querySelectorAll('.mt-2.pt-2.border-t.border-\\[var\\(--glass-border\\)\\].text-xs.space-y-1').forEach(div => {
+                div.innerHTML = html;
+            });
+        }
+
+        const columns = document.querySelectorAll('.kanban-column'); columns.forEach(column => { new Sortable(column, { group: 'kanban', animation: 150, ghostClass: 'sortable-ghost', onEnd: function (evt) { const card = evt.item, taskId = card.dataset.id, newStatus = evt.to.dataset.status; if (newStatus === 'Approved') { triggerConfetti(); } if (newStatus === 'Batal') { triggerSadAnimation(); } fetch('handler.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_task_status', task_id: taskId, new_status: newStatus }) }).then(response => response.json()).then(data => { if (data.success) { showToast(`Status task #${taskId} diperbarui`); card.setAttribute('data-task', JSON.stringify(data.task)); updateCardKinerja(card, data.task); updateColumnCounts(); } else { showAlertModal('Gagal Update', data.error || 'Gagal memperbarui status task.'); evt.from.appendChild(card); updateColumnCounts(); } }).catch(() => { showAlertModal('Error', 'Terjadi kesalahan jaringan.'); evt.from.appendChild(card); updateColumnCounts(); }); } }); });
         function updateColumnCounts() { columns.forEach(column => { const status = column.dataset.status.replace(/[\s\/]/g, ''), count = column.querySelectorAll('.task-card:not(.hidden)').length, countElement = document.querySelector(`.count-${status}`); if (countElement) countElement.textContent = count; }); }
         if (searchInput) { searchInput.addEventListener('input', () => { const searchTerm = searchInput.value.toLowerCase(); document.querySelectorAll('.task-card').forEach(card => { const cardContent = card.textContent.toLowerCase(); card.classList.toggle('hidden', !cardContent.includes(searchTerm)); }); updateColumnCounts(); }); } updateColumnCounts();
         const urlParams = new URLSearchParams(window.location.search), error = urlParams.get('error'); if (error === 'permission_denied') { showAlertModal('Akses Ditolak', 'Anda tidak memiliki izin untuk melakukan tindakan ini.'); window.history.replaceState({}, document.title, window.location.pathname); }
