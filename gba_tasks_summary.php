@@ -2,6 +2,7 @@
 // 1. INISIALISASI
 require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
+require_once "marketing_name_mapper.php";
 
 $active_page = 'gba_tasks_summary';
 
@@ -313,6 +314,13 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     <script>
         const allTasksData = <?= json_encode($tasks) ?>;
         const isAdmin = <?= json_encode(is_admin()) ?>;
+        const userdataModels = <?= json_encode(array_keys(array_filter($userdata_models ?? []))) ?>;
+
+        function isUserdataRequired(modelName) {
+            if (!modelName) return false;
+            const upperModel = modelName.toUpperCase();
+            return userdataModels.some(prefix => upperModel.includes(prefix.toUpperCase()));
+        }
 
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
         let particles = [], hue = 210;
@@ -490,6 +498,10 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                 const subDate = formatDate(task.submission_date);
                 const deadDate = formatDate(task.deadline);
                 
+                const isUdRequired = isUserdataRequired(task.model_name);
+                const udBadge = isUdRequired 
+                    ? `<div class="mt-1"><span class="badge bg-red-500/20 text-red-400 border border-red-500/40 inline-flex items-center gap-1 font-bold" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>` 
+                    : '';
                 const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link">${task.qb_user}</a></div>` : '';
                 const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
                 
@@ -549,7 +561,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                                 <div>CSC: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.csc || '-'}</span></div>
                             </div>
                         </td>
-                        <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}</td>
+                        <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}${udBadge}</td>
                         <td class="p-3"><span class="badge ${task.pic_color_class}">${task.pic_email || 'N/A'}</span></td>
                         <td class="p-3"><span class="badge ${task.plan_color_class}">${task.test_plan_type || 'N/A'}</span></td>
                         <td class="p-3"><span class="badge ${task.status_color_class}">${task.progress_status || 'N/A'}</span></td>

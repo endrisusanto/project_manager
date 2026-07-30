@@ -2,6 +2,7 @@
 // 1. INISIALISASI
 require_once "config.php";
 require_once "session.php"; // Memastikan pengguna sudah login
+require_once "marketing_name_mapper.php";
 $active_page = 'gba_tasks';
 
 // 2. LOGIKA PENGAMBILAN & PEMROSESAN DATA
@@ -916,6 +917,9 @@ function getStatusColorClasses($status)
                                                     href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars($task['qb_userdebug']) ?>"
                                                     target="_blank"
                                                     class="qb-link"><?= htmlspecialchars($task['qb_userdebug']) ?></a></div>
+                                        <?php endif; ?>
+                                        <?php if (function_exists('is_userdata_required') && is_userdata_required($task['model_name'])): ?>
+                                            <div class="mt-1"><span class="badge bg-red-500/20 text-red-400 border border-red-500/40 inline-flex items-center gap-1 font-bold" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>
                                         <?php endif; ?>
                                     </td>
                                     <td class="p-3"><span

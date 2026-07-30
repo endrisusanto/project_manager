@@ -169,8 +169,61 @@ $model_mapping = [
     "SM-X916" => "Galaxy Tab S9 Ultra 5G",
     "SM-X920" => "Galaxy Tab S10 Ultra",
     "SM-X926B" => "Galaxy Tab S10 Ultra 5G",
+    "SM-A077F" => "Galaxy A07",
+    "SM-A085F" => "Galaxy A08",
+    "SM-A185G" => "Galaxy A18",
+    "SM-A276BE" => "Galaxy A27 5G",
+    "SM-A376BE" => "Galaxy A37 5G",
+    "SM-A576BE" => "Galaxy A57 5G",
+    "SM-F776BE" => "Galaxy Z Flip7 (5G)",
+    "SM-F971BE" => "Galaxy Z Fold7 FE (5G)",
+    "SM-F976BE" => "Galaxy Z Fold7 (5G)",
+    "SM-S741B" => "Galaxy S24 FE",
+    "SM-S942BE" => "Galaxy S26",
+    "SM-S947BE" => "Galaxy S26+",
+    "SM-S948BE" => "Galaxy S26 Ultra",
+    "SM-X840" => "Galaxy Tab S11+ (Wi-Fi)",
+    "SM-X846B" => "Galaxy Tab S11+ 5G",
+    "SM-X940" => "Galaxy Tab S11 Ultra (Wi-Fi)",
+    "SM-X946B" => "Galaxy Tab S11 Ultra 5G",
     "SM-X930" => "Tab S11 Ultra (Wi-Fi)",
     "SM-X936B" => "Galaxy Tab S11 Ultra 5G",
 ];
+
+// List model yang membutuhkan USERDATA saat download QB Build
+// ponytail: lightweight array lookup for USERDATA requirement
+$userdata_models = [
+    "SM-S942BE" => true,
+    "SM-S947BE" => true,
+    "SM-S948BE" => true,
+    "SM-A276BE" => true,
+    "SM-A376BE" => true,
+    "SM-A576BE" => true,
+    "SM-F776BE" => true,
+    "SM-F971BE" => true,
+    "SM-F976BE" => true,
+    "SM-A085F" => true,
+    "SM-A185G" => true,
+    "SM-S741B" => true,
+    "SM-A077F" => true,
+    "SM-X840" => true,
+    "SM-X846B" => true,
+    "SM-X940" => true,
+    "SM-X946B" => true,
+];
+
+if (!function_exists('is_userdata_required')) {
+    function is_userdata_required($model_name) {
+        global $userdata_models;
+        if (empty($model_name) || empty($userdata_models)) return false;
+        $model_name = strtoupper($model_name);
+        foreach ($userdata_models as $key => $val) {
+            if ($val && strpos($model_name, strtoupper($key)) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
 
 ?>
