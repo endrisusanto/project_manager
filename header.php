@@ -16,24 +16,28 @@ $username = $_SESSION['username'] ?? 'User';
 <style>
 #spotlight-overlay {
     position: fixed; inset: 0; z-index: 9998;
-    display: flex; align-items: flex-start; justify-content: center;
-    padding-top: 72px;
-    background: rgba(0,0,0,0.35);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 40px;
+    background: rgba(0,0,0,0.4);
     opacity: 0; pointer-events: none;
     transition: opacity 0.18s ease;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 #spotlight-overlay.sl-open { opacity: 1; pointer-events: auto; }
 #spotlight-box {
     width: 620px; max-width: calc(100vw - 32px);
     border-radius: 18px;
-    background: rgba(15, 20, 35, 0.92);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    box-shadow: 0 32px 80px rgba(0,0,0,0.65),
-                0 0 0 1px rgba(99,102,241,0.1),
+    background: #0f1423;
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.75),
+                0 0 0 1px rgba(99,102,241,0.15),
                 inset 0 1px 0 rgba(255,255,255,0.06);
-    transform: scale(0.95) translateY(-10px);
+    transform: scale(0.95) translateY(10px);
     transition: transform 0.22s cubic-bezier(0.16,1,0.3,1);
     overflow: hidden;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 #spotlight-overlay.sl-open #spotlight-box { transform: scale(1) translateY(0); }
 #sl-row {
