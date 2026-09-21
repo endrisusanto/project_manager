@@ -1,0 +1,79 @@
+{
+  "name": "Project Manager - Scheduled Daily SMTP Email Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger (08:00 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, model_name, pic_email, progress_status, deadline, notes FROM gba_tasks WHERE progress_status != 'Done' ORDER BY deadline ASC LIMIT 10;"
+      },
+      "name": "MySQL Query Pending Tasks",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [320, 300],
+      "credentials": {
+        "mySql": {
+          "id": "YOUR_MYSQL_CREDENTIAL_ID",
+          "name": "MySQL project_manager_db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "admin@yourcompany.com",
+        "toEmail": "endri@samsung.com",
+        "subject": "=Laporan Harian Task Pending Project Manager - {{ $now.format('yyyy-MM-dd') }}",
+        "html": "=<h2>📊 Laporan Task Pending Project Manager</h2><p>Berikut adalah daftar task yang berstatus Pending / In Progress:</p><table border='1' cellpadding='8' style='border-collapse:collapse;'><thead><tr><th>ID</th><th>Model Name</th><th>PIC Email</th><th>Status</th><th>Deadline</th></tr></thead><tbody>{{ $items().map(i => `<tr><td>${i.json.id}</td><td>${i.json.model_name}</td><td>${i.json.pic_email}</td><td>${i.json.progress_status}</td><td>${i.json.deadline || '-'}</td></tr>`).join('') }}</tbody></table><br/><p><em>Dikirim otomatis oleh n8n Engine</em></p>"
+      },
+      "name": "Send Email (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [540, 300],
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (08:00 AM)": {
+      "main": [
+        [
+          {
+            "node": "MySQL Query Pending Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL Query Pending Tasks": {
+      "main": [
+        [
+          {
+            "node": "Send Email (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

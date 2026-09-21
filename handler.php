@@ -312,10 +312,12 @@ switch ($action) {
         }
         // END: MODIFIED LOGIC
 
-        // Baca pic_mode dari POST (round_robin | history)
+        // Baca pic_mode dari POST (round_robin | history | specific)
         $pic_mode = $_POST['pic_mode'] ?? 'round_robin';
+        $specific_pic = trim($_POST['specific_pic'] ?? '');
 
         $created_count = 0;
+        $dropped_models_skipped = [];
 
         // Prepare statement untuk lookup history PIC per model (mode history)
         $hist_stmt = $conn->prepare(
@@ -335,6 +337,13 @@ switch ($action) {
             $parts = preg_split('/\s+/', $line);
 
             $model_name = $parts[0] ?? '';
+
+            // Cek jika model sudah discontinued / drop
+            if (function_exists('is_model_dropped') && is_model_dropped($model_name)) {
+                $dropped_models_skipped[] = $model_name;
+                continue;
+            }
+
             $ap = $parts[1] ?? '';
             $cp = $parts[2] ?? '';
             $csc = $parts[3] ?? '';
@@ -351,7 +360,10 @@ switch ($action) {
             }
 
             // Tentukan PIC berdasarkan mode
-            if ($pic_mode === 'history' && $hist_stmt) {
+            if ($pic_mode === 'specific' && !empty($specific_pic)) {
+                // Mode specific: semua task diarahkan ke PIC yang dipilih
+                $pic_email = $specific_pic;
+            } elseif ($pic_mode === 'history' && $hist_stmt) {
                 // Cari PIC terakhir yang pernah handle model ini
                 $hist_stmt->bind_param("s", $model_name);
                 $hist_stmt->execute();
@@ -427,10 +439,31 @@ switch ($action) {
 
         $stmt->close();
         if ($hist_stmt) $hist_stmt->close();
-        redirect('index.php?success=' . urlencode("Berhasil membuat {$created_count} task baru."));
+
+        if (!empty($dropped_models_skipped)) {
+            $_SESSION['bulk_dropped_notice'] = [
+                'created' => $created_count,
+                'dropped' => $dropped_models_skipped
+            ];
+        }
+
+        if ($created_count > 0) {
+            redirect('index.php?success=' . urlencode("Berhasil membuat {$created_count} task baru."));
+        } else {
+            redirect('bulk_add.php');
+        }
         break;
 
     case 'create_gba_task':
+        require_once 'marketing_name_mapper.php';
+
+        $c_model_name    = $data['model_name'];
+        if (function_exists('is_model_dropped') && is_model_dropped($c_model_name)) {
+            $_SESSION['dropped_model_error'] = $c_model_name;
+            $referer = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+            redirect($referer);
+            break;
+        }
 
         $raw_checklist = isset($data['checklist']) ? $data['checklist'] : [];
         $filtered_checklist = array_filter($raw_checklist, fn($v) => $v == 1);
@@ -439,7 +472,6 @@ switch ($action) {
 
         // Store null_if_empty results in variables first (bind_param requires variables by reference)
         $c_project_name  = $data['project_name'];
-        $c_model_name    = $data['model_name'];
         $c_pic_email     = $data['pic_email'];
         $c_ap            = null_if_empty($data['ap']);
         $c_cp            = null_if_empty($data['cp']);
@@ -663,8 +695,50 @@ switch ($action) {
         break;
 
 
+    case 'cancel_bulk_gba_tasks':
+        if (!is_admin() && !is_endri_or_admin()) {
+            if ($is_json) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
+                exit;
+            }
+            redirect_with_error('permission_denied');
+        }
+
+        $raw_ids = $data['task_ids'] ?? [];
+        if (!is_array($raw_ids)) {
+            $raw_ids = explode(',', (string) $raw_ids);
+        }
+        $task_ids = array_values(array_filter(array_map('intval', $raw_ids)));
+
+        if (!empty($task_ids)) {
+            $placeholders = implode(',', array_fill(0, count($task_ids), '?'));
+            $types = str_repeat('i', count($task_ids));
+
+            // ponytail: cancel multiple tasks in single query and log activity
+            $stmt = $conn->prepare("UPDATE gba_tasks SET progress_status = 'Batal', updated_by_email = ? WHERE id IN ($placeholders)");
+            $bind_params = array_merge([$user_email], $task_ids);
+            $stmt->bind_param("s" . $types, ...$bind_params);
+            $stmt->execute();
+            $stmt->close();
+
+            foreach ($task_ids as $tid) {
+                log_activity($conn, $tid, 'STATUS_CHANGE', "Status task diubah menjadi 'Batal' via cancel selected.", $user_email);
+            }
+        }
+
+        if ($is_json) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'count' => count($task_ids)]);
+            exit;
+        }
+
+        $referer = $_SERVER['HTTP_REFERER'] ?? 'gba_tasks.php';
+        redirect($referer);
+        break;
+
     case 'delete_gba_task':
-        if (!is_admin()) {
+        if (!is_admin() && !is_endri_or_admin()) {
             redirect_with_error('permission_denied');
         }
 

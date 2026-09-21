@@ -1,0 +1,81 @@
+{
+  "name": "Hermes AI Agent - MCP Tool Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hermes-agent",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Hermes Agent Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Anda adalah Hermes AI Agent. Anda memiliki akses ke MCP Server (http://localhost:3002) untuk mengelola data MySQL dan n8n automation secara langsung. Gunakan tool HTTP Request yang tersedia saat pengguna meminta informasi project atau pembuatan task baru."
+        }
+      },
+      "name": "Hermes AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [320, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3002/api/mcp/db_list_tasks",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"limit\": 10 }"
+      },
+      "name": "MCP Tool - List Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [540, 300]
+    }
+  ],
+  "connections": {
+    "Hermes Agent Webhook": {
+      "main": [
+        [
+          {
+            "node": "Hermes AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Hermes AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

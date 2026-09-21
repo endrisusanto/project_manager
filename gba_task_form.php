@@ -193,11 +193,27 @@ document.addEventListener('DOMContentLoaded', function() {
     if (modelNameInput && projectNameInput) {
         modelNameInput.addEventListener('change', function() {
             const modelName = this.value.trim();
-            if (modelName.length > 5) {
+            if (modelName.length > 3) {
                 projectNameInput.value = 'Mencari...';
                 fetch(`get_marketing_name.php?model_name=${encodeURIComponent(modelName)}`)
                     .then(response => response.json())
                     .then(data => {
+                        if (data.is_dropped) {
+                            modelNameInput.dataset.isDropped = "1";
+                            modelNameInput.classList.add('border-rose-500', 'text-rose-400');
+                            projectNameInput.value = '';
+                            projectNameInput.placeholder = 'Model sudah Discontinue / Drop';
+                            if (typeof showDroppedModelModal === 'function') {
+                                showDroppedModelModal(modelName);
+                            } else {
+                                alert(`Task untuk model ${modelName} tidak dapat disimpan karena sudah Discontinue / Drop dari proses development.`);
+                            }
+                            return;
+                        } else {
+                            delete modelNameInput.dataset.isDropped;
+                            modelNameInput.classList.remove('border-rose-500', 'text-rose-400');
+                        }
+
                         if (data.success && data.marketing_name) {
                             projectNameInput.value = data.marketing_name;
                         } else {
@@ -213,6 +229,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Intercept form submit jika model yang diinput drop
+    const taskForms = document.querySelectorAll('form[action="handler.php"]');
+    taskForms.forEach(f => {
+        f.addEventListener('submit', function(e) {
+            const mInput = f.querySelector('#model_name');
+            if (mInput && mInput.dataset.isDropped === "1") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof showDroppedModelModal === 'function') {
+                    showDroppedModelModal(mInput.value.trim());
+                } else {
+                    alert(`Task untuk model ${mInput.value} tidak dapat disimpan karena sudah Discontinue / Drop.`);
+                }
+                return false;
+            }
+        });
+    });
 
     function calculateWorkingDays(startDate, daysToAdd) {
         let currentDate = new Date(startDate);

@@ -212,12 +212,29 @@ $userdata_models = [
     "SM-X946B" => true,
 ];
 
+// List model yang sudah Drop atau Discontinue dari proses development
+$dropped_models = [];
+
 if (!function_exists('is_userdata_required')) {
     function is_userdata_required($model_name) {
         global $userdata_models;
         if (empty($model_name) || empty($userdata_models)) return false;
         $model_name = strtoupper($model_name);
         foreach ($userdata_models as $key => $val) {
+            if ($val && strpos($model_name, strtoupper($key)) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('is_model_dropped')) {
+    function is_model_dropped($model_name) {
+        global $dropped_models;
+        if (empty($model_name) || empty($dropped_models)) return false;
+        $model_name = strtoupper($model_name);
+        foreach ($dropped_models as $key => $val) {
             if ($val && strpos($model_name, strtoupper($key)) !== false) {
                 return true;
             }

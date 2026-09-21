@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Overall Status Report - GBA Project Manager</title>
+    <style>
+        /* Modern Minimalist Reset */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+        }
+        .wrapper {
+            width: 100%;
+            padding: 0;
+            background-color: #f8fafc;
+        }
+        .container {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        /* Minimalist Header Banner */
+        .header {
+            background-color: #0f172a;
+            padding: 24px 32px;
+            color: #ffffff;
+        }
+        .header-badge {
+            display: inline-block;
+            background: #1e293b;
+            color: #94a3b8;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            border: 1px solid #334155;
+        }
+        .header h1 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+        .header p {
+            margin: 0;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        /* Content Area */
+        .content {
+            padding: 32px;
+            box-sizing: border-box;
+        }
+        /* KPI Scorecard Grid */
+        .kpi-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 12px;
+            margin-bottom: 24px;
+            margin-left: -12px;
+            margin-right: -12px;
+        }
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: left;
+        }
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+        .kpi-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        /* Executive Summary Box */
+        .ai-summary-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 3px solid #0f172a;
+            border-radius: 6px;
+            padding: 18px 20px;
+            margin-bottom: 28px;
+        }
+        .ai-summary-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 6px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ai-summary-text {
+            font-size: 13px;
+            color: #334155;
+            line-height: 1.6;
+            margin: 0;
+        }
+        /* Section Title */
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 14px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        /* Data Table */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: left;
+        }
+        table.data-table th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 12px 14px;
+            border-bottom: 1px solid #e2e8f0;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+        }
+        table.data-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: top;
+        }
+        table.data-table tr:last-child td {
+            border-bottom: none;
+        }
+        table.data-table tr:nth-child(even) {
+            background-color: #fdfdfd;
+        }
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background-color: #f1f5f9;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+        }
+        .badge-active {
+            background-color: #eff6ff;
+            color: #1e40af;
+            border-color: #bfdbfe;
+        }
+        .cp-mismatch {
+            color: #dc2626;
+            font-weight: 700;
+        }
+        /* Action Button */
+        .btn-container {
+            text-align: left;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        .btn-action {
+            display: inline-block;
+            background-color: #0f172a;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        /* Footer */
+        .footer {
+            background-color: #ffffff;
+            padding: 24px 32px;
+            text-align: left;
+            border-top: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <!-- Minimalist Header Banner -->
+            <div class="header">
+                <span class="header-badge">Daily Automation Report</span>
+                <h1>GBA Overall Status Report</h1>
+                <p>Laporan Harian Status Project & Task GBA — {{ $now.setLocale('id').toFormat('dd MMMM yyyy') }}</p>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- KPI Scorecards Grid -->
+                <table class="kpi-table" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td class="kpi-card" width="25%">
+                            <div class="kpi-value">10</div>
+                            <div class="kpi-label">Task Aktif</div>
+                        </td>
+                        <td class="kpi-card" width="25%">
+                            <div class="kpi-value">1</div>
+                            <div class="kpi-label">Test Ongoing</div>
+                        </td>
+                        <td class="kpi-card" width="25%">
+                            <div class="kpi-value">9</div>
+                            <div class="kpi-label">Task Baru</div>
+                        </td>
+                        <td class="kpi-card" width="25%">
+                            <div class="kpi-value">0</div>
+                            <div class="kpi-label">Submitted</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Executive Summary Box -->
+                <div class="ai-summary-box">
+                    <div class="ai-summary-title">Executive Summary</div>
+                    <p class="ai-summary-text">
+                        Halo <strong>Tim GBA</strong>, berikut adalah ringkasan status harian: Saat ini terdapat <strong>10 task aktif</strong> dalam sistem. Model dengan volume pengujian tertinggi meliputi <strong>SM-A045F (4 task)</strong> dan <strong>SM-S721B (3 task)</strong>. Tanggal deadline pengujian bervariasi dari data aktual database. Agen AI akan secara otomatis menganalisis dan menyoroti task dengan deadline terdekat secara fleksibel.
+                    </p>
+                </div>
+
+                <!-- Bar Charts Comparison Grid -->
+                <div class="section-title">Grafik Perbandingan Task</div>
+                <table style="width: 100%; border-collapse: separate; border-spacing: 12px; margin-bottom: 28px; margin-left: -12px; margin-right: -12px;" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <!-- Bar Chart 1: Task per PIC -->
+                        <td style="width: 50%; vertical-align: top; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-sizing: border-box;">
+                            <div style="font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;">
+                                📊 Distribusi Task per PIC
+                            </div>
+                            
+                            <!-- Row 1: endri.s@samsung.com -->
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    <span>endri.s@samsung.com</span>
+                                    <span>8 Task (80%)</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 80%; height: 100%; background: #0f172a; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Row 2: team.gba@samsung.com -->
+                            <div style="margin-bottom: 6px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    <span>team.gba@samsung.com</span>
+                                    <span>2 Task (20%)</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 20%; height: 100%; background: #64748b; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Bar Chart 2: Task per Test Plan -->
+                        <td style="width: 50%; vertical-align: top; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-sizing: border-box;">
+                            <div style="font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;">
+                                📋 Distribusi Task per Test Plan
+                            </div>
+
+                            <!-- Row 1: Normal MR -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    <span>Normal MR</span>
+                                    <span>7 Task (70%)</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 70%; height: 100%; background: #0284c7; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Row 2: SMR -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    <span>SMR</span>
+                                    <span>2 Task (20%)</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 20%; height: 100%; background: #0ea5e9; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Row 3: PL -->
+                            <div style="margin-bottom: 6px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                    <span>PL</span>
+                                    <span>1 Task (10%)</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;">
+                                    <div style="width: 10%; height: 100%; background: #38bdf8; border-radius: 4px;"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Data Table -->
+                <div class="section-title">Daftar 10 Task Terbaru</div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px; text-align: center;">No</th>
+                                <th style="min-width: 200px;">Model & Build (AP / CP / CSC)</th>
+                                <th style="min-width: 150px;">PIC</th>
+                                <th style="min-width: 100px;">Test Plan</th>
+                                <th style="min-width: 110px; text-align: center;">Status</th>
+                                <th style="min-width: 130px;">Kinerja</th>
+                                <th style="min-width: 130px;">Tanggal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="text-align: center;"><b>1</b></td>
+                                <td>
+                                    <b>SM-F966B</b><br/>
+                                    <small style="color:#64748b;">AP: F966BXXSCBZH1</small><br/>
+                                    <small class="cp-mismatch">CP: F966BXXS9DIFF</small><br/>
+                                    <small style="color:#64748b;">CSC: F966BOXMCBZH1</small>
+                                </td>
+                                <td>endri.s@samsung.com</td>
+                                <td>Normal MR</td>
+                                <td style="text-align: center;"><span class="badge badge-active">Test Ongoing</span></td>
+                                <td>
+                                    <small style="color:#16a34a;font-weight:600;">Submission: Ontime</small><br/>
+                                    <small style="color:#16a34a;font-weight:600;">Approval: Ontime</small>
+                                </td>
+                                <td>
+                                    <small style="color:#64748b;">Req: 09 Aug 2026</small><br/>
+                                    <small style="color:#64748b;">Sub: 09 Aug 2026</small><br/>
+                                    <small style="color:#0f172a;font-weight:600;">Deadline: 18 Aug 2026</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center;"><b>2</b></td>
+                                <td>
+                                    <b>SM-S731B</b><br/>
+                                    <small style="color:#64748b;">AP: S731BXXS9BZG3</small><br/>
+                                    <small style="color:#64748b;">CP: S731BXXS9BZG3</small><br/>
+                                    <small style="color:#64748b;">CSC: S731BOXM9BZG3</small>
+                                </td>
+                                <td>endri.s@samsung.com</td>
+                                <td>Normal MR</td>
+                                <td style="text-align: center;"><span class="badge">Task Baru</span></td>
+                                <td>
+                                    <small style="color:#16a34a;font-weight:600;">Submission: Ontime</small><br/>
+                                    <small style="color:#d97706;font-weight:600;">Approval: Pending</small>
+                                </td>
+                                <td>
+                                    <small style="color:#64748b;">Req: 09 Aug 2026</small><br/>
+                                    <small style="color:#64748b;">Sub: 09 Aug 2026</small><br/>
+                                    <small style="color:#0f172a;font-weight:600;">Deadline: 18 Aug 2026</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center;"><b>3</b></td>
+                                <td>
+                                    <b>SM-S948B</b><br/>
+                                    <small style="color:#64748b;">AP: S948BXXS3BZG1</small><br/>
+                                    <small style="color:#64748b;">CP: S948BXXS3BZG1</small><br/>
+                                    <small style="color:#64748b;">CSC: S948BOXM3BZG1</small>
+                                </td>
+                                <td>endri.s@samsung.com</td>
+                                <td>Normal MR</td>
+                                <td style="text-align: center;"><span class="badge">Task Baru</span></td>
+                                <td>
+                                    <small style="color:#d97706;font-weight:600;">Submission: Pending</small><br/>
+                                    <small style="color:#d97706;font-weight:600;">Approval: Pending</small>
+                                </td>
+                                <td>
+                                    <small style="color:#64748b;">Req: 09 Aug 2026</small><br/>
+                                    <small style="color:#94a3b8;">Sub: -</small><br/>
+                                    <small style="color:#0f172a;font-weight:600;">Deadline: 18 Aug 2026</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center;"><b>4</b></td>
+                                <td>
+                                    <b>SM-A045F</b><br/>
+                                    <small style="color:#64748b;">AP: A045FXXS7CZG2</small><br/>
+                                    <small style="color:#64748b;">CP: A045FXXS7CZG2</small><br/>
+                                    <small style="color:#64748b;">CSC: A045FOXM7CZG2</small>
+                                </td>
+                                <td>endri.s@samsung.com</td>
+                                <td>Normal MR</td>
+                                <td style="text-align: center;"><span class="badge">Task Baru</span></td>
+                                <td>
+                                    <small style="color:#d97706;font-weight:600;">Submission: Pending</small><br/>
+                                    <small style="color:#d97706;font-weight:600;">Approval: Pending</small>
+                                </td>
+                                <td>
+                                    <small style="color:#64748b;">Req: 09 Aug 2026</small><br/>
+                                    <small style="color:#94a3b8;">Sub: -</small><br/>
+                                    <small style="color:#0f172a;font-weight:600;">Deadline: 18 Aug 2026</small>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Action Button -->
+                <div class="btn-container">
+                    <a href="http://localhost:8089" class="btn-action">Buka Dashboard Project Manager</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                Laporan ini dikirim otomatis oleh n8n Engine & MCP Server (GBA System).
+            </div>
+        </div>
+    </div>
+</body>
+</html>

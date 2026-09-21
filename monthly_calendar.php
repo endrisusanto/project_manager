@@ -48,7 +48,7 @@ function fetchIndonesianHolidays($year) {
     }
 
     $holidays = [];
-    $data = json_decode($response, true);
+    $data = json_decode((string)$response, true);
     
     if (is_array($data) && !empty($data)) {
         foreach ($data as $item) {
@@ -198,6 +198,7 @@ function getPicInitials($email) {
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monthly Calendar View</title>
@@ -1033,9 +1034,62 @@ function getPicInitials($email) {
         placeholder.style.display=checklistVisible?'none':'block';
     }
     
-    taskForm.addEventListener('submit', () => {
+    taskForm.addEventListener('submit', (e) => {
+        const mInput = document.getElementById('model_name');
+        if (mInput && mInput.dataset.isDropped === "1") {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof showDroppedModelModal === 'function') {
+                showDroppedModelModal(mInput.value.trim());
+            } else {
+                alert(`Task untuk model ${mInput.value} tidak dapat disimpan karena sudah Discontinue / Drop.`);
+            }
+            return false;
+        }
         document.getElementById('notes-hidden-input').value = quill.root.innerHTML;
     });
+
+    const calModelInput = document.getElementById('model_name');
+    const calProjectInput = document.getElementById('project_name');
+    if (calModelInput && calProjectInput) {
+        calModelInput.addEventListener('change', function() {
+            const modelName = this.value.trim();
+            if (modelName.length > 3) {
+                calProjectInput.value = 'Mencari...';
+                fetch(`get_marketing_name.php?model_name=${encodeURIComponent(modelName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.is_dropped) {
+                            calModelInput.dataset.isDropped = "1";
+                            calModelInput.classList.add('border-rose-500', 'text-rose-400');
+                            calProjectInput.value = '';
+                            calProjectInput.placeholder = 'Model sudah Discontinue / Drop';
+                            if (typeof showDroppedModelModal === 'function') {
+                                showDroppedModelModal(modelName);
+                            } else {
+                                alert(`Task untuk model ${modelName} tidak dapat disimpan karena sudah Discontinue / Drop dari proses development.`);
+                            }
+                            return;
+                        } else {
+                            delete calModelInput.dataset.isDropped;
+                            calModelInput.classList.remove('border-rose-500', 'text-rose-400');
+                        }
+
+                        if (data.success && data.marketing_name) {
+                            calProjectInput.value = data.marketing_name;
+                        } else {
+                            calProjectInput.value = '';
+                            calProjectInput.placeholder = 'Nama pemasaran tidak ditemukan';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        calProjectInput.value = '';
+                        calProjectInput.placeholder = 'Gagal mengambil data';
+                    });
+            }
+        });
+    }
 
     // Event listener untuk auto-fill tanggal di modal
     const submissionDateInput = document.getElementById('submission_date');

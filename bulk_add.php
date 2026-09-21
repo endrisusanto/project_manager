@@ -20,11 +20,13 @@ $active_page = 'bulk_add';
 
 // Hitung next PIC untuk modal (round-robin sama seperti di handler.php)
 $next_pic_email = null;
-$users_result_pic = $conn->query("SELECT email FROM users WHERE role = 'user' ORDER BY id ASC");
+$users_result_pic = $conn->query("SELECT email, username FROM users WHERE role = 'user' ORDER BY id ASC");
 $pic_list_for_modal = [];
+$users_for_bulk = [];
 if ($users_result_pic) {
     while ($u = $users_result_pic->fetch_assoc()) {
         $pic_list_for_modal[] = $u['email'];
+        $users_for_bulk[] = $u;
     }
 }
 if (!empty($pic_list_for_modal)) {
@@ -47,6 +49,7 @@ if (!empty($pic_list_for_modal)) {
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <title>Bulk Add GBA Tasks</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -68,9 +71,11 @@ if (!empty($pic_list_for_modal)) {
         .pic-toggle-track button{padding:5px 14px;border-radius:9999px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s;color:var(--text-secondary);background:transparent}
         .pic-toggle-track button.active-rr{background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.45)}
         .pic-toggle-track button.active-hist{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.4)}
+        .pic-toggle-track button.active-spec{background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.45)}
         .pic-mode-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;transition:all .3s}
         .pic-mode-badge.rr{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3)}
         .pic-mode-badge.hist{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+        .pic-mode-badge.spec{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -103,10 +108,36 @@ if (!empty($pic_list_for_modal)) {
                             <button type="button" id="btn-hist" onclick="setPicMode('history')">
                                 &#128336; History PIC
                             </button>
+                            <button type="button" id="btn-spec" onclick="setPicMode('specific')">
+                                &#128100; Specific PIC
+                            </button>
                         </div>
                         <span id="pic-mode-badge" class="pic-mode-badge rr">
                             <span>&#9679;</span> Round-Robin aktif
                         </span>
+                    </div>
+                </div>
+
+                <!-- Specific PIC Dropdown Container -->
+                <div id="specific-pic-container" class="hidden mb-4 p-3.5 rounded-xl transition-all" style="background:var(--input-bg);border:1px solid rgba(245,158,11,0.4)">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">&#128100;</span>
+                            <div>
+                                <label for="specific_pic" class="text-sm font-semibold block" style="color:var(--text-primary)">Pilih PIC Tujuan</label>
+                                <p class="text-xs" style="color:var(--text-secondary)">Seluruh task dari teks yang di-paste akan ditugaskan ke PIC ini</p>
+                            </div>
+                        </div>
+                        <div class="w-full sm:w-72">
+                            <select id="specific_pic" name="specific_pic" class="themed-input w-full p-2.5 text-sm rounded-lg font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                                <option value="" disabled selected>-- Pilih PIC --</option>
+                                <?php foreach ($users_for_bulk as $user): ?>
+                                    <option value="<?= htmlspecialchars($user['email']) ?>">
+                                        <?= htmlspecialchars($user['username']) ?> (<?= htmlspecialchars($user['email']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -120,6 +151,7 @@ if (!empty($pic_list_for_modal)) {
                     <p class="text-xs" style="color:var(--text-secondary)">
                         <span id="bulk-mode-hint-rr">&#8635; <b>Round-Robin:</b> PIC dibagi rata secara bergantian melanjutkan dari task terakhir.</span>
                         <span id="bulk-mode-hint-hist" class="hidden">&#128336; <b>History PIC:</b> Jika model pernah dikerjakan, PIC yang sama akan dipakai. Model baru → round-robin.</span>
+                        <span id="bulk-mode-hint-spec" class="hidden">&#128100; <b>Specific PIC:</b> Semua task pada batch ini akan langsung ditugaskan ke satu PIC yang dipilih.</span>
                     </p>
                     <button type="submit" class="flex-shrink-0 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
                         Tambah Tasks
@@ -191,29 +223,61 @@ if (!empty($pic_list_for_modal)) {
 
             const btnRR   = document.getElementById('btn-rr');
             const btnHist = document.getElementById('btn-hist');
+            const btnSpec = document.getElementById('btn-spec');
             const badge   = document.getElementById('pic-mode-badge');
             const desc    = document.getElementById('pic-mode-desc');
             const hintRR  = document.getElementById('bulk-mode-hint-rr');
             const hintHist= document.getElementById('bulk-mode-hint-hist');
+            const hintSpec= document.getElementById('bulk-mode-hint-spec');
+            const specContainer = document.getElementById('specific-pic-container');
+            const specSelect    = document.getElementById('specific_pic');
+
+            btnRR.className   = '';
+            btnHist.className = '';
+            btnSpec.className = '';
+            hintRR.classList.add('hidden');
+            hintHist.classList.add('hidden');
+            hintSpec.classList.add('hidden');
 
             if (mode === 'round_robin') {
                 btnRR.className   = 'active-rr';
-                btnHist.className = '';
                 badge.className   = 'pic-mode-badge rr';
                 badge.innerHTML   = '<span>&#9679;</span> Round-Robin aktif';
                 desc.textContent  = 'Distribusi merata ke semua PIC secara bergantian';
                 hintRR.classList.remove('hidden');
-                hintHist.classList.add('hidden');
-            } else {
+                specContainer.classList.add('hidden');
+                specSelect.removeAttribute('required');
+            } else if (mode === 'history') {
                 btnHist.className = 'active-hist';
-                btnRR.className   = '';
                 badge.className   = 'pic-mode-badge hist';
                 badge.innerHTML   = '<span>&#9679;</span> History PIC aktif';
                 desc.textContent  = 'PIC diambil dari history model yang pernah dikerjakan';
-                hintRR.classList.add('hidden');
                 hintHist.classList.remove('hidden');
+                specContainer.classList.add('hidden');
+                specSelect.removeAttribute('required');
+            } else if (mode === 'specific') {
+                btnSpec.className = 'active-spec';
+                badge.className   = 'pic-mode-badge spec';
+                badge.innerHTML   = '<span>&#9679;</span> Specific PIC aktif';
+                desc.textContent  = 'Semua task akan di-assign ke PIC yang Anda pilih';
+                hintSpec.classList.remove('hidden');
+                specContainer.classList.remove('hidden');
+                specSelect.setAttribute('required', 'required');
             }
         }
+
+        // Validate specific PIC before submit
+        document.getElementById('bulk-form').addEventListener('submit', function(e) {
+            const mode = document.getElementById('pic_mode_input').value;
+            if (mode === 'specific') {
+                const specVal = document.getElementById('specific_pic').value;
+                if (!specVal) {
+                    e.preventDefault();
+                    alert('Silakan pilih PIC tujuan pada dropdown terlebih dahulu.');
+                    document.getElementById('specific_pic').focus();
+                }
+            }
+        });
 
         // Restore saved mode on page load
         (function() {

@@ -126,7 +126,7 @@ if ($tasks_result) {
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
 
-        $checklist = json_decode($row['test_items_checklist'], true);
+        $checklist = json_decode((string)($row['test_items_checklist'] ?? ''), true);
         $plan_type = $row['test_plan_type'];
         $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
         $completed_items = 0;
@@ -162,6 +162,7 @@ function getStatusColorClasses($status)
 <html lang="id">
 
 <head>
+    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GBA Task Manager</title>
@@ -834,7 +835,7 @@ function getStatusColorClasses($status)
                     $new_tasks_qb_ids = [];
                     if (!empty($tasks)) {
                         foreach ($tasks as $t) {
-                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru') {
+                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru' && isset($t['test_plan_type']) && strtoupper(trim($t['test_plan_type'])) === 'SMR') {
                                 if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
                                     $new_tasks_qb_ids[] = trim($t['qb_user']);
                                 }
@@ -848,12 +849,40 @@ function getStatusColorClasses($status)
                     ?>
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
-                        title="Copy all QB Build IDs for New Tasks"
+                        title="Copy all QB Build IDs for New Tasks (SMR Only)"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/30">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376A8.965 8.965 0 0012 12.75a8.965 8.965 0 00-3.75 4.5m0 0H18M12 9a2.25 2.25 0 00-2.25 2.25v2.25H12V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
                         </svg>
                         Copy New Task QB IDs
+                    </button>
+                    <?php
+                    $active_task_build_rows = [];
+                    $eligible_statuses = ['task baru', 'downloaded', 'test ongoing', 'ongoing', 'pending feedback', 'feedback sent', 'submitted'];
+                    if (!empty($tasks)) {
+                        foreach ($tasks as $t) {
+                            $st = strtolower(trim($t['progress_status'] ?? ''));
+                            if (in_array($st, $eligible_statuses)) {
+                                $m = trim($t['model_name'] ?? '');
+                                $a = trim($t['ap'] ?? '');
+                                $c = trim($t['cp'] ?? '');
+                                $csc = trim($t['csc'] ?? '');
+                                if ($m !== '' || $a !== '' || $c !== '' || $csc !== '') {
+                                    $active_task_build_rows[] = "{$m}\t{$a}\t{$csc}\t{$c}";
+                                }
+                            }
+                        }
+                    }
+                    $active_task_builds_str = implode("\n", $active_task_build_rows);
+                    ?>
+                    <button onclick="copyActiveTasksBuilds(event, this)"
+                        data-build-info="<?= htmlspecialchars($active_task_builds_str) ?>"
+                        title="Copy Model, AP, CSC, CP untuk task status Task Baru, Downloaded, Ongoing, Pending Feedback, Feedback Sent, Submitted"
+                        class="bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-all shadow-lg shadow-amber-600/30 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                        </svg>
+                        Build HomeBinary
                     </button>
                 </div>
             </div>
@@ -873,7 +902,18 @@ function getStatusColorClasses($status)
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Progress</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Tanggal</th>
                             <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Kinerja</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Aksi</th>
+                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">
+                                <div class="flex items-center gap-2">
+                                    <?php if (is_admin() || is_endri_or_admin()): ?>
+                                        <input type="checkbox" id="select-all-tasks" onchange="toggleSelectAllTasks(this)" title="Pilih Semua" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-red-500 focus:ring-red-500 cursor-pointer">
+                                        <button type="button" id="btn-cancel-selected" onclick="cancelSelectedTasks()" style="display: none;" class="px-2 py-0.5 text-xs bg-red-600/90 hover:bg-red-600 text-white rounded font-medium transition-all shadow inline-flex items-center gap-1" title="Batalkan task yang dipilih">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            <span id="cancel-selected-count">Cancel</span>
+                                        </button>
+                                    <?php endif; ?>
+                                    <span>Aksi</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="task-table-body">
@@ -992,10 +1032,13 @@ function getStatusColorClasses($status)
                                         </div>
                                     </td>
                                     <td class="p-3">
-                                        <div class="flex items-center">
+                                        <div class="flex items-center gap-1.5">
+                                            <?php if (is_admin() || is_endri_or_admin()): ?>
+                                                <input type="checkbox" class="task-select-checkbox w-4 h-4 rounded border-gray-600 bg-gray-700 text-red-500 focus:ring-red-500 cursor-pointer" value="<?= $task['id'] ?>" onchange="updateSelectedTasksState()">
+                                            <?php endif; ?>
                                             <button
                                                 onclick='openEditModal(<?= json_encode($task, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>)'
-                                                class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon"
+                                                class="p-1 rounded hover:bg-gray-600/50" title="Edit"><svg class="w-4 h-4 text-icon"
                                                     fill="currentColor" viewBox="0 0 20 20">
                                                     <path
                                                         d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z">
@@ -1004,12 +1047,12 @@ function getStatusColorClasses($status)
                                                         d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
                                                         clip-rule="evenodd"></path>
                                                 </svg></button>
-                                            <?php if (is_admin()): ?>
+                                            <?php if (is_admin() || is_endri_or_admin()): ?>
                                                 <form action="handler.php" method="POST"
                                                     onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input
                                                         type="hidden" name="action" value="delete_gba_task"><input type="hidden"
                                                         name="id" value="<?= $task['id'] ?>"><button type="submit"
-                                                        class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon"
+                                                        class="p-1 rounded hover:bg-gray-600/50" title="Hapus"><svg class="w-4 h-4 text-icon"
                                                             fill="currentColor" viewBox="0 0 20 20">
                                                             <path fill-rule="evenodd"
                                                                 d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z"
@@ -1120,7 +1163,7 @@ function getStatusColorClasses($status)
         function closeModal() { modal.classList.add('hidden') }
         document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility); function setupQuill(content) { if (quill) { quill.root.innerHTML = content } else { quill = new Quill('#notes-editor', { theme: 'snow', modules: { toolbar: [['bold', 'italic', 'underline'], ['link'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] } }); quill.root.innerHTML = content } }
         taskForm.addEventListener('submit', function () { document.getElementById('notes-hidden-input').value = quill.root.innerHTML; const visibleChecklist = document.querySelector('[id^="checklist-container-"]:not(.hidden)'); if (visibleChecklist) { document.querySelectorAll('[id^="checklist-hidden-"]').forEach(el => el.remove()); visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { const hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.id = 'checklist-hidden-' + cb.name.replace(/[\[\]]/g,'_'); hidden.name = cb.name; hidden.value = cb.checked ? '1' : '0'; taskForm.appendChild(hidden); cb.disabled = true; }); } }); function updateChecklistVisibility() { const testPlan = document.getElementById('test_plan_type').value, placeholder = document.getElementById('checklist-placeholder'); let checklistVisible = !1; document.querySelectorAll('[id^="checklist-container-"]').forEach(el => { const planName = el.id.replace('checklist-container-', '').replace(/_/g, ' '); if (planName === testPlan) { el.classList.remove('hidden'); checklistVisible = !0 } else { el.classList.add('hidden') } }); placeholder.style.display = checklistVisible ? 'none' : 'block' }
-        const searchInput = document.getElementById('search-input'), rowsSelect = document.getElementById('pagination-rows'), tableBody = document.getElementById('task-table-body'), paginationNav = document.getElementById('pagination-nav'), testplanFilterContainer = document.getElementById('testplan-filter-container'), statusFilter = document.getElementById('status-filter'), allRows = Array.from(tableBody.querySelectorAll('tr')); let currentPage = 1, activePlanFilter = 'All', activeStatusFilter = 'All'; function renderTable() { const searchText = searchInput.value.toLowerCase(), rowsPerPage = parseInt(rowsSelect.value), filteredRows = allRows.filter(row => { const matchesSearch = row.textContent.toLowerCase().includes(searchText), matchesPlan = activePlanFilter === 'All' || row.dataset.plan === activePlanFilter, matchesStatus = activeStatusFilter === 'All' || (Array.isArray(activeStatusFilter) ? activeStatusFilter.includes(row.dataset.status) : row.dataset.status === activeStatusFilter); return matchesSearch && matchesPlan && matchesStatus }), totalPages = Math.ceil(filteredRows.length / rowsPerPage); currentPage = Math.min(currentPage, totalPages) || 1; tableBody.innerHTML = ''; const start = (currentPage - 1) * rowsPerPage, end = start + rowsPerPage; filteredRows.slice(start, end).forEach(row => tableBody.appendChild(row)); renderPagination(totalPages) }
+        const searchInput = document.getElementById('search-input'), rowsSelect = document.getElementById('pagination-rows'), tableBody = document.getElementById('task-table-body'), paginationNav = document.getElementById('pagination-nav'), testplanFilterContainer = document.getElementById('testplan-filter-container'), statusFilter = document.getElementById('status-filter'), allRows = Array.from(tableBody.querySelectorAll('tr')); let currentPage = 1, activePlanFilter = 'All', activeStatusFilter = 'All'; function renderTable() { const searchText = searchInput.value.toLowerCase(), rowsPerPage = parseInt(rowsSelect.value), filteredRows = allRows.filter(row => { const matchesSearch = row.textContent.toLowerCase().includes(searchText), matchesPlan = activePlanFilter === 'All' || row.dataset.plan === activePlanFilter, matchesStatus = activeStatusFilter === 'All' || (Array.isArray(activeStatusFilter) ? activeStatusFilter.includes(row.dataset.status) : row.dataset.status === activeStatusFilter); return matchesSearch && matchesPlan && matchesStatus }), totalPages = Math.ceil(filteredRows.length / rowsPerPage); currentPage = Math.min(currentPage, totalPages) || 1; tableBody.innerHTML = ''; const start = (currentPage - 1) * rowsPerPage, end = start + rowsPerPage; filteredRows.slice(start, end).forEach(row => tableBody.appendChild(row)); renderPagination(totalPages); if (typeof updateSelectedTasksState === 'function') updateSelectedTasksState(); }
         function renderPagination(totalPages) { paginationNav.innerHTML = ''; if (totalPages <= 1) return; const maxButtons = 5; let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2)), endPage = Math.min(totalPages, startPage + maxButtons - 1); if (endPage - startPage + 1 < maxButtons) { startPage = Math.max(1, endPage - maxButtons + 1) } if (startPage > 1) { paginationNav.appendChild(createPageButton(1, '«')); paginationNav.appendChild(createPageButton(currentPage - 1, '‹')) } for (let i = startPage; i <= endPage; i++) { paginationNav.appendChild(createPageButton(i, i)) } if (endPage < totalPages) { paginationNav.appendChild(createPageButton(currentPage + 1, '›')); paginationNav.appendChild(createPageButton(totalPages, '»')) } }
         function createPageButton(page, text) { const pageButton = document.createElement('button'); pageButton.textContent = text; pageButton.className = `px-3 py-1 rounded-lg text-sm ${page === currentPage ? 'bg-blue-600 text-white' : 'themed-input'}`; pageButton.onclick = () => { currentPage = page; renderTable() }; return pageButton }
         const progressStatusSelect = document.getElementById('progress_status'), submissionDateInput = document.getElementById('submission_date'), approvedDateInput = document.getElementById('approved_date'), requestDateInput = document.getElementById('request_date'), deadlineInput = document.getElementById('deadline'), signOffDateInput = document.getElementById('sign_off_date');
@@ -1298,7 +1341,31 @@ function getStatusColorClasses($status)
         function copyNewTasksQbIds(event, button) {
             const textToCopy = button.getAttribute('data-qb-ids');
             if (!textToCopy) {
-                alert('Tidak ada QB Build ID untuk status "Task Baru" saat ini.');
+                alert('Tidak ada QB Build ID untuk status "Task Baru" dengan Test Plan SMR saat ini.');
+                return;
+            }
+            
+            const copyAction = () => {
+                const rect = button.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top;
+                showCopyTooltip(x, y);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(copyAction).catch(err => {
+                    console.error('Gagal menyalin:', err);
+                    fallbackCopy(textToCopy, copyAction);
+                });
+            } else {
+                fallbackCopy(textToCopy, copyAction);
+            }
+        }
+
+        function copyActiveTasksBuilds(event, button) {
+            const textToCopy = button.getAttribute('data-build-info');
+            if (!textToCopy) {
+                alert('Tidak ada data task aktif yang sesuai dengan status.');
                 return;
             }
             
@@ -1392,6 +1459,90 @@ function getStatusColorClasses($status)
                 tooltip.style.opacity = '0';
                 setTimeout(() => tooltip.remove(), 200);
             }, 1000);
+        }
+
+        // ponytail: superuser bulk task cancel handlers
+        function toggleSelectAllTasks(master) {
+            const checkboxes = document.querySelectorAll('#task-table-body .task-select-checkbox');
+            checkboxes.forEach(cb => {
+                const tr = cb.closest('tr');
+                if (tr && tr.style.display !== 'none') {
+                    cb.checked = master.checked;
+                }
+            });
+            updateSelectedTasksState();
+        }
+
+        function updateSelectedTasksState() {
+            const allCheckboxes = Array.from(document.querySelectorAll('#task-table-body .task-select-checkbox')).filter(cb => {
+                const tr = cb.closest('tr');
+                return tr && tr.style.display !== 'none';
+            });
+            const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+            const master = document.getElementById('select-all-tasks');
+            const btnCancel = document.getElementById('btn-cancel-selected');
+            const countLabel = document.getElementById('cancel-selected-count');
+
+            if (master) {
+                master.checked = allCheckboxes.length > 0 && checkedBoxes.length === allCheckboxes.length;
+                master.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < allCheckboxes.length;
+            }
+
+            if (btnCancel) {
+                if (checkedBoxes.length > 0) {
+                    btnCancel.style.display = 'inline-flex';
+                    if (countLabel) countLabel.textContent = `Cancel (${checkedBoxes.length})`;
+                } else {
+                    btnCancel.style.display = 'none';
+                    if (countLabel) countLabel.textContent = 'Cancel';
+                }
+            }
+        }
+
+        async function cancelSelectedTasks() {
+            const checkedBoxes = Array.from(document.querySelectorAll('#task-table-body .task-select-checkbox:checked'));
+            const selectedIds = checkedBoxes.map(cb => parseInt(cb.value)).filter(Boolean);
+            if (selectedIds.length === 0) {
+                alert('Pilih setidaknya satu task untuk dibatalkan.');
+                return;
+            }
+            if (!confirm(`Apakah Anda yakin ingin membatalkan ${selectedIds.length} task yang dipilih?`)) {
+                return;
+            }
+
+            const btnCancel = document.getElementById('btn-cancel-selected');
+            if (btnCancel) {
+                btnCancel.disabled = true;
+                btnCancel.innerHTML = '<span class="animate-pulse">Canceling...</span>';
+            }
+
+            try {
+                const response = await fetch('handler.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'cancel_bulk_gba_tasks',
+                        task_ids: selectedIds
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    window.location.reload();
+                } else {
+                    alert('Gagal membatalkan task: ' + (result.error || 'Terjadi kesalahan'));
+                    if (btnCancel) {
+                        btnCancel.disabled = false;
+                        updateSelectedTasksState();
+                    }
+                }
+            } catch (err) {
+                console.error('Error cancel task:', err);
+                alert('Terjadi kesalahan jaringan saat membatalkan task.');
+                if (btnCancel) {
+                    btnCancel.disabled = false;
+                    updateSelectedTasksState();
+                }
+            }
         }
     </script>
 </body>

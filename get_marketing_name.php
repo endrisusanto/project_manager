@@ -11,9 +11,15 @@ if (empty($model_name)) {
     exit;
 }
 
+$is_dropped = function_exists('is_model_dropped') ? is_model_dropped($model_name) : false;
+
 // Cari model name di dalam array mapping
 if (isset($model_mapping[$model_name])) {
-    echo json_encode(['success' => true, 'marketing_name' => $model_mapping[$model_name]]);
+    echo json_encode([
+        'success' => true,
+        'marketing_name' => $model_mapping[$model_name],
+        'is_dropped' => $is_dropped
+    ]);
 } else {
     // Cari pencocokan parsial (misal: SM-S928B dari SM-S928B_SEA_DX)
     $found_name = null;
@@ -25,9 +31,17 @@ if (isset($model_mapping[$model_name])) {
     }
 
     if ($found_name) {
-        echo json_encode(['success' => true, 'marketing_name' => $found_name]);
+        echo json_encode([
+            'success' => true,
+            'marketing_name' => $found_name,
+            'is_dropped' => $is_dropped
+        ]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Nama pemasaran tidak ditemukan.']);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Nama pemasaran tidak ditemukan.',
+            'is_dropped' => $is_dropped
+        ]);
     }
 }
 ?>

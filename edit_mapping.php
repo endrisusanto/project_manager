@@ -16,10 +16,16 @@ $message = '';
 require_once $mapping_file;
 $current_mapping = $model_mapping;
 $current_userdata = isset($userdata_models) ? $userdata_models : [];
+$current_dropped = isset($dropped_models) ? $dropped_models : [];
 
-// Pastikan semua model di $current_userdata juga muncul di $current_mapping
+// Pastikan semua model di $current_userdata dan $current_dropped juga muncul di $current_mapping
 foreach ($current_userdata as $m_code => $is_req) {
     if ($is_req && !isset($current_mapping[$m_code])) {
+        $current_mapping[$m_code] = "";
+    }
+}
+foreach ($current_dropped as $m_code => $is_drp) {
+    if ($is_drp && !isset($current_mapping[$m_code])) {
         $current_mapping[$m_code] = "";
     }
 }
@@ -60,26 +66,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $models = $_POST['models'];
         $names = $_POST['names'];
         $userdata_post = $_POST['userdata'] ?? [];
+        $dropped_post = $_POST['dropped'] ?? [];
         
         $new_mapping = [];
         $new_userdata = [];
+        $new_dropped = [];
         for ($i = 0; $i < count($models); $i++) {
             $model = strtoupper(trim($models[$i]));
             $name = trim($names[$i]);
-            if (!empty($model) && !empty($name)) {
+            if (!empty($model)) {
                 $new_mapping[$model] = $name;
                 if (!empty($userdata_post[$i])) {
                     $new_userdata[$model] = true;
+                }
+                if (!empty($dropped_post[$i])) {
+                    $new_dropped[$model] = true;
                 }
             }
         }
         $current_mapping = $new_mapping;
         $current_userdata = $new_userdata;
+        $current_dropped = $new_dropped;
     }
 
     // Urutkan berdasarkan key (model name)
     ksort($current_mapping);
     ksort($current_userdata);
+    ksort($current_dropped);
 
     // Buat konten file PHP baru
     $file_content = "<?php\n\n// Kamus lokal untuk Model Name -> Marketing Name\n\$model_mapping = [\n";
@@ -96,12 +109,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $file_content .= "];\n\n";
 
+    $file_content .= "// List model yang sudah Drop atau Discontinue dari proses development\n\$dropped_models = [\n";
+    foreach ($current_dropped as $model => $is_drp) {
+        if ($is_drp) {
+            $file_content .= "    \"" . addslashes($model) . "\" => true,\n";
+        }
+    }
+    $file_content .= "];\n\n";
+
     $file_content .= "if (!function_exists('is_userdata_required')) {\n";
     $file_content .= "    function is_userdata_required(\$model_name) {\n";
     $file_content .= "        global \$userdata_models;\n";
     $file_content .= "        if (empty(\$model_name) || empty(\$userdata_models)) return false;\n";
     $file_content .= "        \$model_name = strtoupper(\$model_name);\n";
     $file_content .= "        foreach (\$userdata_models as \$key => \$val) {\n";
+    $file_content .= "            if (\$val && strpos(\$model_name, strtoupper(\$key)) !== false) {\n";
+    $file_content .= "                return true;\n";
+    $file_content .= "            }\n";
+    $file_content .= "        }\n";
+    $file_content .= "        return false;\n";
+    $file_content .= "    }\n";
+    $file_content .= "}\n\n";
+
+    $file_content .= "if (!function_exists('is_model_dropped')) {\n";
+    $file_content .= "    function is_model_dropped(\$model_name) {\n";
+    $file_content .= "        global \$dropped_models;\n";
+    $file_content .= "        if (empty(\$model_name) || empty(\$dropped_models)) return false;\n";
+    $file_content .= "        \$model_name = strtoupper(\$model_name);\n";
+    $file_content .= "        foreach (\$dropped_models as \$key => \$val) {\n";
     $file_content .= "            if (\$val && strpos(\$model_name, strtoupper(\$key)) !== false) {\n";
     $file_content .= "                return true;\n";
     $file_content .= "            }\n";
@@ -125,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <title>Edit Model Mapping</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -185,11 +221,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <button type="submit" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg text-sm">Simpan Semua Perubahan</button>
                         </div>
 
-                        <div class="grid grid-cols-[1.2fr_2fr_120px_auto] gap-x-4 gap-y-2 font-semibold text-secondary mb-2 border-b border-[var(--glass-border)] pb-2 items-center">
+                        <div class="grid grid-cols-[1.1fr_1.8fr_90px_100px_auto] gap-x-3 gap-y-2 font-semibold text-secondary mb-2 border-b border-[var(--glass-border)] pb-2 items-center">
                             <span>Model Name</span>
                             <span>Marketing Name</span>
-                            <span class="text-center text-xs">USERDATA Required</span>
-                            <button id="add-row" type="button" class="text-indigo-400 hover:text-indigo-300">
+                            <span class="text-center text-xs" title="Membutuhkan USERDATA saat download QB Build">USERDATA</span>
+                            <span class="text-center text-xs text-rose-400 font-bold" title="Tandai model jika sudah discontinue atau drop dari proses development">Drop / Disc.</span>
+                            <button id="add-row" type="button" class="text-indigo-400 hover:text-indigo-300" title="Tambah Baris Baru">
                                 <svg class="w-6 h-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
                             </button>
                         </div>
@@ -198,14 +235,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $rowIndex = 0;
                             foreach ($current_mapping as $model => $name): 
                                 $is_ud = !empty($current_userdata[$model]);
+                                $is_drp = !empty($current_dropped[$model]);
                             ?>
-                            <div class="grid grid-cols-[1.2fr_2fr_120px_auto] gap-x-4 gap-y-2 items-center mapping-row">
+                            <div class="grid grid-cols-[1.1fr_1.8fr_90px_100px_auto] gap-x-3 gap-y-2 items-center mapping-row">
                                 <input type="text" name="models[]" value="<?= htmlspecialchars($model) ?>" class="themed-input w-full p-2 text-sm rounded-lg uppercase" placeholder="SM-XXXXX">
                                 <input type="text" name="names[]" value="<?= htmlspecialchars($name) ?>" class="themed-input w-full p-2 text-sm rounded-lg" placeholder="Galaxy ...">
                                 <div class="flex justify-center items-center">
-                                    <input type="checkbox" name="userdata[<?= $rowIndex ?>]" value="1" <?= $is_ud ? 'checked' : '' ?> class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-400 cursor-pointer">
+                                    <input type="checkbox" name="userdata[<?= $rowIndex ?>]" value="1" <?= $is_ud ? 'checked' : '' ?> class="cb-userdata w-4 h-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-400 cursor-pointer" title="USERDATA Required">
                                 </div>
-                                <button type="button" class="remove-row p-2 text-red-400 hover:text-red-600">
+                                <div class="flex justify-center items-center">
+                                    <input type="checkbox" name="dropped[<?= $rowIndex ?>]" value="1" <?= $is_drp ? 'checked' : '' ?> class="cb-dropped w-4 h-4 rounded border-slate-600 bg-slate-700 text-rose-500 focus:ring-rose-400 cursor-pointer accent-rose-600" title="Tandai jika model ini Drop / Discontinue">
+                                </div>
+                                <button type="button" class="remove-row p-2 text-red-400 hover:text-red-600" title="Hapus baris">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
                                 </button>
                             </div>
@@ -236,14 +277,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.getElementById('add-row').addEventListener('click', function() {
             const container = document.getElementById('mapping-container');
             const newRow = document.createElement('div');
-            newRow.className = 'grid grid-cols-[1.2fr_2fr_120px_auto] gap-x-4 gap-y-2 items-center mapping-row';
+            newRow.className = 'grid grid-cols-[1.1fr_1.8fr_90px_100px_auto] gap-x-3 gap-y-2 items-center mapping-row';
             newRow.innerHTML = `
                 <input type="text" name="models[]" class="themed-input w-full p-2 text-sm rounded-lg uppercase" placeholder="SM-XXXXX">
                 <input type="text" name="names[]" class="themed-input w-full p-2 text-sm rounded-lg" placeholder="Galaxy ...">
                 <div class="flex justify-center items-center">
-                    <input type="checkbox" name="userdata[${rowCounter}]" value="1" class="w-4 h-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-400 cursor-pointer">
+                    <input type="checkbox" name="userdata[${rowCounter}]" value="1" class="cb-userdata w-4 h-4 rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-400 cursor-pointer" title="USERDATA Required">
                 </div>
-                <button type="button" class="remove-row p-2 text-red-400 hover:text-red-600">
+                <div class="flex justify-center items-center">
+                    <input type="checkbox" name="dropped[${rowCounter}]" value="1" class="cb-dropped w-4 h-4 rounded border-slate-600 bg-slate-700 text-rose-500 focus:ring-rose-400 cursor-pointer accent-rose-600" title="Tandai jika model ini Drop / Discontinue">
+                </div>
+                <button type="button" class="remove-row p-2 text-red-400 hover:text-red-600" title="Hapus baris">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
                 </button>
             `;
@@ -256,8 +300,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (rowForm) {
             rowForm.addEventListener('submit', function() {
                 document.querySelectorAll('.mapping-row').forEach((row, i) => {
-                    const cb = row.querySelector('input[type="checkbox"]');
-                    if (cb) cb.name = `userdata[${i}]`;
+                    const cbUd = row.querySelector('.cb-userdata');
+                    if (cbUd) cbUd.name = `userdata[${i}]`;
+                    const cbDrop = row.querySelector('.cb-dropped');
+                    if (cbDrop) cbDrop.name = `dropped[${i}]`;
                 });
             });
         }

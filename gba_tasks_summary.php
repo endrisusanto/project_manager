@@ -68,7 +68,7 @@ if ($tasks_result) {
         }
         
         // LOGIKA PERHITUNGAN PROGRESS (Sama persis dengan gba_tasks.php)
-        $checklist = json_decode($row['test_items_checklist'], true);
+        $checklist = json_decode((string)($row['test_items_checklist'] ?? ''), true);
         $plan_type = $row['test_plan_type'];
         $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
         $completed_items = 0;
@@ -98,6 +98,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GBA Task Summary</title>
@@ -208,6 +209,59 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                         </svg>
                         Export All AP
                     </a>
+                    <?php
+                    $new_tasks_qb_ids = [];
+                    if (!empty($tasks)) {
+                        foreach ($tasks as $t) {
+                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru' && isset($t['test_plan_type']) && strtoupper(trim($t['test_plan_type'])) === 'SMR') {
+                                if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
+                                    $new_tasks_qb_ids[] = trim($t['qb_user']);
+                                }
+                                if (!empty($t['qb_userdebug']) && trim($t['qb_userdebug']) !== '-') {
+                                    $new_tasks_qb_ids[] = trim($t['qb_userdebug']);
+                                }
+                            }
+                        }
+                    }
+                    $new_tasks_qb_ids_str = implode(',', array_unique(array_filter($new_tasks_qb_ids)));
+                    ?>
+                    <button onclick="copyNewTasksQbIds(event, this)"
+                        data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
+                        title="Copy all QB Build IDs for New Tasks (SMR Only)"
+                        class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 shadow-emerald-500/30 transition-all">
+                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                        </svg>
+                        Copy New Task QB IDs
+                    </button>
+                    <?php
+                    $summary_active_build_rows = [];
+                    $eligible_summary_statuses = ['task baru', 'downloaded', 'test ongoing', 'ongoing', 'pending feedback', 'feedback sent', 'submitted'];
+                    if (!empty($tasks)) {
+                        foreach ($tasks as $t) {
+                            $st = strtolower(trim($t['progress_status'] ?? ''));
+                            if (in_array($st, $eligible_summary_statuses)) {
+                                $m = trim($t['model_name'] ?? '');
+                                $a = trim($t['ap'] ?? '');
+                                $c = trim($t['cp'] ?? '');
+                                $csc = trim($t['csc'] ?? '');
+                                if ($m !== '' || $a !== '' || $c !== '' || $csc !== '') {
+                                    $summary_active_build_rows[] = "{$m}\t{$a}\t{$csc}\t{$c}";
+                                }
+                            }
+                        }
+                    }
+                    $summary_active_builds_str = implode("\n", $summary_active_build_rows);
+                    ?>
+                    <button onclick="copyActiveTasksBuilds(event, this)"
+                        data-build-info="<?= htmlspecialchars($summary_active_builds_str) ?>"
+                        title="Copy Model, AP, CSC, CP untuk task status Task Baru, Downloaded, Ongoing, Pending Feedback, Feedback Sent, Submitted"
+                        class="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-600 to-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-amber-500 hover:to-red-500 shadow-amber-600/30 transition-all">
+                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                        </svg>
+                        Build HomeBinary
+                    </button>
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-secondary">Baris:</span>
                         <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option></select>
@@ -885,6 +939,71 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                 tooltip.style.opacity = '0';
                 setTimeout(() => tooltip.remove(), 200);
             }, 1000);
+        }
+
+        function copyNewTasksQbIds(event, button) {
+            const textToCopy = button.getAttribute('data-qb-ids');
+            if (!textToCopy) {
+                alert('Tidak ada QB Build ID untuk status "Task Baru" dengan Test Plan SMR saat ini.');
+                return;
+            }
+            
+            const copyAction = () => {
+                const rect = button.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top;
+                showCopyTooltip(x, y);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(copyAction).catch(err => {
+                    console.error('Gagal menyalin:', err);
+                    fallbackCopy(textToCopy, copyAction);
+                });
+            } else {
+                fallbackCopy(textToCopy, copyAction);
+            }
+        }
+
+        function copyActiveTasksBuilds(event, button) {
+            const textToCopy = button.getAttribute('data-build-info');
+            if (!textToCopy) {
+                alert('Tidak ada data task aktif yang sesuai dengan status.');
+                return;
+            }
+            
+            const copyAction = () => {
+                const rect = button.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top;
+                showCopyTooltip(x, y);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(copyAction).catch(err => {
+                    console.error('Gagal menyalin:', err);
+                    fallbackCopy(textToCopy, copyAction);
+                });
+            } else {
+                fallbackCopy(textToCopy, copyAction);
+            }
+        }
+
+        function fallbackCopy(text, callback) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                callback();
+            } catch (err) {
+                console.error('Gagal menyalin via execCommand:', err);
+                alert('Gagal menyalin ke clipboard.');
+            }
+            document.body.removeChild(textarea);
         }
     </script>
 </body>

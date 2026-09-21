@@ -1,0 +1,96 @@
+{
+  "name": "Project Manager - Daily Overall Status Report via MCP & Hermes LM Studio",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger (Setiap 08:00 WIB)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3800/api/mcp/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"chatInput\": \"Tolong buatkan Executive Summary Laporan Harian Overall Status seluruh task aktif untuk Tim GBA, analisis deadline secara fleksibel dari data aktual, dan buatkan daftar 10 task teratas dalam format Markdown Table 6 kolom (| No | Model & Build (AP / CP / CSC) | PIC | Test Plan | Status | Tanggal |). DILARANG menggunakan emoji.\" }"
+      },
+      "name": "Hermes LM Studio AI (MCP HTTP Bridge)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output || '';\nconst currentDate = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });\n\nconst chartSection = `<div style=\"font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 14px 0;\">Grafik Perbandingan Task</div><table style=\"width: 100%; border-collapse: separate; border-spacing: 12px; margin-bottom: 28px; margin-left: -12px; margin-right: -12px;\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"width: 50%; vertical-align: top; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-sizing: border-box;\"><div style=\"font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;\">Distribusi Task per PIC</div><div style=\"margin-bottom: 12px;\"><div style=\"display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;\"><span>endri.s@samsung.com</span><span>8 Task (80%)</span></div><div style=\"width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;\"><div style=\"width: 80%; height: 100%; background: #0f172a; border-radius: 4px;\"></div></div></div><div style=\"margin-bottom: 6px;\"><div style=\"display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;\"><span>team.gba@samsung.com</span><span>2 Task (20%)</span></div><div style=\"width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;\"><div style=\"width: 20%; height: 100%; background: #64748b; border-radius: 4px;\"></div></div></div></td><td style=\"width: 50%; vertical-align: top; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-sizing: border-box;\"><div style=\"font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;\">Distribusi Task per Test Plan</div><div style=\"margin-bottom: 10px;\"><div style=\"display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;\"><span>Normal MR</span><span>7 Task (70%)</span></div><div style=\"width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;\"><div style=\"width: 70%; height: 100%; background: #0284c7; border-radius: 4px;\"></div></div></div><div style=\"margin-bottom: 10px;\"><div style=\"display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;\"><span>SMR</span><span>2 Task (20%)</span></div><div style=\"width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;\"><div style=\"width: 20%; height: 100%; background: #0ea5e9; border-radius: 4px;\"></div></div></div><div style=\"margin-bottom: 6px;\"><div style=\"display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 4px;\"><span>PL</span><span>1 Task (10%)</span></div><div style=\"width: 100%; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden;\"><div style=\"width: 10%; height: 100%; background: #38bdf8; border-radius: 4px;\"></div></div></div></td></tr></table>`;\n\nconst htmlEmail = `<!DOCTYPE html>\n<html lang=\"id\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Daily Overall Status Report - GBA Project Manager</title>\n    <style>\n        body { margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; }\n        .wrapper { width: 100%; background-color: #f8fafc; }\n        .container { width: 100%; max-width: 100%; background-color: #ffffff; border-bottom: 1px solid #e2e8f0; }\n        .header { background-color: #0f172a; padding: 24px 32px; color: #ffffff; }\n        .header-badge { display: inline-block; background: #1e293b; color: #94a3b8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; border: 1px solid #334155; margin-bottom: 10px; }\n        .header h1 { margin: 0 0 4px 0; font-size: 22px; font-weight: 700; color: #ffffff; }\n        .header p { margin: 0; font-size: 13px; color: #94a3b8; }\n        .content { padding: 32px; }\n        .ai-summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #0f172a; border-radius: 6px; padding: 18px 20px; margin-bottom: 28px; }\n        .ai-summary-title { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; margin: 0 0 6px 0; letter-spacing: 0.5px; }\n        .ai-summary-text { font-size: 13px; color: #334155; line-height: 1.6; margin: 0; }\n        .btn-action { display: inline-block; background-color: #0f172a; color: #ffffff !important; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-top: 24px; }\n        .footer { background-color: #ffffff; padding: 24px 32px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b; }\n    </style>\n</head>\n<body>\n    <div class=\"wrapper\">\n        <div class=\"container\">\n            <div class=\"header\">\n                <span class=\"header-badge\">Daily Automation Report</span>\n                <h1>GBA Overall Status Report</h1>\n                <p>Laporan Harian Status Project & Task GBA — ${currentDate}</p>\n            </div>\n            <div class=\"content\">\n                <div class=\"ai-summary-box\">\n                    <div class=\"ai-summary-title\">Executive Summary & Data Task</div>\n                    <div class=\"ai-summary-text\">${aiOutput}</div>\n                </div>\n                ${chartSection}\n                <div>\n                    <a href=\"http://localhost:8089\" class=\"btn-action\">Buka Dashboard Project Manager</a>\n                </div>\n            </div>\n            <div class=\"footer\">\n                Laporan ini dikirim otomatis oleh n8n Engine & MCP Server (GBA System).\n            </div>\n        </div>\n    </div>\n</body>\n</html>`;\n\nreturn [{ json: { htmlEmail } }];"
+      },
+      "name": "Format Modern Full-Width HTML Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "reports@projectmanager.local",
+        "toEmail": "endri@samsung.com",
+        "subject": "=Laporan Harian Status Project & Task GBA — {{ $now.setLocale('id').toFormat('dd MMMM yyyy') }}",
+        "html": "={{ $json.htmlEmail }}"
+      },
+      "name": "Kirim Email (SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [820, 300],
+      "credentials": {
+        "smtp": {
+          "id": "YOUR_SMTP_CREDENTIAL_ID",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Setiap 08:00 WIB)": {
+      "main": [
+        [
+          {
+            "node": "Hermes LM Studio AI (MCP HTTP Bridge)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hermes LM Studio AI (MCP HTTP Bridge)": {
+      "main": [
+        [
+          {
+            "node": "Format Modern Full-Width HTML Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Modern Full-Width HTML Email": {
+      "main": [
+        [
+          {
+            "node": "Kirim Email (SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

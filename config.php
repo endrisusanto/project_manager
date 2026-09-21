@@ -1,9 +1,9 @@
 <?php
-// Pengaturan untuk koneksi database
-define('DB_SERVER', 'localhost'); // Ganti dengan server database Anda
-define('DB_USERNAME', 'root');    // Ganti dengan username database Anda
-define('DB_PASSWORD', '');        // Ganti dengan password database Anda
-define('DB_NAME', 'project_manager_db'); // Ganti dengan nama database Anda
+// ponytail: read DB connection from environment variables with XAMPP fallback
+define('DB_SERVER', getenv('DB_SERVER') ?: 'localhost');
+define('DB_USERNAME', getenv('DB_USERNAME') ?: 'root');
+define('DB_PASSWORD', getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '');
+define('DB_NAME', getenv('DB_NAME') ?: 'project_manager_db');
 
 // Membuat koneksi ke database menggunakan MySQLi
 $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
@@ -14,6 +14,7 @@ if($conn->connect_error){
     die("ERROR: Tidak dapat terhubung. " . $conn->connect_error);
 }
 
-// Mengatur zona waktu default
+// Mengatur charset & zona waktu default
+$conn->set_charset("utf8mb4");
 date_default_timezone_set('Asia/Jakarta');
 ?>

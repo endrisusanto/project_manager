@@ -515,6 +515,13 @@ $username = $_SESSION['username'] ?? 'User';
                     <a href="activity_log.php"
                         class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'activity_log') ? 'nav-link-active' : 'nav-link'; ?>">Activity
                         Log</a>
+                    <a href="mcp_features.php"
+                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'mcp_features') ? 'nav-link-active' : 'nav-link'; ?>">
+                        <span class="inline-flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            MCP Hub
+                        </span>
+                    </a>
                 </div>
             </div>
 
@@ -619,7 +626,121 @@ $username = $_SESSION['username'] ?? 'User';
     </div>
 </header>
 
+<!-- Modal Informasi Model Discontinue / Drop -->
+<div id="dropped-model-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm hidden" style="backdrop-filter: blur(8px);">
+    <div class="relative w-full max-w-lg mx-4 rounded-2xl p-6 shadow-2xl transition-all border border-rose-500/30 bg-slate-900 text-slate-100" style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(244, 63, 94, 0.35); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 25px rgba(244, 63, 94, 0.2);">
+        <div class="flex items-start gap-4">
+            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    Model Discontinue / Drop
+                </h3>
+                <div class="mt-2 text-sm text-slate-300 space-y-2">
+                    <p id="dropped-modal-message">
+                        Task untuk model ini tidak tersimpan karena model sudah <strong>Discontinue / Drop</strong> dari proses development.
+                    </p>
+                    <div id="dropped-modal-list-container" class="hidden mt-3 max-h-48 overflow-y-auto rounded-lg p-3 bg-slate-950/60 border border-slate-800">
+                        <ul id="dropped-modal-list" class="space-y-1.5 text-xs text-rose-300 font-mono"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+            <button type="button" id="btn-close-dropped-modal" onclick="closeDroppedModelModal()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-semibold rounded-xl text-sm transition shadow-lg shadow-rose-900/40">
+                Saya Mengerti
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDroppedModelModal(modelData, customMsg) {
+    const modal = document.getElementById('dropped-model-modal');
+    const msgEl = document.getElementById('dropped-modal-message');
+    const listContainer = document.getElementById('dropped-modal-list-container');
+    const listEl = document.getElementById('dropped-modal-list');
+    const closeBtn = document.getElementById('btn-close-dropped-modal');
+    if (!modal) return;
+
+    listEl.innerHTML = '';
+    listContainer.classList.add('hidden');
+
+    if (Array.isArray(modelData) && modelData.length > 0) {
+        msgEl.innerHTML = customMsg || `Terdapat <strong>${modelData.length} model</strong> yang tidak dapat disimpan karena sudah berstatus <strong>Discontinue / Drop</strong> dari proses development:`;
+        modelData.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'flex items-center gap-1.5';
+            li.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> <span>${m}</span>`;
+            listEl.appendChild(li);
+        });
+        listContainer.classList.remove('hidden');
+    } else if (typeof modelData === 'string' && modelData.trim()) {
+        msgEl.innerHTML = customMsg || `Task untuk model <strong class="text-rose-400 font-mono">${modelData}</strong> tidak dapat disimpan karena model tersebut sudah <strong>Discontinue / Drop</strong> dari proses development.`;
+    } else if (customMsg) {
+        msgEl.innerHTML = customMsg;
+    }
+
+    modal.classList.remove('hidden');
+    if (closeBtn) closeBtn.focus();
+}
+
+function closeDroppedModelModal() {
+    const modal = document.getElementById('dropped-model-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDroppedModelModal();
+    }
+});
+</script>
+
+<?php
+$flash_dropped_single = $_SESSION['dropped_model_error'] ?? null;
+$flash_dropped_bulk = $_SESSION['bulk_dropped_notice'] ?? null;
+unset($_SESSION['dropped_model_error'], $_SESSION['bulk_dropped_notice']);
+?>
+<?php if (!empty($flash_dropped_single)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    showDroppedModelModal(<?= json_encode($flash_dropped_single) ?>);
+});
+</script>
+<?php elseif (!empty($flash_dropped_bulk)): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createdCount = <?= (int)($flash_dropped_bulk['created'] ?? 0) ?>;
+    const droppedList = <?= json_encode($flash_dropped_bulk['dropped'] ?? []) ?>;
+    const msg = `Bulk Add selesai (${createdCount} task berhasil dibuat). Namun terdapat <strong>${droppedList.length} task</strong> yang tidak disimpan karena model berstatus <strong>Discontinue / Drop</strong>:`;
+    showDroppedModelModal(droppedList, msg);
+});
+</script>
+<?php endif; ?>
+
 <!-- Speed Dial Chatbot Widget -->
+<?php
+if (isset($_GET['chat_popup'])) {
+    echo '<style>
+        body > *:not(#hermes-chat-widget):not(script) { display: none !important; }
+        body { background: #09090b !important; margin: 0; padding: 0; overflow: hidden; }
+        #hermes-chat-widget { display: flex !important; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; right: 0; bottom: 0; }
+        #hermes-chat-window { display: flex !important; width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important; border-radius: 0 !important; margin: 0 !important; transform: none !important; visibility: visible !important; opacity: 1 !important; position: static !important; }
+        #hermes-chat-toggle { display: none !important; }
+        #hermes-btn-popup, #hermes-btn-expand, #hermes-btn-close, #hermes-btn-clear { display: none !important; }
+    </style>';
+    echo '<script>
+        window.addEventListener("DOMContentLoaded", function() {
+            var chatWin = document.getElementById("hermes-chat-window");
+            if (chatWin) { chatWin.classList.remove("hermes-hidden"); chatWin.classList.add("hermes-visible"); }
+        });
+    </script>';
+}
+?>
 <style>
     #hermes-chat-widget {
         position: fixed;
@@ -688,17 +809,21 @@ $username = $_SESSION['username'] ?? 'User';
 
     #hermes-chat-window {
         pointer-events: auto;
-        width: 380px;
-        height: 560px;
+        width: 520px;
+        height: 600px;
         max-width: calc(100vw - 32px);
-        max-height: calc(100vh - 120px);
+        max-height: calc(100vh - 100px);
         border-radius: 16px;
         overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(51, 65, 85, 0.5);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(51,65,85,0.5);
         background: #09090b;
+        color: #f4f4f5;
         margin-bottom: 12px;
         transform-origin: bottom right;
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        font-family: inherit;
     }
 
     #hermes-chat-window.hermes-hidden {
@@ -715,56 +840,143 @@ $username = $_SESSION['username'] ?? 'User';
         visibility: visible;
     }
 
-    #hermes-chat-iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-        display: block;
+    #hermes-chat-window.hermes-chat-fullscreen {
+        width: 100vw !important; height: 100vh !important;
+        max-width: 100vw !important; max-height: 100vh !important;
+        border-radius: 0 !important;
+        position: fixed !important;
+        top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+        margin: 0 !important; z-index: 100000 !important; transform: none !important;
     }
+
+    .hermes-header {
+        padding: 14px 16px;
+        background: rgba(24,24,27,0.95);
+        border-bottom: 1px solid rgba(63,63,70,0.6);
+        display: flex; justify-content: space-between; align-items: center;
+        flex-shrink: 0;
+    }
+    .hermes-header-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #f4f4f5; }
+    .hermes-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.7); }
+    .hermes-header-actions { display: flex; gap: 12px; align-items: center; }
+    .hermes-header-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0; display: flex; transition: color 0.2s; }
+    .hermes-header-btn:hover { color: #f4f4f5; }
+
+    .hermes-body {
+        flex: 1; overflow-y: auto; padding: 16px;
+        display: flex; flex-direction: column; gap: 12px;
+        scrollbar-width: thin; scrollbar-color: #3f3f46 transparent;
+    }
+    .hermes-msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.55; word-break: break-word; }
+    .hermes-msg-user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
+    .hermes-msg-ai { align-self: flex-start; background: #18181b; color: #e4e4e7; border-bottom-left-radius: 4px; border: 1px solid rgba(63,63,70,0.5); max-width: 96%; }
+    .hermes-msg-ai table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+    .hermes-msg-ai th { background: rgba(99,102,241,0.2); color: #818cf8; padding: 6px 8px; text-align: left; border: 1px solid rgba(63,63,70,0.6); font-weight: 600; }
+    .hermes-msg-ai td { padding: 5px 8px; border: 1px solid rgba(63,63,70,0.4); color: #d4d4d8; }
+    .hermes-msg-ai tr:nth-child(even) td { background: rgba(24,24,27,0.5); }
+    .hermes-msg-ai pre { background: #09090b; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12px; }
+    .hermes-msg-ai code { font-size: 12px; color: #a5f3fc; }
+    .hermes-msg-ai p { margin: 0 0 8px; } .hermes-msg-ai p:last-child { margin-bottom: 0; }
+    .hermes-msg-ai ul, .hermes-msg-ai ol { padding-left: 18px; margin: 6px 0; }
+    .hermes-msg-ai svg { width: 100% !important; height: auto !important; max-width: 100% !important; display: block; margin: 10px 0; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .hermes-dl-btn { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.4); border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer; margin: 6px 4px 6px 0; transition: all 0.2s; font-family: inherit; }
+    .hermes-dl-btn:hover { background: rgba(99,102,241,0.35); color: #fff; border-color: #6366f1; }
+    .hermes-dl-excel { background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(34,197,94,0.4); }
+    .hermes-dl-excel:hover { background: rgba(34,197,94,0.35); color: #fff; border-color: #22c55e; }
+    .hermes-confirm-box { display: flex; gap: 10px; margin-top: 12px; }
+    .hermes-confirm-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; font-family: inherit; }
+    .hermes-btn-danger { background: #dc2626; color: #fff; }
+    .hermes-btn-danger:hover { background: #b91c1c; }
+    .hermes-btn-cancel { background: rgba(63,63,70,0.6); color: #a1a1aa; border: 1px solid rgba(63,63,70,0.8); }
+    .hermes-btn-cancel:hover { background: rgba(63,63,70,0.9); color: #f4f4f5; }
+    .hermes-input-area { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid rgba(63,63,70,0.5); background: rgba(24,24,27,0.8); flex-shrink: 0; }
+    .hermes-input-area input { flex: 1; background: rgba(39,39,42,0.8); border: 1px solid rgba(63,63,70,0.6); border-radius: 8px; color: #f4f4f5; font-size: 13px; padding: 9px 12px; outline: none; font-family: inherit; transition: border-color 0.2s; }
+    .hermes-input-area input:focus { border-color: #4f46e5; }
+    .hermes-input-area input::placeholder { color: #71717a; }
+    .hermes-input-area button { background: #4f46e5; color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+    .hermes-input-area button:hover { background: #4338ca; }
+    .hermes-typing-dots span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #a1a1aa; animation: hermesTyping 1.4s infinite ease-in-out both; margin: 0 2px; }
+    .hermes-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .hermes-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes hermesTyping { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 </style>
 
 <div id="hermes-chat-widget">
     <div id="hermes-chat-window" class="hermes-hidden">
-        <iframe id="hermes-chat-iframe" src="about:blank"></iframe>
+        <div class="hermes-header">
+            <div class="hermes-header-title">
+                <span class="hermes-status-dot"></span>
+                <span>GBA AI Assistant</span>
+            </div>
+            <div class="hermes-header-actions">
+                <button type="button" id="hermes-btn-clear" class="hermes-header-btn" title="Bersihkan Sesi (Clear History)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+                <button type="button" id="hermes-btn-popup" class="hermes-header-btn" title="Buka di jendela baru (Detach)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </button>
+                <button type="button" id="hermes-btn-expand" class="hermes-header-btn" title="Expand Fullscreen">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                </button>
+                <button type="button" id="hermes-btn-close" class="hermes-header-btn" title="Tutup Chat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+        <div class="hermes-body" id="hermes-messages">
+            <div class="hermes-msg hermes-msg-ai">
+                Halo <strong><?php echo htmlspecialchars($username); ?></strong>! 👋<br/>Saya GBA AI Assistant. Tanyakan apa saja mengenai status project, task pending, atau update submission hari ini.
+            </div>
+        </div>
+        <form class="hermes-input-area" id="hermes-form">
+            <input type="text" id="hermes-input" placeholder="Tanyakan ke GBA AI..." autocomplete="off" required />
+            <button type="submit" id="hermes-send-btn">Kirim</button>
+        </form>
     </div>
-    <button id="hermes-chat-toggle" title="Chat dengan Hermes AI">
+    <button id="hermes-chat-toggle" title="Chat dengan GBA AI">
         <span id="hermes-pulse-ring"></span>
         <!-- Chat icon -->
-        <svg id="hermes-icon-chat" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.12 2.83 2.62 2.95v3l3-3h7a2.25 2.25 0 0 0 2.25-2.25v-7a2.25 2.25 0 0 0-2.25-2.25h-10.5A2.25 2.25 0 0 0 2.25 4.5v7.5c0 .33.07.65.2.95Z" />
+        <svg id="hermes-icon-chat" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.12 2.83 2.62 2.95v3l3-3h7a2.25 2.25 0 0 0 2.25-2.25v-7a2.25 2.25 0 0 0-2.25-2.25h-10.5A2.25 2.25 0 0 0 2.25 4.5v7.5c0 .33.07.65.2.95Z" />
         </svg>
         <!-- Close icon -->
-        <svg id="hermes-icon-close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-            stroke-width="1.5" stroke="currentColor" style="display:none">
+        <svg id="hermes-icon-close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="display:none">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
     </button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
     (function () {
-        var CHAT_URL = 'https://ai.endrisusanto.my.id/';
-        var loaded = false;
-        var isOpen = false;
+        var HERMES_BASE_PATH = (function() {
+            var base = window.location.origin;
+            var parts = window.location.pathname.split('/');
+            // ponytail: find /tkdn/ root from URL
+            var idx = parts.indexOf('tkdn');
+            if (idx >= 0) return base + parts.slice(0, idx + 1).join('/');
+            return base;
+        })();
+        var N8N_WEBHOOK_URL = window.HERMES_N8N_WEBHOOK || (HERMES_BASE_PATH + '/api_mcp_chat.php');
 
         var toggleBtn = document.getElementById('hermes-chat-toggle');
         var chatWindow = document.getElementById('hermes-chat-window');
-        var iframe = document.getElementById('hermes-chat-iframe');
+        var messagesBox = document.getElementById('hermes-messages');
+        var chatForm = document.getElementById('hermes-form');
+        var chatInput = document.getElementById('hermes-input');
         var iconChat = document.getElementById('hermes-icon-chat');
         var iconClose = document.getElementById('hermes-icon-close');
+        var isOpen = false;
 
         toggleBtn.addEventListener('click', function () {
             isOpen = !isOpen;
             if (isOpen) {
-                // ponytail: lazy load iframe only on first open
-                if (!loaded) { iframe.src = CHAT_URL; loaded = true; }
                 chatWindow.classList.remove('hermes-hidden');
                 chatWindow.classList.add('hermes-visible');
                 toggleBtn.classList.add('chat-open');
                 iconChat.style.display = 'none';
                 iconClose.style.display = '';
+                chatInput.focus();
             } else {
                 chatWindow.classList.remove('hermes-visible');
                 chatWindow.classList.add('hermes-hidden');
@@ -772,6 +984,175 @@ $username = $_SESSION['username'] ?? 'User';
                 iconChat.style.display = '';
                 iconClose.style.display = 'none';
             }
+        });
+
+        window.sendChatConfirmation = function(msg) {
+            chatInput.value = msg;
+            chatForm.dispatchEvent(new Event('submit'));
+        };
+
+        window.downloadSVGFromChat = function(btn) {
+            var svg = btn.previousElementSibling;
+            if (!svg || svg.tagName.toLowerCase() !== 'svg') return;
+            var blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'chart_' + Date.now() + '.svg';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+        };
+
+        window.exportTableToExcelFromChat = function(btn) {
+            var table = btn.previousElementSibling;
+            if (!table || table.tagName.toLowerCase() !== 'table') return;
+            var csv = Array.from(table.querySelectorAll('tr')).map(function(r) {
+                return Array.from(r.querySelectorAll('th,td')).map(function(c) {
+                    return '"' + c.innerText.replace(/"/g,'""') + '"';
+                }).join(',');
+            }).join('\n');
+            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url; link.download = 'export_table_' + Date.now() + '.csv';
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        };
+
+        function attachDownloadHandlers(msgDiv) {
+            msgDiv.querySelectorAll('svg').forEach(function(svg) {
+                if (svg.id && svg.id.startsWith('hermes-')) return;
+                if (svg.nextElementSibling && svg.nextElementSibling.classList && svg.nextElementSibling.classList.contains('hermes-dl-btn')) return;
+                if (!svg.getAttribute('viewBox') && svg.getAttribute('width') && svg.getAttribute('height')) {
+                    svg.setAttribute('viewBox', '0 0 ' + svg.getAttribute('width').replace('px','') + ' ' + svg.getAttribute('height').replace('px',''));
+                }
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                var dlBtn = document.createElement('button');
+                dlBtn.className = 'hermes-dl-btn'; dlBtn.innerHTML = '📥 Download SVG';
+                dlBtn.onclick = function() { window.downloadSVGFromChat(this); };
+                svg.insertAdjacentElement('afterend', dlBtn);
+            });
+            msgDiv.querySelectorAll('table').forEach(function(table) {
+                if (table.nextElementSibling && table.nextElementSibling.classList && table.nextElementSibling.classList.contains('hermes-dl-excel')) return;
+                var dlBtn = document.createElement('button');
+                dlBtn.className = 'hermes-dl-btn hermes-dl-excel'; dlBtn.innerHTML = '📊 Export Excel (.csv)';
+                dlBtn.onclick = function() { window.exportTableToExcelFromChat(this); };
+                table.insertAdjacentElement('afterend', dlBtn);
+            });
+        }
+
+        // ponytail: stateless session history via localStorage, keyed per user
+        var userNameForChat = '<?php echo htmlspecialchars($username); ?>';
+        var sessionKey = 'hermes_chat_history_' + userNameForChat;
+        var chatHistory = [];
+        try { chatHistory = JSON.parse(localStorage.getItem(sessionKey)) || []; } catch(e) { chatHistory = []; }
+
+        // ponytail: protect inline SVGs and un-fence markdown code blocks before marked.parse
+        function renderMarkdown(content) {
+            if (typeof content !== 'string') return '';
+            // Un-fence code blocks wrapping SVG so they render as graphic elements instead of raw text code blocks
+            var cleaned = content.replace(/```(?:xml|svg|html)?\s*(<svg[\s\S]*?<\/svg>)\s*```/gi, '$1');
+
+            // Extract all SVGs to unique placeholders so marked never corrupts internal empty lines/indentation into <pre><code>
+            var svgs = [];
+            var withPlaceholders = cleaned.replace(/<svg[\s\S]*?<\/svg>/gi, function(match) {
+                var idx = svgs.length;
+                svgs.push(match);
+                return '@@HERMES_SVG_' + idx + '@@';
+            });
+
+            var html = (typeof marked !== 'undefined' && marked.parse) ? marked.parse(withPlaceholders) : withPlaceholders;
+
+            // Restore clean SVG markup back into the rendered HTML
+            html = html.replace(/<p>\s*@@HERMES_SVG_(\d+)@@\s*<\/p>|@@HERMES_SVG_(\d+)@@/g, function(match, p1, p2) {
+                var idx = parseInt(p1 || p2, 10);
+                return svgs[idx] || '';
+            });
+
+            return html;
+        }
+
+        function appendMessage(text, isUser, skipSave) {
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'hermes-msg ' + (isUser ? 'hermes-msg-user' : 'hermes-msg-ai');
+            if (isUser) {
+                msgDiv.textContent = text;
+            } else {
+                msgDiv.innerHTML = renderMarkdown(text);
+                attachDownloadHandlers(msgDiv);
+            }
+            if (!skipSave) {
+                chatHistory.push({ role: isUser ? 'user' : 'assistant', content: text });
+                localStorage.setItem(sessionKey, JSON.stringify(chatHistory));
+            }
+            messagesBox.appendChild(msgDiv);
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+            return msgDiv;
+        }
+
+        // Render riwayat saat halaman dimuat
+        if (chatHistory.length > 0) {
+            messagesBox.innerHTML = '';
+            chatHistory.forEach(function(msg) { appendMessage(msg.content, msg.role === 'user', true); });
+        }
+
+        var btnClear   = document.getElementById('hermes-btn-clear');
+        var btnPopup   = document.getElementById('hermes-btn-popup');
+        var btnExpand  = document.getElementById('hermes-btn-expand');
+        var btnClose   = document.getElementById('hermes-btn-close');
+
+        if (btnClear) btnClear.addEventListener('click', function() {
+            if (confirm('Hapus semua history percakapan Anda?')) {
+                chatHistory = []; localStorage.removeItem(sessionKey);
+                messagesBox.innerHTML = '<div class="hermes-msg hermes-msg-ai">Halo <strong>' + userNameForChat + '</strong>! 👋<br/>History dibersihkan. Mulai percakapan baru.</div>';
+            }
+        });
+
+        if (btnExpand) btnExpand.addEventListener('click', function() { chatWindow.classList.toggle('hermes-chat-fullscreen'); });
+
+        if (btnClose) btnClose.addEventListener('click', function() { if (isOpen) toggleBtn.click(); });
+
+        if (btnPopup) btnPopup.addEventListener('click', function() {
+            var currentUrl = new URL(window.location.href);
+            if (!currentUrl.searchParams.has('chat_popup')) {
+                currentUrl.searchParams.set('chat_popup', '1');
+                window.open(currentUrl.toString(), 'GBA_AI_Chat', 'width=550,height=700,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no');
+                if (isOpen) toggleBtn.click();
+            }
+        });
+
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var text = chatInput.value.trim();
+            if (!text) return;
+
+            appendMessage(text, true);
+            chatInput.value = '';
+
+            var typingDiv = document.createElement('div');
+            typingDiv.className = 'hermes-msg hermes-msg-ai hermes-typing-dots';
+            typingDiv.innerHTML = '<span></span><span></span><span></span>';
+            messagesBox.appendChild(typingDiv);
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+
+            fetch(N8N_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chatInput: text,
+                    messages: chatHistory,
+                    user: '<?php echo htmlspecialchars($username); ?>',
+                    role: '<?php echo htmlspecialchars($_SESSION['role'] ?? (strtolower($username) === 'endri' ? 'admin' : 'admin')); ?>'
+                })
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                messagesBox.removeChild(typingDiv);
+                var reply = data.output || data.response || data.text || (typeof data === 'string' ? data : JSON.stringify(data));
+                appendMessage(reply, false);
+            })
+            .catch(function () {
+                messagesBox.removeChild(typingDiv);
+                appendMessage('<em>⚠️ Gagal terhubung ke MCP Chat Proxy (' + N8N_WEBHOOK_URL + '). Pastikan MCP Server sudah aktif.</em>', false);
+            });
         });
     })();
 </script>
