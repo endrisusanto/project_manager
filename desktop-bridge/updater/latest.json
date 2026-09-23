@@ -1,11 +1,11 @@
 {
-  "version": "1.0.0",
-  "notes": "Rilis awal GBA Project Manager Desktop Bridge Sync",
-  "pub_date": "2026-09-23T15:50:00Z",
+  "version": "1.0.1",
+  "notes": "Implementasi auto-updater token sig dan release pipeline 1.0.1",
+  "pub_date": "2026-09-23T09:01:25.024Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.0/project-manager-bridge_1.0.0_x64-setup.nsis.zip"
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.1/project-manager-bridge_1.0.1_x64-setup.nsis.zip"
     }
   }
 }
