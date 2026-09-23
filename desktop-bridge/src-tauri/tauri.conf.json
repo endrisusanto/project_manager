@@ -40,7 +40,7 @@
     "active": true,
     "targets": [
       "nsis",
-      "msi"
+      "wix"
     ],
     "createUpdaterArtifacts": true,
     "icon": [
