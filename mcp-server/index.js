@@ -228,6 +228,16 @@ const toolsDefinition = [
       },
       required: ["to", "subject", "html"]
     }
+  },
+  {
+    name: "get_daily_summary_report",
+    description: "Generate executive daily summary report with pipeline breakdown, workload, overdue tasks, and critical deadlines",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: { type: "string", enum: ["markdown", "json"], default: "markdown", description: "Output format preference" }
+      }
+    }
   }
 ];
 
@@ -369,6 +379,144 @@ async function executeTool(name, args = {}) {
     });
 
     return { success: true, messageId: info.messageId, response: info.response };
+  }
+
+  // ponytail: Daily Summary Insight Report generator for MCP / AI Assistant
+  if (name === "get_daily_summary_report") {
+    const [rows] = await pool.query(`
+      SELECT 
+        t.id, 
+        t.model_name, 
+        t.ap, 
+        t.cp, 
+        t.csc, 
+        t.pic_email, 
+        t.test_plan_type, 
+        t.progress_status, 
+        t.deadline, 
+        t.request_date,
+        t.submission_date,
+        t.is_urgent,
+        u.username
+      FROM gba_tasks t
+      LEFT JOIN users u ON t.pic_email = u.email
+      ORDER BY t.deadline ASC, t.id DESC
+    `);
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const today = new Date(todayStr);
+
+    let totalActive = 0;
+    let ongoingCount = 0;
+    let submittedCount = 0;
+    let pendingCount = 0;
+    
+    const picLoad = {};
+    const testPlanDist = {};
+    const lateTasks = [];
+    const dueSoonTasks = [];
+
+    rows.forEach(r => {
+      const st = r.progress_status || "Task Baru";
+      const isCompleted = ["Approved", "Passed", "Batal"].includes(st);
+      
+      let daysLeft = null;
+      if (r.deadline) {
+        const dl = new Date(r.deadline);
+        const diffTime = dl.getTime() - today.getTime();
+        daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+
+      const picName = r.username || (r.pic_email ? r.pic_email.split("@")[0] : "Unassigned");
+
+      if (!isCompleted) {
+        totalActive++;
+        if (["Task Baru", "Downloaded", "Test Ongoing"].includes(st)) ongoingCount++;
+        else if (st === "Submitted") submittedCount++;
+        else if (["Pending Feedback", "Feedback Sent"].includes(st)) pendingCount++;
+
+        const tp = r.test_plan_type || "Unassigned";
+        testPlanDist[tp] = (testPlanDist[tp] || 0) + 1;
+        picLoad[picName] = (picLoad[picName] || 0) + 1;
+
+        if (daysLeft !== null) {
+          if (daysLeft < 0) {
+            lateTasks.push({ ...r, pic_name: picName, days_left: daysLeft, delay_days: Math.abs(daysLeft) });
+          } else if (daysLeft <= 3) {
+            dueSoonTasks.push({ ...r, pic_name: picName, days_left: daysLeft });
+          }
+        }
+      }
+    });
+
+    // Top aggregates
+    const topPic = Object.entries(picLoad).sort((a, b) => b[1] - a[1])[0] || ["-", 0];
+    const topTestPlan = Object.entries(testPlanDist).sort((a, b) => b[1] - a[1])[0] || ["-", 0];
+
+    // Markdown Narrative
+    const dateFormatted = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+    let md = `## 📊 Daily Summary Insight Report (${dateFormatted})\n\n`;
+    md += `### 🚀 Pipeline Breakdown:\n`;
+    md += `- **Total Task Aktif**: ${totalActive}\n`;
+    md += `- **Test Ongoing**: ${ongoingCount}\n`;
+    md += `- **Submitted**: ${submittedCount}\n`;
+    md += `- **Pending Feedback**: ${pendingCount}\n`;
+    md += `- **Task Late / Overdue**: ${lateTasks.length}\n`;
+    md += `- **Jatuh Tempo (H0 - H3)**: ${dueSoonTasks.length}\n\n`;
+
+    md += `### 💡 Key Executive Insights:\n`;
+    md += `- **PIC Beban Tertinggi**: ${topPic[0]} (${topPic[1]} task aktif)\n`;
+    md += `- **Test Plan Terbanyak**: ${topTestPlan[0]} (${topTestPlan[1]} task)\n\n`;
+
+    if (lateTasks.length > 0) {
+      md += `### 🚨 Peringatan Task Late (${lateTasks.length}):\n`;
+      lateTasks.forEach(lt => {
+        md += `- **[${lt.model_name}]** ${lt.test_plan_type} (PIC: ${lt.pic_name}) — Terlambat ${lt.delay_days} hari (Deadline: ${lt.deadline ? String(lt.deadline).slice(0, 10) : "-"})\n`;
+      });
+      md += `\n`;
+    }
+
+    if (dueSoonTasks.length > 0) {
+      md += `### ⏳ Task Mendekati Deadline H0 - H3 (${dueSoonTasks.length}):\n`;
+      dueSoonTasks.forEach(dt => {
+        const text = dt.days_left === 0 ? "Hari ini (H-0)" : `Tersisa ${dt.days_left} hari`;
+        md += `- **[${dt.model_name}]** ${dt.test_plan_type} (PIC: ${dt.pic_name}) — ${text} (Deadline: ${dt.deadline ? String(dt.deadline).slice(0, 10) : "-"})\n`;
+      });
+      md += `\n`;
+    }
+
+    if (args.format === "json") {
+      return {
+        success: true,
+        summary: {
+          date: todayStr,
+          total_active: totalActive,
+          ongoing: ongoingCount,
+          submitted: submittedCount,
+          pending_feedback: pendingCount,
+          late_count: lateTasks.length,
+          due_soon_count: dueSoonTasks.length,
+          top_pic: { name: topPic[0], count: topPic[1] },
+          top_test_plan: { name: topTestPlan[0], count: topTestPlan[1] }
+        },
+        late_tasks: lateTasks,
+        due_soon_tasks: dueSoonTasks,
+        markdown: md
+      };
+    }
+
+    return {
+      success: true,
+      report_text: md,
+      stats: {
+        total_active: totalActive,
+        ongoing: ongoingCount,
+        submitted: submittedCount,
+        pending_feedback: pendingCount,
+        late: lateTasks.length,
+        due_soon: dueSoonTasks.length
+      }
+    };
   }
 
   throw new Error(`Tool not found: ${name}`);

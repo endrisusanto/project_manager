@@ -187,7 +187,7 @@ function callLmStudioDirect($rawEndpoint, $chatInput, $chatMessages, $userName =
 }
 
 // Tentukan target URL (bisa MCP Server atau langsung LM Studio)
-$configuredMcpUrl = getenv('MCP_SERVER_URL') ?: 'http://localhost:3800/api/mcp/chat';
+$configuredMcpUrl = getenv('MCP_SERVER_URL') ?: 'http://107.102.39.55:3800/api/mcp/chat';
 $targetUrl = $customEndpoint ?: $configuredMcpUrl;
 
 // Cek apakah target URL ditujukan langsung ke LM Studio (mengandung lmstudio, :1234, atau /models)

@@ -24,13 +24,21 @@ $username = $_SESSION['username'] ?? 'User';
             padding-bottom: 40px;
             background: transparent;
             opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.18s ease;
+            pointer-events: none !important;
+            visibility: hidden;
+            transition: opacity 0.18s ease, visibility 0.18s ease, padding-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Emil Design Eng + Better UI: Dynamic vertical shift when bulk action bar is active */
+        body.has-bulk-bar #spotlight-overlay,
+        body:has(#bulk-action-bar.active) #spotlight-overlay {
+            padding-bottom: 96px;
         }
 
         #spotlight-overlay.sl-open {
             opacity: 1;
-            pointer-events: auto;
+            pointer-events: auto !important;
+            visibility: visible;
         }
 
         @keyframes spotlightGlowDark {
@@ -396,8 +404,19 @@ $username = $_SESSION['username'] ?? 'User';
 
             function open(char) {
                 overlay.classList.add('sl-open');
-                slInput.focus();
-                if (char && char.length === 1) { slInput.value = char; sync(); }
+                if (char && char.length === 1) {
+                    slInput.value = char;
+                    sync();
+                }
+                slInput.focus({ preventScroll: true });
+                var len = slInput.value.length;
+                slInput.setSelectionRange(len, len);
+
+                requestAnimationFrame(function () {
+                    slInput.focus({ preventScroll: true });
+                    var l = slInput.value.length;
+                    slInput.setSelectionRange(l, l);
+                });
             }
 
             function close() {
@@ -438,6 +457,13 @@ $username = $_SESSION['username'] ?? 'User';
                 if (e.key === 'Escape') { e.stopPropagation(); close(); }
             });
 
+            // Focus retention inside box
+            box.addEventListener('click', function (e) {
+                if (!e.target.closest('button, a, input')) {
+                    slInput.focus();
+                }
+            });
+
             // Close on backdrop click
             overlay.addEventListener('mousedown', function (e) {
                 if (!box.contains(e.target)) close();
@@ -451,18 +477,32 @@ $username = $_SESSION['username'] ?? 'User';
                     overlay.classList.contains('sl-open') ? close() : open();
                     return;
                 }
-                if (e.key === 'Escape' && overlay.classList.contains('sl-open')) { close(); return; }
-                if (overlay.classList.contains('sl-open')) return;
 
-                // Skip if focus is in any input/textarea (blur slInput if overlay is closed)
-                var active = document.activeElement;
-                if (active === slInput) {
-                    active.blur();
-                    active = document.activeElement;
+                // If overlay is already open
+                if (overlay.classList.contains('sl-open')) {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        close();
+                        return;
+                    }
+                    // If focus was lost outside slInput, recover and append typed character
+                    if (document.activeElement !== slInput && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+                        e.preventDefault();
+                        slInput.value += e.key;
+                        sync();
+                        slInput.focus();
+                        var l = slInput.value.length;
+                        slInput.setSelectionRange(l, l);
+                    }
+                    return;
                 }
+
+                // Skip if focus is in any input/textarea
+                var active = document.activeElement;
                 var tag = active ? active.tagName : '';
                 if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-                if (document.activeElement && document.activeElement.isContentEditable) return;
+                if (active && active.isContentEditable) return;
+                
                 // Skip if modal is open
                 var modal = document.getElementById('task-modal');
                 if (modal && !modal.classList.contains('hidden')) return;
@@ -487,44 +527,357 @@ $username = $_SESSION['username'] ?? 'User';
     </script>
 <?php endif; ?>
 
-<header class="glass-container sticky top-0 z-20 shadow-sm flex-shrink-0">
+<!-- ponytail: Phase 1 Unified Design Tokens for Header & Navigation -->
+<style>
+    /* Better-UI & Emil-Design-Eng Header Styles */
+    .app-header {
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    html.light .app-header {
+        background: rgba(255, 255, 255, 0.85);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    /* Segmented Navigation Links */
+    .nav-pill-group {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.15);
+        padding: 4px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    html.light .nav-pill-group {
+        background: rgba(0, 0, 0, 0.03);
+        border-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .nav-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #94a3b8;
+        border: 1px solid transparent;
+        text-decoration: none;
+        transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+    }
+    .nav-link:hover {
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.07);
+    }
+    .nav-link:active {
+        transform: scale(0.97);
+    }
+    html.light .nav-link {
+        color: #64748b;
+    }
+    html.light .nav-link:hover {
+        color: #0f172a;
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .nav-link-active {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        color: #38bdf8 !important;
+        background: rgba(56, 189, 248, 0.12) !important;
+        border: 1px solid rgba(56, 189, 248, 0.28) !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    html.light .nav-link-active {
+        color: #0284c7 !important;
+        background: rgba(14, 165, 233, 0.1) !important;
+        border: 1px solid rgba(14, 165, 233, 0.25) !important;
+    }
+
+    /* Refined Action Buttons */
+    .hdr-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 7px 13px;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+        line-height: 1;
+    }
+    .hdr-btn:active {
+        transform: scale(0.97);
+    }
+
+    .hdr-btn-primary {
+        background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .hdr-btn-primary:hover {
+        background: linear-gradient(135deg, #1d4ed8, #2563eb);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
+    }
+
+    .hdr-btn-emerald {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+    .hdr-btn-emerald:hover {
+        background: rgba(16, 185, 129, 0.22);
+        color: #6ee7b7;
+        border-color: rgba(16, 185, 129, 0.45);
+    }
+    html.light .hdr-btn-emerald {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+    }
+    html.light .hdr-btn-emerald:hover {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .hdr-btn-purple {
+        background: rgba(168, 85, 247, 0.12);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.28);
+    }
+    .hdr-btn-purple:hover {
+        background: rgba(168, 85, 247, 0.22);
+        color: #d8b4fe;
+        border-color: rgba(168, 85, 247, 0.45);
+    }
+    html.light .hdr-btn-purple {
+        background: #faf5ff;
+        color: #7e22ce;
+        border-color: #e9d5ff;
+    }
+    html.light .hdr-btn-purple:hover {
+        background: #f3e8ff;
+        color: #6b21a8;
+    }
+
+    .hdr-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        color: #94a3b8;
+        border: 1px solid transparent;
+        background: transparent;
+        transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+    }
+    .hdr-icon-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    .hdr-icon-btn:active {
+        transform: scale(0.95);
+    }
+    html.light .hdr-icon-btn {
+        color: #64748b;
+    }
+    html.light .hdr-icon-btn:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #0f172a;
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    /* Profile Dropdown with Emil-physics transition & Dark/Light adaptability */
+    #profile-btn-trigger {
+        color: #e2e8f0;
+    }
+    html.light #profile-btn-trigger {
+        color: #0f172a;
+    }
+    #profile-btn-trigger:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+    html.light #profile-btn-trigger:hover {
+        background: rgba(0, 0, 0, 0.04);
+    }
+    #profile-status-ring {
+        box-shadow: 0 0 0 2px #0f172a;
+    }
+    html.light #profile-status-ring {
+        box-shadow: 0 0 0 2px #ffffff;
+    }
+
+    .profile-dropdown-panel {
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+    html.light .profile-dropdown-panel {
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    }
+
+    .profile-user-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(51, 65, 85, 0.4);
+    }
+    html.light .profile-user-card {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+    .profile-username {
+        color: #f8fafc;
+    }
+    html.light .profile-username {
+        color: #0f172a;
+    }
+    .profile-email {
+        color: #94a3b8;
+    }
+    html.light .profile-email {
+        color: #64748b;
+    }
+
+    .profile-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #cbd5e1;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .profile-nav-item svg {
+        color: #94a3b8;
+        transition: color 0.15s ease;
+    }
+    .profile-nav-item:hover {
+        background: rgba(255, 255, 255, 0.07);
+        color: #ffffff;
+    }
+    .profile-nav-item:hover svg {
+        color: #38bdf8;
+    }
+    html.light .profile-nav-item {
+        color: #334155;
+    }
+    html.light .profile-nav-item svg {
+        color: #64748b;
+    }
+    html.light .profile-nav-item:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: #0f172a;
+    }
+    html.light .profile-nav-item:hover svg {
+        color: #0284c7;
+    }
+
+    .profile-divider-line {
+        margin: 4px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    html.light .profile-divider-line {
+        border-top-color: rgba(0, 0, 0, 0.06);
+    }
+
+    .profile-logout-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #fb7185;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .profile-logout-item:hover {
+        background: rgba(244, 63, 94, 0.12);
+        color: #fda4af;
+    }
+    html.light .profile-logout-item {
+        color: #e11d48;
+    }
+    html.light .profile-logout-item:hover {
+        background: #ffe4e6;
+        color: #be123c;
+    }
+
+    #profile-dropdown:not(.hidden) {
+        display: block !important;
+        animation: profileDropIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        transform-origin: top right;
+    }
+    @keyframes profileDropIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.95) translateY(-6px);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+</style>
+
+<header class="app-header sticky top-0 z-30 shadow-sm flex-shrink-0">
     <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-            <div class="flex items-center space-x-3">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                    stroke="currentColor" class="w-8 h-8 text-blue-600">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                </svg>
-                <h1 class="text-xl font-bold text-header">GBA Task Manager</h1>
-                <div class="hidden md:flex items-baseline space-x-4 ml-4">
+            <!-- Left: Navigation Segmented Control -->
+            <div class="flex items-center">
+                <nav class="hidden md:flex nav-pill-group" aria-label="Main Navigation">
                     <a href="index.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'project_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Kanban
-                        Board</a>
+                        class="<?php echo ($active_page === 'project_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Kanban</a>
                     <a href="gba_dashboard.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Dashboard</a>
+                        class="<?php echo ($active_page === 'gba_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Dashboard</a>
                     <a href="monthly_calendar.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'monthly_calendar') ? 'nav-link-active' : 'nav-link'; ?>">Calendar</a>
+                        class="<?php echo ($active_page === 'monthly_calendar') ? 'nav-link-active' : 'nav-link'; ?>">Calendar</a>
                     <a href="project_roadmap.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'project_roadmap') ? 'nav-link-active' : 'nav-link'; ?>">Roadmap</a>
+                        class="<?php echo ($active_page === 'project_roadmap') ? 'nav-link-active' : 'nav-link'; ?>">Roadmap</a>
                     <a href="gba_tasks.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">Active
-                        Tasks</a>
+                        class="<?php echo ($active_page === 'gba_tasks') ? 'nav-link-active' : 'nav-link'; ?>">Active Tasks</a>
                     <a href="gba_tasks_summary.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">Summary</a>
+                        class="<?php echo ($active_page === 'gba_tasks_summary') ? 'nav-link-active' : 'nav-link'; ?>">Summary</a>
                     <a href="activity_log.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'activity_log') ? 'nav-link-active' : 'nav-link'; ?>">Activity
-                        Log</a>
+                        class="<?php echo ($active_page === 'activity_log') ? 'nav-link-active' : 'nav-link'; ?>">Log</a>
                     <a href="mcp_features.php"
-                        class="px-3 py-2 rounded-md text-sm font-medium <?php echo ($active_page === 'mcp_features') ? 'nav-link-active' : 'nav-link'; ?>">
+                        class="<?php echo ($active_page === 'mcp_features') ? 'nav-link-active' : 'nav-link'; ?>">
                         <span class="inline-flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             MCP Hub
                         </span>
                     </a>
-                </div>
+                </nav>
             </div>
 
+            <!-- Right: Actions, Search, View, Theme, Profile -->
             <div class="flex items-center space-x-2">
                 <?php if (in_array($active_page, ['project_dashboard', 'gba_tasks', 'gba_tasks_summary'])): ?>
                     <button id="sl-trigger" title="Cari (Ctrl+K)">
@@ -539,7 +892,7 @@ $username = $_SESSION['username'] ?? 'User';
                 <?php endif; ?>
 
                 <?php if ($active_page === 'project_dashboard'): ?>
-                    <button id="view-toggle" type="button" class="text-icon hover:bg-gray-500/10 rounded-lg text-sm p-2.5">
+                    <button id="view-toggle" type="button" class="hdr-icon-btn" title="Ganti Mode Tampilan">
                         <svg id="view-toggle-full-icon" class="w-5 h-5" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -553,7 +906,7 @@ $username = $_SESSION['username'] ?? 'User';
                     </button>
                 <?php endif; ?>
 
-                <button id="theme-toggle" type="button" class="text-icon hover:bg-gray-500/10 rounded-lg text-sm p-2.5">
+                <button id="theme-toggle" type="button" class="hdr-icon-btn" title="Ganti Tema (Dark/Light)">
                     <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
                     </svg>
@@ -564,67 +917,124 @@ $username = $_SESSION['username'] ?? 'User';
                     </svg>
                 </button>
 
-                <a href="http://107.102.39.55/smart_filter/" target="_blank"
-                    class="inline-flex items-center justify-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500">
+                <a href="smart_filter.php"
+                    class="hdr-btn hdr-btn-purple <?= ($active_page == 'smart_filter') ? 'active' : '' ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                        class="w-5 h-5 -ml-0.5 mr-1.5">
+                        class="w-4 h-4">
                         <path fill-rule="evenodd"
                             d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.59L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z"
                             clip-rule="evenodd" />
                     </svg>
-                    Smart Filter
+                    <span>Smart Filter</span>
                 </a>
 
                 <a href="bulk_add.php"
-                    class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
-                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    class="hdr-btn hdr-btn-emerald">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 010 2.25H5.625a1.125 1.125 0 010-2.25z" />
                     </svg>
-                    Bulk Add
+                    <span>Bulk Add</span>
                 </a>
 
                 <button onclick="openAddModal()"
-                    class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-                    <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path
-                            d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                    class="hdr-btn hdr-btn-primary">
+                    <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    Task Baru
+                    <span>Task Baru</span>
                 </button>
 
+                <!-- Profile Menu -->
                 <div class="relative" id="profile-menu">
-                    <button class="flex items-center space-x-2 focus:outline-none">
-                        <img src="uploads/<?php echo htmlspecialchars($user_details['profile_picture']); ?>"
-                            alt="Avatar"
-                            class="w-9 h-9 rounded-full object-cover border-2 border-transparent hover:border-blue-500 transition">
+                    <button id="profile-btn-trigger" class="flex items-center gap-2 p-1.5 rounded-xl transition-all focus:outline-none active:scale-95" aria-haspopup="true" aria-expanded="false">
+                        <div class="relative flex-shrink-0">
+                            <img src="uploads/<?php echo htmlspecialchars($user_details['profile_picture']); ?>"
+                                alt="Avatar"
+                                class="w-8 h-8 rounded-full object-cover ring-2 ring-blue-500/30">
+                            <span id="profile-status-ring" class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                        </div>
                         <span
-                            class="text-sm font-medium hidden md:block text-header"><?php echo htmlspecialchars($username); ?></span>
+                            class="text-xs font-semibold hidden md:block"><?php echo htmlspecialchars($username); ?></span>
+                        <svg class="w-3.5 h-3.5 opacity-70 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
                     </button>
                     <div id="profile-dropdown"
-                        class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg py-1 z-50 border border-gray-700">
-                        <div class="px-4 py-3 border-b border-gray-700">
-                            <p class="text-sm font-semibold text-white"><?php echo htmlspecialchars($username); ?></p>
-                            <p class="text-xs text-gray-400 truncate">
+                        class="hidden absolute right-0 mt-2 w-56 profile-dropdown-panel rounded-2xl p-1.5 z-50">
+                        <div class="px-3 py-2.5 mb-1 rounded-xl profile-user-card">
+                            <p class="text-xs font-bold profile-username"><?php echo htmlspecialchars($username); ?></p>
+                            <p class="text-[11px] profile-email truncate">
                                 <?php echo htmlspecialchars($user_details['email'] ?? ''); ?></p>
                         </div>
-                        <a href="profile.php"
-                            class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Profil
-                            Saya</a>
-                        <a href="ga_submission_tracker.php"
-                            class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Reason
-                            OT</a>
-                        <a href="monthly_calendar.php"
-                            class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Kalender</a>
-                        <a href="logout.php"
-                            class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white">Logout</a>
+                        <a href="profile.php" class="profile-nav-item">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            <span>Profil Saya</span>
+                        </a>
+                        <a href="ga_submission_tracker.php" class="profile-nav-item">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                            <span>Reason OT</span>
+                        </a>
+                        <a href="monthly_calendar.php" class="profile-nav-item">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span>Kalender</span>
+                        </a>
+                        <a href="daily_report_summary.php" class="profile-nav-item text-indigo-400 dark:text-indigo-300 hover:text-indigo-500">
+                            <svg class="w-4 h-4 flex-shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            <span class="font-medium">Daily Insight Report</span>
+                        </a>
+                        <?php if (function_exists('is_endri_or_admin') && is_endri_or_admin()): ?>
+                        <div class="profile-divider-line"></div>
+                        <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Admin Tools</div>
+                        <a href="update_database_names.php" class="profile-nav-item text-blue-400 dark:text-blue-300 hover:text-blue-500">
+                            <svg class="w-4 h-4 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                            <span>Sync Marketing Names</span>
+                        </a>
+                        <a href="edit_mapping.php" class="profile-nav-item">
+                            <svg class="w-4 h-4 flex-shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            <span>Edit Model Mapping</span>
+                        </a>
+                        <?php endif; ?>
+                        <div class="profile-divider-line"></div>
+                        <a href="logout.php" class="profile-logout-item">
+                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                            <span>Logout</span>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </header>
+
+<script>
+// ponytail: robust profile dropdown controller in header.php (capture phase debounced)
+(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        var profileMenu = document.getElementById('profile-menu');
+        if (!profileMenu) return;
+        var btnTrigger = profileMenu.querySelector('button');
+        var dropdown = document.getElementById('profile-dropdown');
+        if (!btnTrigger || !dropdown) return;
+
+        var lastToggle = 0;
+        btnTrigger.addEventListener('click', function(e) {
+            var now = Date.now();
+            if (now - lastToggle < 50) return;
+            lastToggle = now;
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        }, true);
+
+        document.addEventListener('click', function(e) {
+            if (!profileMenu.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+    });
+})();
+</script>
 
 <!-- Modal Informasi Model Discontinue / Drop -->
 <div id="dropped-model-modal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm hidden" style="backdrop-filter: blur(8px);">

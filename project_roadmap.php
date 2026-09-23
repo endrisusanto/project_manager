@@ -265,6 +265,11 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Roadmap - Pipeline Board</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.never-match-dark']
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
@@ -551,11 +556,14 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
             <div class="flex items-center gap-3">
                 <h1 class="text-3xl font-extrabold text-header tracking-tight">Project Roadmap</h1>
                 <!-- View Mode Toggle -->
-                <div class="flex bg-[var(--input-bg)] border border-[var(--input-border)] p-0.5 rounded-lg">
-                    <button id="btn-view-summary" onclick="setViewMode('summary')" class="px-3 py-1 text-xs font-bold rounded-md transition-all">Summary Flow</button>
-                    <button id="btn-view-kanban" onclick="setViewMode('kanban')" class="px-3 py-1 text-xs font-bold rounded-md transition-all">Kanban Board</button>
-                    <button id="btn-view-coffee" onclick="setViewMode('coffee')" class="px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-white" title="Playground 3D Antrean Layanan Cafe Coffee Shop">
-                        <span>☕</span> Coffee Shop 3D
+                <div class="flex items-center bg-[var(--input-bg)] border border-[var(--input-border)] p-1 rounded-xl gap-1 shadow-sm">
+                    <button id="btn-view-summary" onclick="setViewMode('summary')" class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+                        <span>Summary Flow</span>
+                    </button>
+                    <button id="btn-view-coffee" onclick="setViewMode('coffee')" class="px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" title="Playground 3D Antrean Layanan Cafe Coffee Shop">
+                        <span>☕</span>
+                        <span>Coffee Shop 3D</span>
                     </button>
                 </div>
             </div>
@@ -1082,19 +1090,19 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
         const coffeeBaristasList = <?= json_encode($filter_pics_list ?: [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?>;
 
         function setViewMode(mode) {
+            if (mode !== 'coffee') mode = 'summary';
             currentViewMode = mode;
             const board = document.getElementById('pipeline-board');
             const zoomWrapper = document.getElementById('pipeline-zoom-wrapper');
             const coffeeWrapper = document.getElementById('coffee-playground-wrapper');
             const btnSummary = document.getElementById('btn-view-summary');
-            const btnKanban = document.getElementById('btn-view-kanban');
             const btnCoffee = document.getElementById('btn-view-coffee');
             const svg = document.getElementById('flow-svg');
             
             // Reset all toggle buttons styling
-            [btnSummary, btnKanban, btnCoffee].forEach(btn => {
+            [btnSummary, btnCoffee].forEach(btn => {
                 if (btn) {
-                    btn.classList.remove('bg-indigo-600', 'bg-amber-600', 'text-white');
+                    btn.classList.remove('bg-indigo-600', 'bg-amber-600', 'text-white', 'shadow-md');
                     btn.classList.add('text-[var(--text-secondary)]');
                 }
             });
@@ -1105,7 +1113,7 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                 if (coffeeWrapper) coffeeWrapper.classList.remove('hidden');
                 
                 if (btnCoffee) {
-                    btnCoffee.classList.add('bg-amber-600', 'text-white');
+                    btnCoffee.classList.add('bg-amber-600', 'text-white', 'shadow-md');
                     btnCoffee.classList.remove('text-[var(--text-secondary)]');
                 }
                 
@@ -1121,23 +1129,17 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                 // Pause Three.js loop to save 100% CPU when not in coffee mode
                 pauseCoffeePlayground();
 
-                if (mode === 'summary') {
+                if (board) {
                     board.classList.remove('view-kanban');
                     board.classList.add('view-summary');
-                    
-                    btnSummary.classList.add('bg-indigo-600', 'text-white');
-                    btnSummary.classList.remove('text-[var(--text-secondary)]');
-                    
-                    setTimeout(drawConnections, 50);
-                } else if (mode === 'kanban') {
-                    board.classList.remove('view-summary');
-                    board.classList.add('view-kanban');
-                    
-                    btnKanban.classList.add('bg-indigo-600', 'text-white');
-                    btnKanban.classList.remove('text-[var(--text-secondary)]');
-                    
-                    if (svg) svg.querySelectorAll('path, circle').forEach(el => el.remove());
                 }
+                
+                if (btnSummary) {
+                    btnSummary.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                    btnSummary.classList.remove('text-[var(--text-secondary)]');
+                }
+                
+                setTimeout(drawConnections, 50);
             }
             
             localStorage.setItem('roadmap_view_mode', mode);
@@ -2905,7 +2907,8 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
 
         // --- 8. INITIALIZERS & CLEANUPS ---
         window.addEventListener('load', () => {
-            const savedMode = localStorage.getItem('roadmap_view_mode') || 'summary';
+            let savedMode = localStorage.getItem('roadmap_view_mode') || 'summary';
+            if (savedMode === 'kanban') savedMode = 'summary';
             setViewMode(savedMode);
             
             document.addEventListener('dragend', () => {

@@ -2,23 +2,13 @@
 require_once "config.php";
 require_once "session.php";
 
-// Tentukan fungsi helper
 function is_admin_check() {
     return isset($_SESSION["role"]) && $_SESSION["role"] === 'admin';
 }
 
-// Tambahkan akses khusus untuk endri@samsung.com
-$email_check = strtolower($_SESSION['user_details']['email'] ?? '');
-
-// MODIFIED ACCESS CHECK
-// if (!(is_admin_check() || $email_check === 'endri.s@samsung.com')) {
-//     header("Location: index.php?error=permission_denied");
-//     exit;
-// }
-
 $active_page = 'bulk_add';
 
-// Hitung next PIC untuk modal (round-robin sama seperti di handler.php)
+// Hitung next PIC untuk modal (round-robin)
 $next_pic_email = null;
 $users_result_pic = $conn->query("SELECT email, username FROM users WHERE role = 'user' ORDER BY id ASC");
 $pic_list_for_modal = [];
@@ -51,85 +41,232 @@ if (!empty($pic_list_for_modal)) {
 <head>
     <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
-    <title>Bulk Add GBA Tasks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Add GBA Tasks - Project Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.never-match-dark']
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.8);--glass-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--input-text:#e2e8f0; --modal-bg:rgba(15,23,42,.6); --modal-border:rgba(51,65,85,.6);}
-        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--input-text:#0f172a; --modal-bg:rgba(255,255,255,.6); --modal-border:rgba(0,0,0,.1);}
-        body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}
-        #neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}
-        .form-container{background:var(--glass-bg);backdrop-filter:blur(12px);border:1px solid var(--glass-border)}
-        .themed-input{background-color:var(--input-bg);border:1px solid var(--input-border);color:var(--input-text)}
-        .glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
-        .ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}
-        .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}
+        :root {
+            --bg-primary: #020617;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: rgba(51, 65, 85, 0.65);
+            --panel-bg: rgba(30, 41, 59, 0.5);
+            --panel-border: rgba(51, 65, 85, 0.6);
+            --input-bg: rgba(30, 41, 59, 0.75);
+            --input-border: #475569;
+            --input-text: #f1f5f9;
+        }
+        html.light {
+            --bg-primary: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --panel-bg: #f8fafc;
+            --panel-border: #e2e8f0;
+            --input-bg: #ffffff;
+            --input-border: #cbd5e1;
+            --input-text: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.18s ease, color 0.18s ease;
+        }
+
+        #neural-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none !important;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        html.light .glass-panel {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .sub-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 1rem;
+        }
+        html.light .sub-panel {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        .themed-input {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--input-text);
+            border-radius: 0.625rem;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        .themed-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+        }
+        html.light .themed-input {
+            background-color: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        html.light textarea::placeholder {
+            color: #64748b;
+            opacity: 1;
+        }
+
         /* PIC Mode Toggle */
-        .pic-toggle-track{display:flex;align-items:center;background:var(--input-bg);border:1px solid var(--input-border);border-radius:9999px;padding:3px;gap:2px;width:fit-content}
-        .pic-toggle-track button{padding:5px 14px;border-radius:9999px;font-size:12px;font-weight:600;border:none;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s;color:var(--text-secondary);background:transparent}
-        .pic-toggle-track button.active-rr{background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.45)}
-        .pic-toggle-track button.active-hist{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff;box-shadow:0 2px 8px rgba(16,185,129,.4)}
-        .pic-toggle-track button.active-spec{background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.45)}
-        .pic-mode-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:6px;transition:all .3s}
-        .pic-mode-badge.rr{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3)}
-        .pic-mode-badge.hist{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.3)}
-        .pic-mode-badge.spec{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.35)}
+        .pic-toggle-track {
+            display: flex;
+            align-items: center;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 0.75rem;
+            padding: 3px;
+            gap: 3px;
+        }
+        html.light .pic-toggle-track {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .pic-toggle-track button {
+            padding: 6px 14px;
+            border-radius: 0.625rem;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            color: var(--text-secondary);
+            background: transparent;
+            white-space: nowrap;
+        }
+        html.light .pic-toggle-track button {
+            color: #334155;
+        }
+        html.light .pic-toggle-track button:hover {
+            color: #0f172a;
+            background: #e2e8f0;
+        }
+        .pic-toggle-track button.active-rr {
+            background: #4f46e5 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+        }
+        .pic-toggle-track button.active-hist {
+            background: #059669 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35);
+        }
+        .pic-toggle-track button.active-spec {
+            background: #d97706 !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+        }
+
+        /* Card styles for RR PICs */
+        .rr-pic-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            color: var(--text-primary);
+            transition: all 0.15s ease;
+        }
+        html.light .rr-pic-card {
+            background-color: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        html.light .rr-pic-card:hover {
+            border-color: #94a3b8;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .rr-pic-card.card-disabled {
+            opacity: 0.45;
+            filter: grayscale(0.8);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
     <canvas id="neural-canvas"></canvas>
     <?php include 'header.php'; ?>
 
-    <main class="w-full max-w-4xl mx-auto p-4 sm:p-8 flex-grow">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold text-header">Bulk Add GBA Tasks</h1>
+    <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-grow space-y-6">
+        
+        <!-- Header Section -->
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-500 flex-shrink-0 shadow-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary);">Bulk Add GBA Tasks</h1>
+                <p class="text-xs sm:text-sm font-medium" style="color: var(--text-secondary);">Tambah batch tugas baru sekaligus dari data Excel/tabel dengan distribusi cerdas</p>
+            </div>
         </div>
 
-        <div class="form-container p-6 rounded-2xl">
-            <form action="handler.php" method="POST" id="bulk-form">
+        <div class="glass-panel p-5 sm:p-8 w-full space-y-6">
+            <form action="handler.php" method="POST" id="bulk-form" class="space-y-6">
                 <input type="hidden" name="action" value="create_bulk_gba_task">
                 <input type="hidden" name="pic_mode" id="pic_mode_input" value="round_robin">
 
-                <!-- PIC Mode Selector -->
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-xl" style="background:var(--input-bg);border:1px solid var(--input-border)">
+                <!-- PIC Mode Selector HUD -->
+                <div class="sub-panel flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4">
                     <div>
-                        <p class="text-sm font-semibold" style="color:var(--text-primary)">Mode Assign PIC</p>
-                        <p id="pic-mode-desc" class="text-xs mt-0.5" style="color:var(--text-secondary)">
+                        <p class="text-sm font-bold" style="color: var(--text-primary);">Mode Assign PIC</p>
+                        <p id="pic-mode-desc" class="text-xs font-medium mt-0.5" style="color: var(--text-secondary);">
                             Distribusi merata ke semua PIC secara bergantian
                         </p>
                     </div>
-                    <div class="flex flex-col items-end gap-2">
-                        <div class="pic-toggle-track" id="pic-toggle-track">
+                    <div class="flex items-center">
+                        <div class="pic-toggle-track overflow-x-auto max-w-full" id="pic-toggle-track">
                             <button type="button" id="btn-rr" onclick="setPicMode('round_robin')" class="active-rr">
-                                &#8635; Round-Robin
+                                ↺ Round-Robin
                             </button>
                             <button type="button" id="btn-hist" onclick="setPicMode('history')">
-                                &#128336; History PIC
+                                ⏱ History PIC
                             </button>
                             <button type="button" id="btn-spec" onclick="setPicMode('specific')">
-                                &#128100; Specific PIC
+                                👤 Specific PIC
                             </button>
                         </div>
-                        <span id="pic-mode-badge" class="pic-mode-badge rr">
-                            <span>&#9679;</span> Round-Robin aktif
-                        </span>
                     </div>
                 </div>
 
                 <!-- Specific PIC Dropdown Container -->
-                <div id="specific-pic-container" class="hidden mb-4 p-3.5 rounded-xl transition-all" style="background:var(--input-bg);border:1px solid rgba(245,158,11,0.4)">
+                <div id="specific-pic-container" class="hidden sub-panel p-4 border border-amber-300 transition-all">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="text-xl">&#128100;</span>
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-600 font-bold">
+                                👤
+                            </div>
                             <div>
-                                <label for="specific_pic" class="text-sm font-semibold block" style="color:var(--text-primary)">Pilih PIC Tujuan</label>
-                                <p class="text-xs" style="color:var(--text-secondary)">Seluruh task dari teks yang di-paste akan ditugaskan ke PIC ini</p>
+                                <label for="specific_pic" class="text-xs sm:text-sm font-bold block" style="color: var(--text-primary);">Pilih PIC Tujuan</label>
+                                <p class="text-xs font-medium" style="color: var(--text-secondary);">Seluruh task dari teks yang di-paste akan ditugaskan ke PIC ini</p>
                             </div>
                         </div>
-                        <div class="w-full sm:w-72">
-                            <select id="specific_pic" name="specific_pic" class="themed-input w-full p-2.5 text-sm rounded-lg font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                        <div class="w-full sm:w-80">
+                            <select id="specific_pic" name="specific_pic" class="themed-input w-full p-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 focus:outline-none">
                                 <option value="" disabled selected>-- Pilih PIC --</option>
                                 <?php foreach ($users_for_bulk as $user): ?>
                                     <option value="<?= htmlspecialchars($user['email']) ?>">
@@ -141,239 +278,333 @@ if (!empty($pic_list_for_modal)) {
                     </div>
                 </div>
 
-                <div>
-                    <label for="bulk_data" class="block mb-2 text-sm font-medium" style="color:var(--text-secondary)">
-                        Paste data dari Excel (Format: MODEL | AP | CP | CSC | TYPE REQUEST | QB USER | QB USERDEBUG)
-                    </label>
-                    <textarea id="bulk_data" name="bulk_data" rows="15" class="themed-input block w-full text-sm rounded-lg p-2.5 font-mono" placeholder="Contoh:&#10;model ap cp csc type qb_user qb_userdebug&#10;SM-S918B_SEA_15_DX S918BXXS8DYI3 S918BXXS8DYI3 S918BOLE8DYI3 SMR 100733179 100733181&#10;SM-F946B_SEA_16_DX F946BXXU5FYI8 F946BXXU5FYI8 F946BOLE5FYI8 NORMAL 100733177 100733180"></textarea>
+                <!-- Round-Robin PIC Checklist & Smart Auto Load Balance Container -->
+                <div id="rr-pic-container" class="sub-panel p-4 sm:p-5 rounded-2xl transition-all space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b" style="border-color: var(--panel-border);">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                                <h3 class="text-xs sm:text-sm font-bold" style="color: var(--text-primary);">Smart Load Balance & PIC Selector (Round-Robin)</h3>
+                            </div>
+                            <p class="text-xs font-medium mt-0.5" style="color: var(--text-secondary);">Pilih PIC aktif. Beban kerja terdistribusi otomatis (100%), atau aktifkan manual override untuk atur persentase spesifik.</p>
+                        </div>
+                        <div class="flex items-center gap-2 self-start sm:self-auto">
+                            <span id="rr-total-badge" class="px-3 py-1 text-xs font-extrabold rounded-lg border transition-all bg-emerald-100 text-emerald-800 border-emerald-300">
+                                Total: <span id="rr-total-pct">100</span>%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3" id="rr-pic-list">
+                        <?php 
+                        $user_count = count($users_for_bulk);
+                        $default_pct = $user_count > 0 ? floor(100 / $user_count) : 0;
+                        $remainder = $user_count > 0 ? (100 - ($default_pct * $user_count)) : 0;
+                        foreach ($users_for_bulk as $idx => $user): 
+                            $initial_pct = $default_pct + ($idx < $remainder ? 1 : 0);
+                        ?>
+                            <div class="rr-pic-card p-3 rounded-xl border transition-all flex flex-col justify-between gap-2.5">
+                                <div class="flex items-center justify-between gap-2">
+                                    <label class="flex items-center gap-2 cursor-pointer select-none flex-grow min-w-0">
+                                        <input type="checkbox" name="rr_selected_pics[]" value="<?= htmlspecialchars($user['email']) ?>" checked 
+                                            onchange="onRRPicToggle(this)" 
+                                            class="rr-pic-checkbox w-4 h-4 rounded border-slate-400 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                                        <div class="truncate">
+                                            <div class="text-xs font-bold truncate" style="color: var(--text-primary);"><?= htmlspecialchars($user['username']) ?></div>
+                                            <div class="text-[10px] font-mono truncate" style="color: var(--text-secondary);"><?= htmlspecialchars($user['email']) ?></div>
+                                        </div>
+                                    </label>
+                                    <span class="rr-status-badge px-1.5 py-0.5 text-[9px] font-extrabold rounded border tracking-wider bg-indigo-100 text-indigo-800 border-indigo-300">
+                                        AUTO
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-2 pt-2 border-t" style="border-color: var(--panel-border);">
+                                    <label class="flex items-center gap-1.5 cursor-pointer select-none rr-manual-label" title="Aktifkan untuk ubah persentase PIC ini secara manual">
+                                        <input type="checkbox" class="rr-manual-toggle w-3.5 h-3.5 rounded border-slate-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                            onchange="onRRManualToggle(this)">
+                                        <span class="text-[10px] font-bold" style="color: var(--text-secondary);">Manual</span>
+                                    </label>
+                                    <div class="flex items-center gap-1">
+                                        <input type="number" name="rr_pic_weights[<?= htmlspecialchars($user['email']) ?>]" 
+                                            value="<?= $initial_pct ?>" min="1" max="99" readonly
+                                            oninput="onRRManualInput(this)" 
+                                            class="rr-pct-input w-14 p-1 text-xs text-center font-black rounded themed-input">
+                                        <span class="text-xs font-bold" style="color: var(--text-secondary);">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
-                <div class="mt-6 flex items-center justify-between gap-4">
-                    <p class="text-xs" style="color:var(--text-secondary)">
-                        <span id="bulk-mode-hint-rr">&#8635; <b>Round-Robin:</b> PIC dibagi rata secara bergantian melanjutkan dari task terakhir.</span>
-                        <span id="bulk-mode-hint-hist" class="hidden">&#128336; <b>History PIC:</b> Jika model pernah dikerjakan, PIC yang sama akan dipakai. Model baru → round-robin.</span>
-                        <span id="bulk-mode-hint-spec" class="hidden">&#128100; <b>Specific PIC:</b> Semua task pada batch ini akan langsung ditugaskan ke satu PIC yang dipilih.</span>
+
+                <div class="space-y-2">
+                    <label for="bulk_data" class="block text-xs sm:text-sm font-bold" style="color: var(--text-primary);">
+                        Paste Data dari Excel (Format: MODEL | AP | CP | CSC | TYPE REQUEST | QB USER | QB USERDEBUG)
+                    </label>
+                    <textarea id="bulk_data" name="bulk_data" rows="12" 
+                        class="themed-input block w-full text-xs font-mono rounded-xl p-3.5 leading-relaxed" 
+                        placeholder="Contoh:&#10;model ap cp csc type qb_user qb_userdebug&#10;SM-S918B_SEA_15_DX S918BXXS8DYI3 S918BXXS8DYI3 S918BOLE8DYI3 SMR 100733179 100733181&#10;SM-F946B_SEA_16_DX F946BXXU5FYI8 F946BXXU5FYI8 F946BOLE5FYI8 NORMAL 100733177 100733180"></textarea>
+                </div>
+
+                <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t" style="border-color: var(--card-border);">
+                    <p class="text-xs font-medium" style="color: var(--text-secondary);">
+                        <span id="bulk-mode-hint-rr">↺ <strong style="color: var(--text-primary);">Round-Robin:</strong> PIC dibagi rata secara bergantian melanjutkan dari task terakhir.</span>
+                        <span id="bulk-mode-hint-hist" class="hidden">⏱ <strong style="color: var(--text-primary);">History PIC:</strong> Jika model pernah dikerjakan, PIC yang sama akan dipakai. Model baru → round-robin.</span>
+                        <span id="bulk-mode-hint-spec" class="hidden">👤 <strong style="color: var(--text-primary);">Specific PIC:</strong> Semua task pada batch ini akan langsung ditugaskan ke satu PIC yang dipilih.</span>
                     </p>
-                    <button type="submit" class="flex-shrink-0 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
-                        Tambah Tasks
+                    <button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm rounded-xl shadow-lg shadow-blue-600/25 transition-all flex-shrink-0 active:scale-95">
+                        + Tambah Tasks
                     </button>
                 </div>
             </form>
         </div>
     </main>
 
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-2xl font-bold text-header">Tambah Task Baru</h2>
-                <button onclick="closeModal()" class="text-secondary hover:text-primary text-3xl font-bold">&times;</button>
-            </div>
-            <form id="task-form" action="handler.php" method="POST">
-                <input type="hidden" name="id" id="task-id">
-                <input type="hidden" name="action" id="form-action" value="create_gba_task">
-                <?php include 'gba_task_form.php'; ?>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script>
-        // --- Canvas Animation ---
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-        let particles = [], hue = 210;
-        function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-        class Particle{constructor(x,y){this.x=x||Math.random()*canvas.width;this.y=y||Math.random()*canvas.height;this.vx=(Math.random()-.5)*.4;this.vy=(Math.random()-.5)*.4;this.size=Math.random()*2+1.5}update(){this.x+=this.vx;this.y+=this.vy;if(this.x<0||this.x>canvas.width)this.vx*=-1;if(this.y<0||this.y>canvas.height)this.vy*=-1}draw(){ctx.fillStyle=`hsl(${hue},100%,75%)`;ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill()}}
-        function init(num){particles=[];for(let i=0;i<num;i++)particles.push(new Particle())}
-        function handleParticles(){for(let i=0;i<particles.length;i++){particles[i].update();particles[i].draw();for(let j=i;j<particles.length;j++){const dx=particles[i].x-particles[j].x;const dy=particles[i].y-particles[j].y;const distance=Math.sqrt(dx*dx+dy*dy);if(distance<120){ctx.beginPath();ctx.strokeStyle=`hsla(${hue},100%,80%,${1-distance/120})`;ctx.lineWidth=1;ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.stroke();ctx.closePath()}}}}
-        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);hue=(hue+.3)%360;handleParticles();requestAnimationFrame(animate);}
-        const particleCount=window.innerWidth>768?150:70;init(particleCount);animate();
-        window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
+        // --- Neural Canvas Network ---
+        (function() {
+            const canvas = document.getElementById('neural-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
 
-        // --- Common Page Logic (Theme, Modal, Profile Dropdown) ---
-        const themeToggleBtn = document.getElementById('theme-toggle'),
-              modal = document.getElementById('task-modal'),
-              modalTitle = document.getElementById('modal-title'),
-              taskForm = document.getElementById('task-form');
-        let quill;
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
 
-        function applyTheme(isLight) {
-            document.documentElement.classList.toggle('light', isLight);
-            document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isLight);
-            document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isLight);
-        }
-        const savedTheme = localStorage.getItem('theme');
-        applyTheme(savedTheme === 'light');
-        themeToggleBtn.addEventListener('click', () => {
-            const isLight = !document.documentElement.classList.contains('light');
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-            applyTheme(isLight);
-        });
-        
-        // Next PIC dari server (round-robin berdasarkan task terakhir)
-        const nextPicEmail = <?= json_encode($next_pic_email) ?>;
+            const count = Math.min(30, Math.floor((w * h) / 35000));
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: (Math.random() - 0.5) * 0.4,
+                    radius: Math.random() * 1.5 + 0.8
+                });
+            }
 
-        // --- PIC Mode Toggle Logic ---
-        const PIC_MODE_KEY = 'bulk_pic_mode';
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+                const isLight = document.documentElement.classList.contains('light');
+                const pColor = isLight ? 'rgba(99, 102, 241, 0.25)' : 'rgba(129, 140, 248, 0.25)';
+                const lColor = isLight ? 'rgba(99, 102, 241, 0.05)' : 'rgba(129, 140, 248, 0.05)';
 
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+                    if (p.y < 0) p.y = h;
+                    if (p.y > h) p.y = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = pColor;
+                    ctx.fill();
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = lColor;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // --- PIC Mode Controller ---
+        const PIC_MODE_KEY = 'bulk_add_pic_mode';
         function setPicMode(mode) {
-            localStorage.setItem(PIC_MODE_KEY, mode);
             document.getElementById('pic_mode_input').value = mode;
+            try { localStorage.setItem(PIC_MODE_KEY, mode); } catch(e){}
 
-            const btnRR   = document.getElementById('btn-rr');
+            const btnRR = document.getElementById('btn-rr');
             const btnHist = document.getElementById('btn-hist');
             const btnSpec = document.getElementById('btn-spec');
-            const badge   = document.getElementById('pic-mode-badge');
-            const desc    = document.getElementById('pic-mode-desc');
-            const hintRR  = document.getElementById('bulk-mode-hint-rr');
-            const hintHist= document.getElementById('bulk-mode-hint-hist');
-            const hintSpec= document.getElementById('bulk-mode-hint-spec');
+            const desc = document.getElementById('pic-mode-desc');
             const specContainer = document.getElementById('specific-pic-container');
-            const specSelect    = document.getElementById('specific_pic');
+            const rrContainer = document.getElementById('rr-pic-container');
 
-            btnRR.className   = '';
+            const hintRR = document.getElementById('bulk-mode-hint-rr');
+            const hintHist = document.getElementById('bulk-mode-hint-hist');
+            const hintSpec = document.getElementById('bulk-mode-hint-spec');
+
+            btnRR.className = '';
             btnHist.className = '';
             btnSpec.className = '';
+
             hintRR.classList.add('hidden');
             hintHist.classList.add('hidden');
             hintSpec.classList.add('hidden');
 
             if (mode === 'round_robin') {
-                btnRR.className   = 'active-rr';
-                badge.className   = 'pic-mode-badge rr';
-                badge.innerHTML   = '<span>&#9679;</span> Round-Robin aktif';
-                desc.textContent  = 'Distribusi merata ke semua PIC secara bergantian';
-                hintRR.classList.remove('hidden');
+                btnRR.className = 'active-rr';
+                desc.textContent = 'Distribusi merata ke semua PIC secara bergantian';
                 specContainer.classList.add('hidden');
-                specSelect.removeAttribute('required');
+                rrContainer.classList.remove('hidden');
+                hintRR.classList.remove('hidden');
+                recalculateRRLoadBalances();
             } else if (mode === 'history') {
                 btnHist.className = 'active-hist';
-                badge.className   = 'pic-mode-badge hist';
-                badge.innerHTML   = '<span>&#9679;</span> History PIC aktif';
-                desc.textContent  = 'PIC diambil dari history model yang pernah dikerjakan';
-                hintHist.classList.remove('hidden');
+                desc.textContent = 'Meniru PIC yang pernah mengerjakan model yang sama';
                 specContainer.classList.add('hidden');
-                specSelect.removeAttribute('required');
+                rrContainer.classList.remove('hidden');
+                hintHist.classList.remove('hidden');
             } else if (mode === 'specific') {
                 btnSpec.className = 'active-spec';
-                badge.className   = 'pic-mode-badge spec';
-                badge.innerHTML   = '<span>&#9679;</span> Specific PIC aktif';
-                desc.textContent  = 'Semua task akan di-assign ke PIC yang Anda pilih';
-                hintSpec.classList.remove('hidden');
+                desc.textContent = 'Seluruh task akan ditugaskan ke satu PIC pilihan';
                 specContainer.classList.remove('hidden');
-                specSelect.setAttribute('required', 'required');
+                rrContainer.classList.add('hidden');
+                hintSpec.classList.remove('hidden');
             }
         }
 
-        // Validate specific PIC before submit
-        document.getElementById('bulk-form').addEventListener('submit', function(e) {
-            const mode = document.getElementById('pic_mode_input').value;
-            if (mode === 'specific') {
-                const specVal = document.getElementById('specific_pic').value;
-                if (!specVal) {
-                    e.preventDefault();
-                    alert('Silakan pilih PIC tujuan pada dropdown terlebih dahulu.');
-                    document.getElementById('specific_pic').focus();
-                }
-            }
-        });
+        function onRRPicToggle(checkbox) {
+            const card = checkbox.closest('.rr-pic-card');
+            const manualToggle = card.querySelector('.rr-manual-toggle');
+            const pctInput = card.querySelector('.rr-pct-input');
+            const statusBadge = card.querySelector('.rr-status-badge');
 
-        // Restore saved mode on page load
-        (function() {
-            const saved = localStorage.getItem(PIC_MODE_KEY) || 'round_robin';
-            setPicMode(saved);
-        })();
-
-        function openAddModal() {
-            taskForm.reset();
-            modalTitle.innerText = 'Tambah Task Baru';
-            taskForm.elements['action'].value = 'create_gba_task';
-            taskForm.elements['id'].value = '';
-            setDefaultDates(); // Panggil fungsi untuk set tanggal otomatis
-            setupQuill('');
-            updateChecklistVisibility();
-            // Set PIC otomatis mengikuti PIC dari task terakhir (round-robin)
-            if (nextPicEmail) {
-                const picSelect = document.getElementById('pic_email');
-                if (picSelect) picSelect.value = nextPicEmail;
+            if (!checkbox.checked) {
+                card.classList.add('card-disabled');
+                manualToggle.checked = false;
+                pctInput.value = 0;
+                pctInput.readOnly = true;
+                statusBadge.textContent = 'OFF';
+                statusBadge.className = 'rr-status-badge px-1.5 py-0.5 text-[9px] font-extrabold rounded border tracking-wider bg-slate-200 text-slate-600 border-slate-300';
+            } else {
+                card.classList.remove('card-disabled');
+                statusBadge.textContent = 'AUTO';
+                statusBadge.className = 'rr-status-badge px-1.5 py-0.5 text-[9px] font-extrabold rounded border tracking-wider bg-indigo-100 text-indigo-800 border-indigo-300';
             }
-            modal.classList.remove('hidden');
+            recalculateRRLoadBalances();
         }
 
-        function closeModal() {
-            modal.classList.add('hidden');
-        }
-        window.onclick = (event) => {
-            if (event.target == modal) closeModal();
-        };
-        
-        function setupQuill(content) {
-            if (!quill) {
-                quill = new Quill('#notes-editor', {
-                    theme: 'snow',
-                    modules: { toolbar: [['bold', 'italic'], ['link'], [{ 'list': 'ordered' }, { 'list': 'bullet' }]] }
-                });
-            }
-            quill.root.innerHTML = content;
-        }
-        taskForm.addEventListener('submit', () => {
-            document.getElementById('notes-hidden-input').value = quill.root.innerHTML;
-        });
+        function onRRManualToggle(checkbox) {
+            const card = checkbox.closest('.rr-pic-card');
+            const pctInput = card.querySelector('.rr-pct-input');
+            const picCheckbox = card.querySelector('.rr-pic-checkbox');
+            const statusBadge = card.querySelector('.rr-status-badge');
 
-        document.getElementById('test_plan_type').addEventListener('change', updateChecklistVisibility);
-        function updateChecklistVisibility() {
-            const testPlan = document.getElementById('test_plan_type').value;
-            const placeholder = document.getElementById('checklist-placeholder');
-            let checklistVisible = false;
-            document.querySelectorAll('[id^="checklist-container-"]').forEach(el => {
-                const planName = el.id.replace('checklist-container-', '').replace(/_/g, ' ');
-                if (planName === testPlan) {
-                    el.classList.remove('hidden');
-                    checklistVisible = true;
-                } else {
-                    el.classList.add('hidden');
+            if (!picCheckbox.checked) {
+                checkbox.checked = false;
+                return;
+            }
+
+            if (checkbox.checked) {
+                pctInput.readOnly = false;
+                pctInput.focus();
+                pctInput.select();
+                statusBadge.textContent = 'MANUAL';
+                statusBadge.className = 'rr-status-badge px-1.5 py-0.5 text-[9px] font-extrabold rounded border tracking-wider bg-amber-100 text-amber-800 border-amber-300';
+            } else {
+                pctInput.readOnly = true;
+                statusBadge.textContent = 'AUTO';
+                statusBadge.className = 'rr-status-badge px-1.5 py-0.5 text-[9px] font-extrabold rounded border tracking-wider bg-indigo-100 text-indigo-800 border-indigo-300';
+                recalculateRRLoadBalances();
+            }
+        }
+
+        function onRRManualInput(input) {
+            let val = parseInt(input.value) || 0;
+            if (val < 1) val = 1;
+            if (val > 99) val = 99;
+            input.value = val;
+            recalculateRRLoadBalances(input);
+        }
+
+        function recalculateRRLoadBalances(sourceInput = null) {
+            const cards = document.querySelectorAll('.rr-pic-card');
+            let manualTotal = 0;
+            let autoCards = [];
+
+            cards.forEach(card => {
+                const picCheckbox = card.querySelector('.rr-pic-checkbox');
+                const manualToggle = card.querySelector('.rr-manual-toggle');
+                const pctInput = card.querySelector('.rr-pct-input');
+
+                if (picCheckbox.checked) {
+                    if (manualToggle.checked) {
+                        manualTotal += parseInt(pctInput.value) || 0;
+                    } else {
+                        autoCards.push(card);
+                    }
                 }
             });
-            placeholder.style.display = checklistVisible ? 'none' : 'block';
-        }
-        
-        function calculateWorkingDays(startDate, daysToAdd) {
-            let currentDate = new Date(startDate);
-            let addedDays = 0;
-            while (addedDays < daysToAdd) {
-                currentDate.setDate(currentDate.getDate() + 1);
-                if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
-                    addedDays++;
+
+            const remainingPct = Math.max(0, 100 - manualTotal);
+            if (autoCards.length > 0) {
+                const basePct = Math.floor(remainingPct / autoCards.length);
+                const remainder = remainingPct - (basePct * autoCards.length);
+
+                autoCards.forEach((card, idx) => {
+                    const pctInput = card.querySelector('.rr-pct-input');
+                    pctInput.value = basePct + (idx < remainder ? 1 : 0);
+                });
+            }
+
+            // Hitung grand total
+            let grandTotal = 0;
+            cards.forEach(card => {
+                const picCheckbox = card.querySelector('.rr-pic-checkbox');
+                const pctInput = card.querySelector('.rr-pct-input');
+                if (picCheckbox.checked) {
+                    grandTotal += parseInt(pctInput.value) || 0;
                 }
+            });
+
+            const totalPctSpan = document.getElementById('rr-total-pct');
+            const totalBadge = document.getElementById('rr-total-badge');
+            totalPctSpan.textContent = grandTotal;
+
+            if (grandTotal === 100) {
+                totalBadge.className = 'px-3 py-1 text-xs font-extrabold rounded-lg border transition-all bg-emerald-100 text-emerald-800 border-emerald-300';
+            } else {
+                totalBadge.className = 'px-3 py-1 text-xs font-extrabold rounded-lg border transition-all bg-rose-100 text-rose-800 border-rose-300';
             }
-            return currentDate.toISOString().slice(0, 10);
         }
 
-        function setDefaultDates() {
-            const requestDateInput = document.getElementById('request_date');
-            const deadlineInput = document.getElementById('deadline');
-            const signOffDateInput = document.getElementById('sign_off_date');
-            const today = new Date();
-            const todayString = today.toISOString().slice(0, 10);
+        // --- Init State ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem(PIC_MODE_KEY) || 'round_robin';
+            setPicMode(savedMode);
 
-            requestDateInput.value = todayString;
-            const futureDate = calculateWorkingDays(todayString, 7);
-            deadlineInput.value = futureDate;
-            signOffDateInput.value = futureDate;
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            setupQuill('');
-            updateChecklistVisibility();
-
-            const profileMenu = document.getElementById('profile-menu');
-            if (profileMenu) {
-                const profileButton = profileMenu.querySelector('button');
-                const profileDropdown = document.getElementById('profile-dropdown');
-                profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
-                document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
-            }
+            // Form Validation before submit
+            const form = document.getElementById('bulk-form');
+            form.addEventListener('submit', (e) => {
+                const currentMode = document.getElementById('pic_mode_input').value;
+                if (currentMode === 'specific') {
+                    const select = document.getElementById('specific_pic');
+                    if (!select.value) {
+                        e.preventDefault();
+                        alert('Silakan pilih PIC Tujuan terlebih dahulu.');
+                        select.focus();
+                        return;
+                    }
+                } else if (currentMode === 'round_robin') {
+                    const checkedPics = document.querySelectorAll('.rr-pic-checkbox:checked');
+                    if (checkedPics.length === 0) {
+                        e.preventDefault();
+                        alert('Minimal 1 PIC harus aktif untuk mode Round-Robin.');
+                        return;
+                    }
+                }
+            });
         });
     </script>
 </body>

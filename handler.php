@@ -316,6 +316,47 @@ switch ($action) {
         $pic_mode = $_POST['pic_mode'] ?? 'round_robin';
         $specific_pic = trim($_POST['specific_pic'] ?? '');
 
+        // ponytail: parse selected round-robin PICs and their percentage job load
+        $rr_selected_pics = $_POST['rr_selected_pics'] ?? [];
+        $rr_pic_weights = $_POST['rr_pic_weights'] ?? [];
+        $active_rr_weights = [];
+
+        if (!empty($rr_selected_pics) && is_array($rr_selected_pics)) {
+            foreach ($rr_selected_pics as $sel_email) {
+                if (in_array($sel_email, $pic_list)) {
+                    $weight = isset($rr_pic_weights[$sel_email]) ? max(1, (int)$rr_pic_weights[$sel_email]) : 1;
+                    $active_rr_weights[$sel_email] = $weight;
+                }
+            }
+        }
+
+        // Fallback jika tidak ada yang dipilih
+        if (empty($active_rr_weights)) {
+            foreach ($pic_list as $email) {
+                $active_rr_weights[$email] = 1;
+            }
+        }
+
+        // State untuk smooth weighted round-robin distribution
+        $rr_current_weights = array_fill_keys(array_keys($active_rr_weights), 0);
+        $total_weight = array_sum($active_rr_weights);
+
+        $get_next_rr_pic = function() use (&$active_rr_weights, &$rr_current_weights, $total_weight) {
+            $best_pic = null;
+            $max_val = -PHP_INT_MAX;
+            foreach ($active_rr_weights as $pic => $weight) {
+                $rr_current_weights[$pic] += $weight;
+                if ($rr_current_weights[$pic] > $max_val) {
+                    $max_val = $rr_current_weights[$pic];
+                    $best_pic = $pic;
+                }
+            }
+            if ($best_pic !== null) {
+                $rr_current_weights[$best_pic] -= $total_weight;
+            }
+            return $best_pic ?: array_key_first($active_rr_weights);
+        };
+
         $created_count = 0;
         $dropped_models_skipped = [];
 
@@ -372,14 +413,12 @@ switch ($action) {
                     // Model pernah ada → pakai PIC yang sama
                     $pic_email = $hist_result->fetch_assoc()['pic_email'];
                 } else {
-                    // Model baru → fallback round-robin
-                    $pic_email = $pic_list[$pic_index % count($pic_list)];
-                    $pic_index++;
+                    // Model baru → fallback weighted round-robin
+                    $pic_email = $get_next_rr_pic();
                 }
             } else {
-                // Mode round-robin (default)
-                $pic_email = $pic_list[$pic_index % count($pic_list)];
-                $pic_index++;
+                // Mode round-robin (weighted)
+                $pic_email = $get_next_rr_pic();
             }
 
             $request_date = date('Y-m-d');

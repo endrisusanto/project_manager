@@ -25,17 +25,76 @@ function getDynamicColorClasses($identifier, $type = 'pic') {
     return "badge-color-" . $palette[abs($hash) % count($palette)];
 }
 function getStatusColorClasses($status) {
-    $colors = ['Approved'=>'badge-color-green','Passed'=>'badge-color-green','Submitted'=>'badge-color-purple','Test Ongoing'=>'badge-color-yellow','Task Baru'=>'badge-color-blue','Downloaded'=>'badge-color-cyan','Batal'=>'badge-color-gray','Pending Feedback'=>'badge-color-orange','Feedback Sent'=>'badge-color-orange'];
+    $colors = [
+        'Approved' => 'badge-color-green',
+        'Passed' => 'badge-color-green',
+        'Submitted' => 'badge-color-purple',
+        'Test Ongoing' => 'badge-color-yellow',
+        'Task Baru' => 'badge-color-blue',
+        'Downloaded' => 'badge-color-cyan',
+        'Batal' => 'badge-color-gray',
+        'Pending Feedback' => 'badge-color-orange',
+        'Feedback Sent' => 'badge-color-orange'
+    ];
     return $colors[$status] ?? 'badge-color-gray';
 }
-
+function getStatusDotColor($status) {
+    $map = [
+        'Task Baru' => 'bg-blue-400 shadow-sm shadow-blue-400/50',
+        'Downloaded' => 'bg-cyan-400 shadow-sm shadow-cyan-400/50',
+        'Test Ongoing' => 'bg-amber-400 shadow-sm shadow-amber-400/50',
+        'Pending Feedback' => 'bg-orange-400 shadow-sm shadow-orange-400/50',
+        'Feedback Sent' => 'bg-orange-400 shadow-sm shadow-orange-400/50',
+        'Submitted' => 'bg-purple-400 shadow-sm shadow-purple-400/50',
+        'Passed' => 'bg-emerald-400 shadow-sm shadow-emerald-400/50',
+        'Approved' => 'bg-emerald-400 shadow-sm shadow-emerald-400/50',
+        'Batal' => 'bg-slate-400 shadow-sm shadow-slate-400/50'
+    ];
+    return $map[$status] ?? 'bg-slate-500 shadow-sm shadow-slate-500/50';
+}
+function getTestPlanBadgeClass($plan) {
+    $plan_clean = strtoupper(trim((string)$plan));
+    $map = [
+        'SMR' => 'plan-pill-smr',
+        'FULL TEST' => 'plan-pill-fulltest',
+        'FULLTEST' => 'plan-pill-fulltest',
+        'SANITY' => 'plan-pill-sanity',
+        'MR' => 'plan-pill-mr',
+        'NORMAL MR' => 'plan-pill-mr',
+        'DELTA TEST' => 'plan-pill-delta',
+        'DELTA' => 'plan-pill-delta',
+        'REGRESSION' => 'plan-pill-regression'
+    ];
+    if (isset($map[$plan_clean])) {
+        return 'plan-pill ' . $map[$plan_clean];
+    }
+    $palettes = ['plan-pill-smr', 'plan-pill-fulltest', 'plan-pill-sanity', 'plan-pill-mr', 'plan-pill-delta', 'plan-pill-regression'];
+    $hash = abs(crc32($plan_clean));
+    return 'plan-pill ' . $palettes[$hash % count($palettes)];
+}
 
 // 2. LOGIKA PENGAMBILAN DATA
 $tasks_result = $conn->query("SELECT * FROM gba_tasks ORDER BY id DESC, request_date DESC");
 $tasks = [];
 
+$total_task_count = 0;
+$active_task_count = 0;
+$completed_task_count = 0;
+$submission_ontime_count = 0;
+$submission_total_evaluated = 0;
+$approval_ontime_count = 0;
+$approval_total_evaluated = 0;
+
 if ($tasks_result) {
     while ($row = $tasks_result->fetch_assoc()) {
+        $total_task_count++;
+        $st = $row['progress_status'] ?? '';
+        if (in_array($st, ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent'])) {
+            $active_task_count++;
+        } elseif (in_array($st, ['Passed', 'Approved', 'Submitted'])) {
+            $completed_task_count++;
+        }
+
         // Proses kalkulasi tanggal dan status di sisi server agar data siap pakai
         $deadline_date = $row['deadline'] ? new DateTime($row['deadline']) : null;
         $request_date_obj = $row['request_date'] ? new DateTime($row['request_date']) : null;
@@ -43,11 +102,17 @@ if ($tasks_result) {
         $approved_date_obj = isset($row['approved_date']) && $row['approved_date'] ? new DateTime($row['approved_date']) : null;
 
         if ($submission_date_obj && $request_date_obj) {
-            $row['ontime_submission_status'] = $submission_date_obj->diff($request_date_obj)->days <= 7 ? 'Ontime' : 'Delay';
+            $is_ontime = $submission_date_obj->diff($request_date_obj)->days <= 7;
+            $row['ontime_submission_status'] = $is_ontime ? 'Ontime' : 'Delay';
+            $submission_total_evaluated++;
+            if ($is_ontime) $submission_ontime_count++;
         } else { $row['ontime_submission_status'] = null; }
         
         if ($approved_date_obj && $submission_date_obj) {
-            $row['ontime_approved_status'] = $approved_date_obj->diff($submission_date_obj)->days <= 3 ? 'Ontime' : 'Delay';
+            $is_app_ontime = $approved_date_obj->diff($submission_date_obj)->days <= 3;
+            $row['ontime_approved_status'] = $is_app_ontime ? 'Ontime' : 'Delay';
+            $approval_total_evaluated++;
+            if ($is_app_ontime) $approval_ontime_count++;
         } else { $row['ontime_approved_status'] = null; }
 
         $row['deadline_countdown'] = null;
@@ -67,7 +132,7 @@ if ($tasks_result) {
             $row['approval_countdown'] = ($now <= $approval_deadline) ? $diff->days : -$diff->days;
         }
         
-        // LOGIKA PERHITUNGAN PROGRESS (Sama persis dengan gba_tasks.php)
+        // LOGIKA PERHITUNGAN PROGRESS
         $checklist = json_decode((string)($row['test_items_checklist'] ?? ''), true);
         $plan_type = $row['test_plan_type'];
         $total_items = isset($test_plan_items[$plan_type]) ? count($test_plan_items[$plan_type]) : 0;
@@ -90,10 +155,11 @@ if ($tasks_result) {
     }
 }
 
+$submission_ontime_pct = $submission_total_evaluated > 0 ? round(($submission_ontime_count / $submission_total_evaluated) * 100) : 100;
+$approval_ontime_pct = $approval_total_evaluated > 0 ? round(($approval_ontime_count / $approval_total_evaluated) * 100) : 100;
+
 $all_test_plans = array_keys($test_plan_items);
 $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 'Feedback Sent', 'Submitted', 'Passed', 'Approved', 'Batal'];
-
-// ... (Rest of HTML and JavaScript, already correctly structured to receive PHP data)
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -101,22 +167,66 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GBA Task Summary</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.never-match-dark']
+        }
+    </script>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
     <style>
-        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.6);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255,255,255,.6);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
+        :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,.6);--modal-border:rgba(51,65,85,.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}
+        html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.35);--glass-border:rgba(0,0,0,.08);--modal-bg:rgba(255,255,255,.6);--modal-border:rgba(0,0,0,.1);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
         html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}.glassmorphism-modal{background:var(--modal-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)}
         .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
-        .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{background-color:rgba(0,0,0,.1);padding:0 6px;border-radius:6px;color:#fff}
+        .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{font-size:10px;font-weight:700;padding:0 6px;border-radius:4px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.75)}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
-        .filter-button{background-color:var(--filter-btn-bg);color:var(--text-secondary);transition:all .2s}.filter-button:hover{background-color:rgba(255,255,255,.1)}html.light .filter-button:hover{background-color:rgba(0,0,0,.1)}.filter-button.active{background-color:var(--filter-btn-bg-active);color:#fff}
+        
+        .filter-button{background-color:var(--filter-btn-bg, rgba(255,255,255,0.05));color:var(--text-secondary);border:1px solid var(--glass-border);border-radius:9999px;font-weight:600;font-size:12px;padding:6px 14px;transition:all .15s cubic-bezier(0.16,1,0.3,1);white-space:nowrap}
+        .filter-button:hover{background-color:rgba(255,255,255,.1);color:var(--text-primary)}
+        html.light .filter-button{background-color:#ffffff;border-color:#e2e8f0;color:#64748b}
+        html.light .filter-button:hover{background-color:#f8fafc;color:#0f172a;border-color:#cbd5e1}
+        .filter-button.active{background:linear-gradient(135deg, #2563eb, #3b82f6) !important;color:#ffffff !important;border-color:#3b82f6 !important;box-shadow:0 2px 8px rgba(37,99,235,0.35)}
+        
+        /* Pill Shape Badges for Test Plans with distinctive semantic palettes */
+        .plan-pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; font-weight: 700; font-size: 11px; padding: 2px 8px; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid transparent; line-height: 1.2; transition: all 0.15s ease; }
+        .plan-pill-smr { background: rgba(99, 102, 241, 0.16); color: #a5b4fc; border-color: rgba(99, 102, 241, 0.35); }
+        html.light .plan-pill-smr { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+        .plan-pill-fulltest { background: rgba(245, 158, 11, 0.16); color: #fcd34d; border-color: rgba(245, 158, 11, 0.35); }
+        html.light .plan-pill-fulltest { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+        .plan-pill-sanity { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.35); }
+        html.light .plan-pill-sanity { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .plan-pill-mr { background: rgba(6, 182, 212, 0.16); color: #67e8f9; border-color: rgba(6, 182, 212, 0.35); }
+        html.light .plan-pill-mr { background: #ecfeff; color: #0e7490; border-color: #a5f3fc; }
+        .plan-pill-delta { background: rgba(217, 70, 239, 0.16); color: #f0abfc; border-color: rgba(217, 70, 239, 0.35); }
+        html.light .plan-pill-delta { background: #fdf4ff; color: #a21caf; border-color: #f5d0fe; }
+        .plan-pill-regression { background: rgba(244, 63, 94, 0.16); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+        html.light .plan-pill-regression { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+
+        .card-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; color: var(--text-icon); transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+        .card-action-btn:hover { background: rgba(255, 255, 255, 0.08); }
+        html.light .card-action-btn:hover { background: rgba(0, 0, 0, 0.06); }
+        .card-action-btn:active { transform: scale(0.92); }
+
+        .build-specs-box { display: flex; flex-direction: column; gap: 2.5px; padding: 5px 8px; margin-top: 3px; border-radius: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); font-size: 11px; line-height: 1.35; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        html.light .build-specs-box { background: rgba(0, 0, 0, 0.035); border-color: rgba(0, 0, 0, 0.06); }
+
+        .kpi-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 1rem; padding: 1rem 1.25rem; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s; }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.15); }
+
+        tbody tr { transition: background-color 0.15s ease; }
+        tbody tr:hover{background-color:rgba(255,255,255,0.04)}
+        html.light tbody tr:hover{background-color:rgba(15,23,42,0.03)!important}
+        .themed-input option{background-color:var(--bg-primary);color:var(--text-primary)}
+        
         .badge{display:inline-block;padding:.25rem .6rem;font-size:.75rem;font-weight:500;border-radius:.75rem;line-height:1.2}.badge-color-sky{background-color:rgba(14,165,233,.2);color:#7dd3fc}.badge-color-emerald{background-color:rgba(16,185,129,.2);color:#6ee7b7}.badge-color-amber{background-color:rgba(245,158,11,.2);color:#fcd34d}.badge-color-rose{background-color:rgba(244,63,94,.2);color:#fda4af}.badge-color-violet{background-color:rgba(139,92,246,.2);color:#c4b5fd}.badge-color-teal{background-color:rgba(20,184,166,.2);color:#5eead4}.badge-color-cyan{background-color:rgba(6,182,212,.2);color:#67e8f9}.badge-color-indigo{background-color:rgba(99,102,241,.2);color:#a5b4fc}.badge-color-lime{background-color:rgba(132,204,22,.2);color:#bef264}.badge-color-pink{background-color:rgba(236,72,153,.2);color:#f9a8d4}.badge-color-fuchsia{background-color:rgba(217,70,239,.2);color:#f0abfc}.badge-color-green{background-color:rgba(34,197,94,.2);color:#86efac}.badge-color-purple{background-color:rgba(168,85,247,.2);color:#d8b4fe}.badge-color-yellow{background-color:rgba(234,179,8,.2);color:#fde047}.badge-color-blue{background-color:rgba(59,130,246,.2);color:#93c5fd}.badge-color-gray{background-color:rgba(107,114,128,.2);color:#d1d5db}.badge-color-orange{background-color:rgba(249,115,22,.2);color:#fdba74}
         html.light .badge-color-sky{background-color:#e0f2fe;color:#0369a1}html.light .badge-color-emerald{background-color:#d1fae5;color:#047857}html.light .badge-color-amber{background-color:#fef3c7;color:#92400e}html.light .badge-color-rose{background-color:#ffe4e6;color:#9f1239}html.light .badge-color-violet{background-color:#ede9fe;color:#5b21b6}html.light .badge-color-teal{background-color:#ccfbf1;color:#0d9488}html.light .badge-color-cyan{background-color:#cffafe;color:#0e7490}html.light .badge-color-indigo{background-color:#e0e7ff;color:#3730a3}html.light .badge-color-lime{background-color:#ecfccb;color:#4d7c0f}html.light .badge-color-pink{background-color:#fce7f3;color:#9d174d}html.light .badge-color-fuchsia{background-color:#fae8ff;color:#86198f}html.light .badge-color-green{background-color:#dcfce7;color:#15803d}html.light .badge-color-purple{background-color:#f3e8ff;color:#6b21a8}html.light .badge-color-yellow{background-color:#fef9c3;color:#854d0e}html.light .badge-color-blue{background-color:#dbeafe;color:#1e40af}html.light .badge-color-gray{background-color:#f3f4f6;color:#374151}html.light .badge-color-orange{background-color:#ffedd5;color:#9a3412}html.light .font-semibold.text-green-400{color:#15803d}html.light .font-semibold.text-red-400{color:#b91c1c}
         @keyframes pulse-alert{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.7}}.animate-pulse-alert{animation:pulse-alert 1.5s infinite;color:#f87171}html.light .animate-pulse-alert{color:#dc2626}
-        .qb-link{cursor:pointer;text-decoration:underline;color:#93c5fd}html.light .qb-link{color:#1e40af}
+        .qb-link{cursor:pointer;text-decoration:underline;color:#93c5fd;transition:color 0.15s ease;}
+        .qb-link:hover{color:#60a5fa;}
+        html.light .qb-link{color:#2563eb}
+        html.light .qb-link:hover{color:#1d4ed8}
         .urgent-row { position: relative; border-left: 3px solid transparent; animation: urgent-row-glow 1.5s infinite; }
         @keyframes urgent-row-glow {
             0%, 100% { border-left-color: rgba(239, 68, 68, 0.7); box-shadow: inset 3px 0 8px -2px rgba(239, 68, 68, 0.5); }
@@ -126,43 +236,52 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         #pagination-rows { color: var(--text-primary); }
         #pagination-rows option { background-color: var(--bg-primary); color: var(--text-primary); }
 
-        /* --- NEW CSS FOR CP MISMATCH GLOW --- */
+        /* --- CP MISMATCH GLOW --- */
         .glow-highlight-red {
             animation: red-glow-text 1.5s infinite alternate;
-            color: #f87171 !important; /* text-red-400 */
+            color: #f87171 !important;
         }
         @keyframes red-glow-text {
             from { text-shadow: 0 0 2px #f87171, 0 0 4px rgba(255, 0, 0, 0.4); }
             to { text-shadow: 0 0 6px #fee2e2, 0 0 8px rgba(255, 0, 0, 0.7); }
         }
-        /* --- END NEW CSS --- */
+        html.light .glow-highlight-red {
+            color: #dc2626 !important;
+            text-shadow: none;
+        }
 
-        /* --- COPY TOOLTIP CSS --- */
+        /* --- COPY TOOLTIP CSS (better-ui / antislop) --- */
         .copy-tooltip {
             position: fixed;
-            background-color: var(--toast-bg, #16a34a);
-            color: var(--toast-text, #fff);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(15, 23, 42, 0.94);
+            color: #f8fafc;
+            padding: 5px 11px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
             pointer-events: none;
-            z-index: 9999;
+            z-index: 99999;
             opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-            transform: translate(-50%, -100%);
-            margin-top: -10px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translate(-50%, -50%) scale(0.9);
+            transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
-        .copy-tooltip::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: var(--toast-bg, #16a34a) transparent transparent transparent;
+
+        .copy-tooltip.show {
+            opacity: 1;
+            transform: translate(-50%, -100%) translateY(-8px) scale(1);
+        }
+
+        html.light .copy-tooltip {
+            background-color: rgba(15, 23, 42, 0.92);
+            color: #ffffff;
+            box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.12);
         }
         /* --- END COPY TOOLTIP CSS --- */
     </style>
@@ -174,46 +293,123 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     <?php include 'header.php'; ?>
 
     <main class="w-full h-full flex flex-col">
-        <div class="px-4 sm:px-6 lg:px-8 pt-6 pb-4">
-            <div class="flex flex-col sm:flex-row gap-4">
-                <div id="testplan-filter-container" class="flex items-center space-x-2 flex-shrink-0 overflow-x-auto pb-2">
-                    <button class="filter-button active px-3 py-1.5 text-sm font-medium rounded-md" data-plan="All">Semua</button>
+        <!-- KPI Metric Cards Grid -->
+        <div class="px-4 sm:px-6 lg:px-8 pt-5 pb-2">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <!-- Card 1: Total Tasks -->
+                <div class="kpi-card flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-secondary">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Total Task</span>
+                        <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-2xl font-extrabold text-primary font-mono tracking-tight"><?= $total_task_count ?></span>
+                        <span class="text-[11px] text-secondary ml-1">keseluruhan</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Active Tasks -->
+                <div class="kpi-card flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-secondary">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Task Aktif</span>
+                        <div class="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-2xl font-extrabold text-amber-400 font-mono tracking-tight"><?= $active_task_count ?></span>
+                        <span class="text-[11px] text-secondary ml-1">ongoing</span>
+                    </div>
+                </div>
+
+                <!-- Card 3: Completed Tasks -->
+                <div class="kpi-card flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-secondary">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Selesai / Passed</span>
+                        <div class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-2xl font-extrabold text-emerald-400 font-mono tracking-tight"><?= $completed_task_count ?></span>
+                        <span class="text-[11px] text-secondary ml-1">task</span>
+                    </div>
+                </div>
+
+                <!-- Card 4: Submission On-Time -->
+                <div class="kpi-card flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-secondary">
+                        <span class="text-xs font-semibold uppercase tracking-wider">On-Time Sub</span>
+                        <div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-2xl font-extrabold text-indigo-400 font-mono tracking-tight"><?= $submission_ontime_pct ?>%</span>
+                        <span class="text-[11px] text-secondary ml-1">(<?= $submission_ontime_count ?>/<?= $submission_total_evaluated ?>)</span>
+                    </div>
+                </div>
+
+                <!-- Card 5: Approval On-Time -->
+                <div class="kpi-card flex flex-col justify-between col-span-2 sm:col-span-1">
+                    <div class="flex items-center justify-between text-secondary">
+                        <span class="text-xs font-semibold uppercase tracking-wider">On-Time App</span>
+                        <div class="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-400 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-2xl font-extrabold text-teal-400 font-mono tracking-tight"><?= $approval_ontime_pct ?>%</span>
+                        <span class="text-[11px] text-secondary ml-1">(<?= $approval_ontime_count ?>/<?= $approval_total_evaluated ?>)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar Section -->
+        <div class="px-4 sm:px-6 lg:px-8 pt-3 pb-3">
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-3 backdrop-blur-md shadow-sm">
+                <!-- Test Plan Pills -->
+                <div id="testplan-filter-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+                    <button class="filter-button active" data-plan="All">Semua</button>
                     <?php foreach($all_test_plans as $plan): ?>
-                        <button class="filter-button px-3 py-1.5 text-sm font-medium rounded-md" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
+                        <button class="filter-button" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
                     <?php endforeach; ?>
                 </div>
-                 <div class="flex items-center gap-4 ml-auto">
-                    <div>
-                        <select id="status-filter" class="themed-input p-2 rounded-lg text-sm">
-                            <option value="All">Semua Status</option>
-                            <?php foreach($all_statuses as $status): ?>
-                                <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button id="redistribute-btn" onclick="openRedistributeModal()" class="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-500">
-                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM14 11a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1v-1a1 1 0 011-1z" />
+
+                <!-- Controls & Action Buttons -->
+                <div class="flex flex-wrap items-center gap-2.5 ml-auto">
+                    <!-- Status Filter -->
+                    <select id="status-filter" class="themed-input h-9 px-3 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
+                        <option value="All">Semua Status</option>
+                        <?php foreach($all_statuses as $status): ?>
+                            <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+
+                    <!-- Export Excel -->
+                    <a id="export-button" href="export_handler.php" class="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Distribusi Tanggal
-                    </button>
-                    <a id="export-button" href="export_handler.php" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500">
-                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3.25 3.5a.75.75 0 001.1 0l3.25-3.5a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clip-rule="evenodd" />
-                        </svg>
-                        Export Excel
+                        <span>Export Excel</span>
                     </a>
-                    <a id="export-latest-ap-button" href="export_latest_ap.php" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+
+                    <!-- Export All AP -->
+                    <a id="export-latest-ap-button" href="export_latest_ap.php" class="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
-                        Export All AP
+                        <span>Export All AP</span>
                     </a>
+
                     <?php
                     $new_tasks_qb_ids = [];
                     if (!empty($tasks)) {
                         foreach ($tasks as $t) {
-                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru' && isset($t['test_plan_type']) && strtoupper(trim($t['test_plan_type'])) === 'SMR') {
+                            if (isset($t['progress_status']) && $t['progress_status'] === 'Task Baru') {
                                 if (!empty($t['qb_user']) && trim($t['qb_user']) !== '-') {
                                     $new_tasks_qb_ids[] = trim($t['qb_user']);
                                 }
@@ -227,13 +423,14 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     ?>
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
-                        title="Copy all QB Build IDs for New Tasks (SMR Only)"
-                        class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 shadow-emerald-500/30 transition-all">
-                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                        title="Copy all QB Build IDs for New Tasks (Semua Plan)"
+                        class="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        Copy New Task QB IDs
+                        <span>Copy QB ID Baru</span>
                     </button>
+
                     <?php
                     $summary_active_build_rows = [];
                     $eligible_summary_statuses = ['task baru', 'downloaded', 'test ongoing', 'ongoing', 'pending feedback', 'feedback sent', 'submitted'];
@@ -256,43 +453,51 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     <button onclick="copyActiveTasksBuilds(event, this)"
                         data-build-info="<?= htmlspecialchars($summary_active_builds_str) ?>"
                         title="Copy Model, AP, CSC, CP untuk task status Task Baru, Downloaded, Ongoing, Pending Feedback, Feedback Sent, Submitted"
-                        class="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-600 to-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-amber-500 hover:to-red-500 shadow-amber-600/30 transition-all">
-                        <svg class="-ml-0.5 mr-1.5 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                        class="h-9 px-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                         </svg>
-                        Build HomeBinary
+                        <span>Build HomeBinary</span>
                     </button>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-secondary">Baris:</span>
-                        <select id="pagination-rows" class="themed-input p-2 rounded-lg text-sm"><option value="10">10</option><option value="30" selected>30</option><option value="50">50</option><option value="100">100</option></select>
+
+                    <!-- Rows Selector -->
+                    <div class="flex items-center gap-1.5 text-xs text-secondary">
+                        <span class="hidden sm:inline">Baris:</span>
+                        <select id="pagination-rows" class="themed-input h-9 px-2.5 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
+                            <option value="10">10</option>
+                            <option value="30" selected>30</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
                     </div>
                 </div>
             </div>
         </div>
         
+        <!-- Table Container -->
         <div class="flex-grow overflow-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
-            <div class="glassmorphism-table rounded-lg">
-                <table class="w-full text-sm text-left">
-                    <thead class="themed-bg">
-                        <tr class="border-b border-[var(--glass-border)]">
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">No.</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Model & Build</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">QB Build</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">PIC</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Test Plan</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Status</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Progress</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Tanggal</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Kinerja</th>
-                            <th class="p-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-sm">Aksi</th>
+            <div class="glassmorphism-table rounded-2xl border border-[var(--glass-border)] overflow-hidden shadow-sm backdrop-blur-md">
+                <table class="w-full text-xs sm:text-sm text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                            <th class="py-3.5 px-3 text-center sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">No.</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Model & Build Specs</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">QB Build</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">PIC</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Test Plan</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Status</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Progress</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Tanggal</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">Kinerja</th>
+                            <th class="py-3.5 px-3 sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="task-table-body">
-                        <tr><td colspan="10" class="text-center p-8 text-secondary">Memuat data...</td></tr>
+                    <tbody id="task-table-body" class="divide-y divide-[var(--glass-border)]">
+                        <tr><td colspan="10" class="text-center py-12 text-secondary font-medium">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
-            <div id="pagination-nav" class="flex justify-center items-center gap-2 py-4 text-secondary"></div>
+            <div id="pagination-nav" class="flex justify-center items-center gap-1.5 py-5 text-secondary"></div>
         </div>
     </main>
 
@@ -348,14 +553,24 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     </div>
     <!-- ============ END REDISTRIBUTE MODAL ============ -->
 
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 hidden">
-        <div class="glassmorphism-modal rounded-lg shadow-xl p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm hidden">
+        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-3">
             <form id="task-form" action="handler.php" method="POST">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 id="modal-title" class="text-2xl font-bold text-primary">Tambah Task Baru</h2>
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg themed-input">Batal</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Simpan Task</button>
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-[var(--glass-border)]">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>
+                        <h2 id="modal-title" class="text-base font-bold text-primary">Tambah Task Baru</h2>
+                    </div>
+                    <div class="flex justify-end items-center gap-2">
+                        <button type="button" onclick="closeModal()" class="modal-btn-cancel" title="Tutup modal (Escape)">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            <span>Batal</span>
+                            <kbd class="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-semibold text-secondary bg-white/5 border border-[var(--glass-border)] rounded shadow-sm">ESC</kbd>
+                        </button>
+                        <button type="submit" class="modal-btn-save">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Simpan Task</span>
+                        </button>
                     </div>
                 </div>
                 <input type="hidden" name="id" id="task-id">
@@ -369,11 +584,25 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         const allTasksData = <?= json_encode($tasks) ?>;
         const isAdmin = <?= json_encode(is_admin()) ?>;
         const userdataModels = <?= json_encode(array_keys(array_filter($userdata_models ?? []))) ?>;
+        const modelMapping = <?= json_encode($model_mapping ?? []) ?>;
 
         function isUserdataRequired(modelName) {
             if (!modelName) return false;
             const upperModel = modelName.toUpperCase();
             return userdataModels.some(prefix => upperModel.includes(prefix.toUpperCase()));
+        }
+
+        function getMarketingNameJs(modelName, projectName) {
+            if (projectName && projectName.trim() !== '' && projectName.trim() !== '-') {
+                return projectName.trim();
+            }
+            if (!modelName) return '';
+            const clean = modelName.trim().toUpperCase();
+            if (modelMapping[clean]) return modelMapping[clean];
+            for (const key in modelMapping) {
+                if (clean.startsWith(key.toUpperCase())) return modelMapping[key];
+            }
+            return '';
         }
 
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
@@ -442,7 +671,16 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         const themeToggleBtn=document.getElementById('theme-toggle'),modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
         window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
         function applyTheme(isLight){document.documentElement.classList.toggle('light',isLight);document.getElementById('theme-toggle-light-icon').classList.toggle('hidden',!isLight);document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden',isLight)}const savedTheme=localStorage.getItem('theme');applyTheme(savedTheme==='light');themeToggleBtn.addEventListener('click',()=>{const isLight=!document.documentElement.classList.contains('light');localStorage.setItem('theme',isLight?'light':'dark');applyTheme(isLight)});
-        function openAddModal(){taskForm.reset();modalTitle.innerText='Tambah Task Baru';formAction.value='create_gba_task';taskId.value='';setupQuill('');updateChecklistVisibility();setDefaultDates();modal.classList.remove('hidden')}
+        function openAddModal(){
+            taskForm.reset();
+            modalTitle.innerText='Tambah Task Baru';
+            formAction.value='create_gba_task';
+            taskId.value='';
+            setupQuill('');
+            updateChecklistVisibility();
+            setDefaultDates();
+            modal.classList.remove('modal-closing', 'hidden');
+        }
         
         function openEditModal(task){
             taskForm.reset();
@@ -481,10 +719,38 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                 }
             }
             
-            modal.classList.remove('hidden')
+            modal.classList.remove('modal-closing', 'hidden');
         }
         
-        function closeModal(){modal.classList.add('hidden')}
+        let isTaskModalClosing = false;
+        function closeModal(){
+            if (!modal || modal.classList.contains('hidden') || isTaskModalClosing) return;
+            isTaskModalClosing = true;
+            modal.classList.add('modal-closing');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('modal-closing');
+                isTaskModalClosing = false;
+            }, 160);
+        }
+
+        // Close on backdrop click with smooth motion
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
+        
+        // Quick Action: Escape key to close modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                if (modal && !modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+                const redistModal = document.getElementById('redistribute-modal');
+                if (redistModal && !redistModal.classList.contains('hidden')) {
+                    closeRedistributeModal();
+                }
+            }
+        });
         document.getElementById('test_plan_type').addEventListener('change',updateChecklistVisibility);function setupQuill(content){if(quill){quill.root.innerHTML=content}else{quill=new Quill('#notes-editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],['link'],[{'list':'ordered'},{'list':'bullet'}]]}});quill.root.innerHTML=content}}
         taskForm.addEventListener('submit',function(){ document.getElementById('notes-hidden-input').value=quill.root.innerHTML; const visibleChecklist=document.querySelector('[id^="checklist-container-"]:not(.hidden)'); if(visibleChecklist){ document.querySelectorAll('[id^="checklist-hidden-"]').forEach(el=>el.remove()); visibleChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb=>{ const hidden=document.createElement('input'); hidden.type='hidden'; hidden.id='checklist-hidden-'+cb.name.replace(/[\[\]]/g,'_'); hidden.name=cb.name; hidden.value=cb.checked?'1':'0'; taskForm.appendChild(hidden); cb.disabled=true; }); } });function updateChecklistVisibility(){const testPlan=document.getElementById('test_plan_type').value,placeholder=document.getElementById('checklist-placeholder');let checklistVisible=!1;document.querySelectorAll('[id^="checklist-container-"]').forEach(el=>{const planName=el.id.replace('checklist-container-','').replace(/_/g,' ');if(planName===testPlan){el.classList.remove('hidden');checklistVisible=!0}else{el.classList.add('hidden')}});placeholder.style.display=checklistVisible?'none':'block'}
         
@@ -531,10 +797,46 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             renderPagination(totalPages);
         }
 
+        function getTestPlanBadgeClassJs(plan) {
+            if (!plan) return 'plan-pill plan-pill-smr';
+            const planClean = plan.toUpperCase().trim();
+            const map = {
+                'SMR': 'plan-pill-smr',
+                'FULL TEST': 'plan-pill-fulltest',
+                'FULLTEST': 'plan-pill-fulltest',
+                'SANITY': 'plan-pill-sanity',
+                'MR': 'plan-pill-mr',
+                'NORMAL MR': 'plan-pill-mr',
+                'DELTA TEST': 'plan-pill-delta',
+                'DELTA': 'plan-pill-delta',
+                'REGRESSION': 'plan-pill-regression'
+            };
+            if (map[planClean]) return 'plan-pill ' + map[planClean];
+            const palettes = ['plan-pill-smr', 'plan-pill-fulltest', 'plan-pill-sanity', 'plan-pill-mr', 'plan-pill-delta', 'plan-pill-regression'];
+            let hash = 0;
+            for (let i = 0; i < planClean.length; i++) hash = ((hash << 5) - hash) + planClean.charCodeAt(i);
+            return 'plan-pill ' + palettes[Math.abs(hash) % palettes.length];
+        }
+
+        function getStatusDotColorJs(status) {
+            const map = {
+                'Task Baru': 'bg-blue-400 shadow-sm shadow-blue-400/50',
+                'Downloaded': 'bg-cyan-400 shadow-sm shadow-cyan-400/50',
+                'Test Ongoing': 'bg-amber-400 shadow-sm shadow-amber-400/50',
+                'Pending Feedback': 'bg-orange-400 shadow-sm shadow-orange-400/50',
+                'Feedback Sent': 'bg-orange-400 shadow-sm shadow-orange-400/50',
+                'Submitted': 'bg-purple-400 shadow-sm shadow-purple-400/50',
+                'Passed': 'bg-emerald-400 shadow-sm shadow-emerald-400/50',
+                'Approved': 'bg-emerald-400 shadow-sm shadow-emerald-400/50',
+                'Batal': 'bg-slate-400 shadow-sm shadow-slate-400/50'
+            };
+            return map[status] || 'bg-slate-500 shadow-sm shadow-slate-500/50';
+        }
+
         function buildTableRows(tasks, startIndex) {
             tableBody.innerHTML = '';
             if (tasks.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="10" class="text-center p-8 text-secondary">Tidak ada task yang cocok dengan filter.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="10" class="text-center py-12 text-secondary"><div class="flex flex-col items-center justify-center gap-2"><svg class="w-8 h-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span class="text-sm font-medium">Tidak ada task yang cocok dengan filter.</span></div></td></tr>';
                 return;
             }
             
@@ -554,43 +856,43 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                 
                 const isUdRequired = isUserdataRequired(task.model_name);
                 const udBadge = isUdRequired 
-                    ? `<div class="mt-1"><span class="badge bg-red-500/20 text-red-400 border border-red-500/40 inline-flex items-center gap-1 font-bold" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-red-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>` 
+                    ? `<div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>` 
                     : '';
-                const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link">${task.qb_user}</a></div>` : '';
-                const qbUserdebugLink = task.qb_userdebug ? `<div>USERDEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link">${task.qb_userdebug}</a></div>` : '';
+                const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link font-medium">${task.qb_user}</a></div>` : '';
+                const qbUserdebugLink = task.qb_userdebug ? `<div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link font-medium">${task.qb_userdebug}</a></div>` : '';
                 
-                // --- NEW JS LOGIC FOR CP MISMATCH ---
                 const apVersion = (task.ap || '').trim();
                 const cpVersion = (task.cp || '').trim();
                 const isMismatch = apVersion && cpVersion && apVersion !== cpVersion;
-                const cpMismatchClass = isMismatch ? 'text-red-400 font-bold glow-highlight-red' : '';
-                // --- END NEW JS LOGIC ---
+                const cpMismatchClass = isMismatch ? 'text-red-400 font-bold glow-highlight-red' : 'text-secondary';
 
                 let kinerjaHtml = '';
                 if(task.progress_status === 'Batal') {
-                    kinerjaHtml = `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
-                    kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
+                    kinerjaHtml = `<div class="mb-1 flex items-center gap-1.5"><span class="text-secondary/70 w-16">Submission:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
+                    kinerjaHtml += `<div class="flex items-center gap-1.5"><span class="text-secondary/70 w-16">Approval:</span><span class="font-semibold text-gray-400">Batal</span></div>`;
                 } else {
-                    kinerjaHtml += `<div class="mb-1 flex items-center gap-1"><span class="w-20 inline-block">Submission:</span>`;
+                    kinerjaHtml += `<div class="mb-1 flex items-center gap-1.5"><span class="text-secondary/70 w-16">Submission:</span>`;
                     if(task.ontime_submission_status) {
                         const colorClass = task.ontime_submission_status === 'Delay' ? 'text-red-400' : 'text-green-400';
                         kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_submission_status}</span>`;
                     } else if (task.deadline_countdown !== null) {
                         const colorClass = task.deadline_countdown < 0 ? 'text-red-400' : (task.deadline_countdown <= 3 ? 'text-red-400' : 'text-secondary');
+                        const iconHtml = (task.deadline_countdown <= 3 && task.deadline_countdown >= 0) ? `<svg class="w-3.5 h-3.5 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>` : '';
                         const text = task.deadline_countdown >= 0 ? `${task.deadline_countdown} hari lagi` : `Terlewat ${Math.abs(task.deadline_countdown)} hari`;
-                        kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+                        kinerjaHtml += `<span class="inline-flex items-center gap-1 font-medium ${colorClass}">${iconHtml}${text}</span>`;
                     } else {
                         kinerjaHtml += '-';
                     }
                     kinerjaHtml += `</div>`;
-                    kinerjaHtml += `<div class="flex items-center gap-1"><span class="w-20 inline-block">Approval:</span>`;
+                    kinerjaHtml += `<div class="flex items-center gap-1.5"><span class="text-secondary/70 w-16">Approval:</span>`;
                      if(task.ontime_approved_status) {
                         const colorClass = task.ontime_approved_status === 'Delay' ? 'text-red-400' : 'text-green-400';
                         kinerjaHtml += `<span class="font-semibold ${colorClass}">${task.ontime_approved_status}</span>`;
                     } else if (task.approval_countdown !== null) {
                         const colorClass = task.approval_countdown < 0 ? 'text-red-400' : (task.approval_countdown <= 1 ? 'text-red-400' : 'text-secondary');
+                        const iconHtml = (task.approval_countdown <= 1 && task.approval_countdown >= 0) ? `<svg class="w-3.5 h-3.5 animate-pulse-alert" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>` : '';
                         const text = task.approval_countdown >= 0 ? `${task.approval_countdown} hari lagi` : `Terlewat ${Math.abs(task.approval_countdown)} hari`;
-                        kinerjaHtml += `<span class="flex items-center gap-1 ${colorClass}">${text}</span>`;
+                        kinerjaHtml += `<span class="inline-flex items-center gap-1 font-medium ${colorClass}">${iconHtml}${text}</span>`;
                     } else {
                         kinerjaHtml += '-';
                     }
@@ -599,38 +901,50 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
 
                 let deleteButton = '';
                 if(isAdmin) {
-                    deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
+                    deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');" class="inline-block m-0"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="card-action-btn hover:text-red-500" title="Hapus Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
                 }
 
                 const taskJsonString = JSON.stringify(task).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const planBadgeClass = getTestPlanBadgeClassJs(task.test_plan_type);
+                const dotColorClass = getStatusDotColorJs(task.progress_status);
+                const marketingName = getMarketingNameJs(task.model_name, task.project_name);
+                const marketingNameHtml = marketingName 
+                    ? `<div class="text-[11px] text-secondary font-medium break-words leading-tight mt-0.5 mb-1" title="${marketingName}">${marketingName}</div>` 
+                    : '';
 
                 const rowHtml = `
-                    <tr class="border-b border-[var(--glass-border)] hover:bg-white/5 ${urgentClass}" data-plan="${task.test_plan_type || ''}" data-status="${task.progress_status || ''}">
-                        <td class="p-3 text-center text-secondary">${rowNumber}</td>
-                        <td class="p-3">
-                            <div class="font-medium text-primary"><span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.model_name || '-'}</span></div>
-                            <div class="text-xs text-secondary font-mono space-y-0.5 mt-1">
-                                <div>AP: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.ap || '-'}</span></div> 
-                                <div class="${cpMismatchClass}">CP: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.cp || '-'}</span></div> 
-                                <div>CSC: <span class="copy-text cursor-pointer" title="Klik kanan untuk copy">${task.csc || '-'}</span></div>
+                    <tr class="hover:bg-white/[0.03] dark:hover:bg-white/[0.04] transition-colors ${urgentClass}" data-plan="${task.test_plan_type || ''}" data-status="${task.progress_status || ''}">
+                        <td class="py-3 px-3 text-center text-secondary font-mono text-xs">${rowNumber}</td>
+                        <td class="py-3 px-3 min-w-[200px]">
+                            <div class="font-semibold text-primary leading-tight"><span class="copy-text cursor-pointer hover:text-blue-400 transition" title="Klik kanan untuk copy">${task.model_name || '-'}</span></div>
+                            ${marketingNameHtml}
+                            <div class="build-specs-box">
+                                <div><span class="text-secondary/70">AP:</span> <span class="copy-text cursor-pointer text-primary font-medium" title="Klik kanan untuk copy">${task.ap || '-'}</span></div> 
+                                <div class="${cpMismatchClass}"><span class="text-secondary/70">CP:</span> <span class="copy-text cursor-pointer font-medium" title="Klik kanan untuk copy">${task.cp || '-'}</span></div> 
+                                <div><span class="text-secondary/70">CSC:</span> <span class="copy-text cursor-pointer text-primary font-medium" title="Klik kanan untuk copy">${task.csc || '-'}</span></div>
                             </div>
                         </td>
-                        <td class="p-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}${udBadge}</td>
-                        <td class="p-3"><span class="badge ${task.pic_color_class}">${task.pic_email || 'N/A'}</span></td>
-                        <td class="p-3"><span class="badge ${task.plan_color_class}">${task.test_plan_type || 'N/A'}</span></td>
-                        <td class="p-3"><span class="badge ${task.status_color_class}">${task.progress_status || 'N/A'}</span></td>
-                        <td class="p-3">
-                            <div class="w-28"><div class="progress-bar-bg w-full rounded-full h-4 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-4 rounded-full absolute top-0 left-0" style="width: ${task.progress_percentage || 0}%;"></div><span class="relative text-xs font-bold z-10 progress-text pl-2">${Math.round(task.progress_percentage || 0)}%</span></div></div>
+                        <td class="py-3 px-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}${udBadge}</td>
+                        <td class="py-3 px-3"><span class="badge ${task.pic_color_class} font-medium">${task.pic_email || 'N/A'}</span></td>
+                        <td class="py-3 px-3"><span class="${planBadgeClass}">${task.test_plan_type || 'N/A'}</span></td>
+                        <td class="py-3 px-3">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${task.status_color_class}">
+                                <span class="w-1.5 h-1.5 rounded-full ${dotColorClass}"></span>
+                                <span>${task.progress_status || 'N/A'}</span>
+                            </span>
                         </td>
-                        <td class="p-3 text-xs text-secondary">
-                            <div>Req: ${reqDate}</div>
-                            <div>Sub: ${subDate}</div>
-                            <div class="font-bold text-primary">Deadline: ${deadDate}</div>
+                        <td class="py-3 px-3">
+                            <div class="w-24"><div class="progress-bar-bg w-full rounded-full h-3.5 relative flex items-center overflow-hidden"><div class="progress-bar-fill h-3.5 rounded-full absolute top-0 left-0" style="width: ${task.progress_percentage || 0}%;"></div><span class="relative text-[10px] font-bold z-10 progress-text pl-1.5">${Math.round(task.progress_percentage || 0)}%</span></div></div>
                         </td>
-                        <td class="p-3 text-xs">${kinerjaHtml}</td>
-                        <td class="p-3">
-                            <div class="flex items-center">
-                                <button onclick='openEditModal(${taskJsonString})' class="p-1 rounded hover:bg-gray-600/50"><svg class="w-4 h-4 text-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                        <td class="py-3 px-3 text-xs text-secondary whitespace-nowrap">
+                            <div><span class="text-secondary/70">Req:</span> ${reqDate}</div>
+                            <div><span class="text-secondary/70">Sub:</span> ${subDate}</div>
+                            <div class="font-bold text-primary"><span class="text-secondary/70">Deadline:</span> ${deadDate}</div>
+                        </td>
+                        <td class="py-3 px-3 text-xs whitespace-nowrap">${kinerjaHtml}</td>
+                        <td class="py-3 px-3 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                                <button onclick='openEditModal(${taskJsonString})' class="card-action-btn hover:text-blue-500" title="Edit Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                 ${deleteButton}
                             </div>
                         </td>
@@ -665,7 +979,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         function createPageButton(page, text) {
             const pageButton = document.createElement('button');
             pageButton.textContent = text;
-            pageButton.className = `px-3 py-1 rounded-lg text-sm ${page === currentPage ? 'bg-blue-600 text-white' : 'themed-input'}`;
+            pageButton.className = `px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${page === currentPage ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30' : 'bg-[var(--glass-bg)] border border-[var(--glass-border)] text-secondary hover:text-primary hover:bg-white/10'}`;
             pageButton.onclick = () => {
                 currentPage = page;
                 renderTable();
@@ -782,7 +1096,8 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
 
         // ============ REDISTRIBUTE REQUEST DATE LOGIC ============
         function openRedistributeModal() {
-            document.getElementById('redistribute-modal').classList.remove('hidden');
+            const redistModal = document.getElementById('redistribute-modal');
+            if (redistModal) redistModal.classList.remove('modal-closing', 'hidden');
             document.getElementById('redistribute-loading').classList.remove('hidden');
             document.getElementById('redistribute-content').classList.add('hidden');
             document.getElementById('redistribute-error').classList.add('hidden');
@@ -812,8 +1127,17 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             });
         }
 
+        let isRedistModalClosing = false;
         function closeRedistributeModal() {
-            document.getElementById('redistribute-modal').classList.add('hidden');
+            const redistModal = document.getElementById('redistribute-modal');
+            if (!redistModal || redistModal.classList.contains('hidden') || isRedistModalClosing) return;
+            isRedistModalClosing = true;
+            redistModal.classList.add('modal-closing');
+            setTimeout(() => {
+                redistModal.classList.add('hidden');
+                redistModal.classList.remove('modal-closing');
+                isRedistModalClosing = false;
+            }, 160);
         }
 
         function renderRedistributePreview(preview) {
@@ -923,28 +1247,36 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             }
         });
 
-        function showCopyTooltip(x, y) {
+        function showCopyTooltip(x, y, text = 'Copied!') {
+            const existing = document.querySelector('.copy-tooltip');
+            if (existing) existing.remove();
+
             const tooltip = document.createElement('div');
             tooltip.className = 'copy-tooltip';
-            tooltip.textContent = 'copied!';
+            tooltip.innerHTML = `
+                <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>${text}</span>
+            `;
             tooltip.style.left = x + 'px';
             tooltip.style.top = y + 'px';
             document.body.appendChild(tooltip);
             
-            // Trigger reflow
-            void tooltip.offsetWidth;
-            tooltip.style.opacity = '1';
+            requestAnimationFrame(() => {
+                tooltip.classList.add('show');
+            });
             
             setTimeout(() => {
-                tooltip.style.opacity = '0';
+                tooltip.classList.remove('show');
                 setTimeout(() => tooltip.remove(), 200);
-            }, 1000);
+            }, 1100);
         }
 
         function copyNewTasksQbIds(event, button) {
             const textToCopy = button.getAttribute('data-qb-ids');
             if (!textToCopy) {
-                alert('Tidak ada QB Build ID untuk status "Task Baru" dengan Test Plan SMR saat ini.');
+                alert('Tidak ada QB Build ID untuk status "Task Baru" saat ini.');
                 return;
             }
             

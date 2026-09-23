@@ -243,4 +243,21 @@ if (!function_exists('is_model_dropped')) {
     }
 }
 
+if (!function_exists('get_marketing_name')) {
+    function get_marketing_name($model_name, $default = '') {
+        global $model_mapping;
+        if (empty($model_name) || empty($model_mapping)) return $default;
+        $clean_model = strtoupper(trim($model_name));
+        if (isset($model_mapping[$clean_model])) {
+            return $model_mapping[$clean_model];
+        }
+        foreach ($model_mapping as $key => $value) {
+            if (strpos($clean_model, strtoupper($key)) === 0) {
+                return $value;
+            }
+        }
+        return !empty($default) ? $default : '';
+    }
+}
+
 ?>

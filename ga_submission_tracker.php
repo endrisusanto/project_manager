@@ -15,7 +15,7 @@ $sql = "
     SELECT t.id, t.model_name, t.ap, t.pic_email, t.progress_status, t.notes, u.username
     FROM gba_tasks t
     LEFT JOIN users u ON t.pic_email = u.email
-    WHERE t.progress_status = 'Task Baru' OR (t.progress_status = 'Test Ongoing' AND t.notes IS NOT NULL AND t.notes LIKE 'GA%')
+    WHERE t.progress_status IN ('Task Baru', 'Downloaded') OR (t.progress_status = 'Test Ongoing' AND t.notes IS NOT NULL AND t.notes LIKE 'GA%')
     ORDER BY t.pic_email, t.model_name
 ";
 
@@ -30,15 +30,16 @@ if ($tasks_result) {
         $pic_email = $task['pic_email'];
         $pic_name = $task['username'] ?? strtok($pic_email, '@');
 
-        // Task Baru masuk ke List 1
-        if ($task['progress_status'] === 'Task Baru') {
+        // Task Baru & Downloaded masuk ke List 1 (Menunggu Review/Kategorisasi)
+        if ($task['progress_status'] === 'Task Baru' || $task['progress_status'] === 'Downloaded') {
             if (!isset($new_tasks_grouped[$pic_email])) {
                 $new_tasks_grouped[$pic_email] = ['name' => $pic_name, 'tasks' => []];
             }
             $new_tasks_grouped[$pic_email]['tasks'][] = [
                 'id' => $task['id'],
                 'ap' => $task['ap'] ?: 'N/A',
-                'model_name' => $task['model_name']
+                'model_name' => $task['model_name'],
+                'progress_status' => $task['progress_status']
             ];
         }
 
@@ -100,57 +101,54 @@ if ($tasks_result) {
 $initial_processed_data_json = json_encode($processed_tasks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
 $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GBA Submission Tracker</title>
+    <title>GBA Submission Tracker - Project Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '.never-match-dark']
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #020617;
-            --text-primary: #e2e8f0;
+            --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-            --glass-bg: rgba(15, 23, 42, .8);
-            --glass-border: rgba(51, 65, 85, .6);
-            --text-header: #fff;
-            --text-icon: #94a3b8;
-            --input-bg: rgba(30, 41, 59, .7);
-            --input-border: #475569;
-            --card-bg: rgba(15, 23, 42, .6);
-            --card-border: rgba(51, 65, 85, .6);
-            --delete-btn-hover: #f87171;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: rgba(51, 65, 85, 0.65);
+            --item-bg: rgba(30, 41, 59, 0.6);
+            --item-hover: rgba(51, 65, 85, 0.75);
+            --item-border: rgba(51, 65, 85, 0.6);
+            --mono-font: 'JetBrains Mono', monospace;
+            --output-bg: rgba(2, 6, 23, 0.8);
+            --output-border: rgba(51, 65, 85, 0.6);
+            --output-text: #e2e8f0;
         }
-
         html.light {
-            --bg-primary: #f1f5f9;
+            --bg-primary: #f8fafc;
             --text-primary: #0f172a;
             --text-secondary: #475569;
-            --glass-bg: rgba(255, 255, 255, .7);
-            --glass-border: rgba(0, 0, 0, .1);
-            --text-header: #0f172a;
-            --text-icon: #475569;
-            --input-bg: #ffffff;
-            --input-border: #cbd5e1;
-            --card-bg: rgba(255, 255, 255, .8);
-            --card-border: rgba(0, 0, 0, .1);
-            --delete-btn-hover: #dc2626;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --item-bg: #f8fafc;
+            --item-hover: #f1f5f9;
+            --item-border: #e2e8f0;
+            --output-bg: #f8fafc;
+            --output-border: #e2e8f0;
+            --output-text: #0f172a;
         }
 
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-primary);
-            color: var(--text-primary)
-        }
-
-        html,
-        body {
-            height: 100%;
+            color: var(--text-primary);
+            transition: background-color 0.18s ease, color 0.18s ease;
         }
 
         #neural-canvas {
@@ -159,192 +157,168 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1
+            z-index: -1;
+            pointer-events: none !important;
         }
 
-        .glass-container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border)
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        html.light .glass-panel {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
         }
 
-        .pic-card {
+        .sub-card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
+            border-radius: 1rem;
+            transition: all 0.2s ease;
+        }
+        html.light .sub-card {
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
         }
 
-        .list-group {
-            min-height: 50px;
-        }
-
-        .list-item {
-            background-color: rgba(0, 0, 0, 0.1);
-            padding: 8px;
-            border-radius: 6px;
-            margin-bottom: 4px;
+        .tracker-item {
+            background-color: var(--item-bg);
+            border: 1px solid var(--item-border);
+            border-radius: 0.625rem;
+            padding: 0.625rem 0.875rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        html.light .tracker-item {
+            background-color: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        html.light .tracker-item:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .tracker-item:hover {
+            background-color: var(--item-hover);
+            transform: translateY(-1px);
+        }
+        .tracker-item:active {
+            transform: translateY(0);
         }
 
-        .list-item:hover {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        html.light .list-item {
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        html.light .list-item:hover {
-            background-color: rgba(0, 0, 0, 0.1);
-        }
-
-        .nav-link {
-            color: var(--text-secondary);
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .nav-link:hover {
-            border-color: var(--text-secondary);
-            color: var(--text-primary);
-        }
-
-        .nav-link-active {
-            color: var(--text-primary) !important;
-            border-bottom: 2px solid #3b82f6;
-            font-weight: 600;
-        }
-
-        /* Override Navbar z-index */
-        nav,
-        header,
-        .navbar {
-            z-index: 1 !important;
-            /* Set rendah tapi tidak auto agar tetap terlihat */
-        }
-
-        /* Gaya untuk Modal */
         .modal {
             display: none;
             position: fixed;
             z-index: 9999;
-            /* Sangat tinggi agar di atas segalanya */
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            /* Hapus scroll di background */
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            /* Flexbox centering */
-            display: none;
-            /* Akan di-override JS menjadi flex */
+            background-color: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             align-items: center;
             justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-
-        /* Class helper untuk display flex saat modal aktif */
         .modal.active-flex {
             display: flex !important;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .modal-content {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            padding: 20px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 85vh;
-            /* Batasi tinggi modal */
-            display: flex;
-            flex-direction: column;
-            position: relative;
+            border-radius: 1.25rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+            transform: scale(0.96);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        html.light .modal-content {
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+        }
+        .modal.active-flex .modal-content {
+            transform: scale(1);
         }
 
-        /* Activity Log Container Specific */
-        #activity-log-container {
-            overflow-y: auto;
-            flex-grow: 1;
-            margin-bottom: 10px;
-            padding-right: 5px;
-            /* Space for scrollbar */
+        .output-mono {
+            font-family: var(--mono-font);
+            background-color: var(--output-bg);
+            border: 1px solid var(--output-border);
+            color: var(--output-text);
         }
 
-        .modal-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
         }
-
-        .modal-buttons button {
-            padding: 12px 20px;
-            font-weight: 600;
-            border-radius: 8px;
-            background-color: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            transition: background-color 0.2s;
+        ::-webkit-scrollbar-track {
+            background: transparent;
         }
-
-        .modal-buttons button:hover {
-            background-color: rgba(59, 130, 246, 0.4);
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 4px;
         }
-
-        /* Gaya untuk Output Card */
-        .output-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            padding: 16px;
-            border-radius: 12px;
-        }
-
-        .output-list {
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 0.9rem;
-            color: #a5b4fc;
-        }
-
-        .clipboard-card {
-            position: relative;
-            border: 1px solid #3b82f6;
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
         }
     </style>
 </head>
-
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="min-h-screen flex flex-col">
     <canvas id="neural-canvas"></canvas>
-    <div id="toast"
-        style="position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); background-color: #22c55e; color: #fff; padding: 12px 20px; border-radius: 8px; z-index: 1000; transition: bottom 0.5s ease-in-out;">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-2xl flex items-center gap-2 transition-all duration-300 pointer-events-none opacity-0 translate-y-4">
+        <span id="toast-icon"></span>
+        <span id="toast-msg"></span>
     </div>
 
     <?php include 'header.php'; ?>
 
-    <main class="w-full p-4 flex-grow overflow-y-hidden">
-        <div class="flex justify-between items-center mb-4 flex-shrink-0">
-            <h1 class="text-3xl font-bold text-header">GBA Tracker & Reason OT</h1>
-            <button onclick="openActivityLog()"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <main class="w-full flex-grow p-4 sm:p-6 sm:py-8 flex flex-col max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header HUD -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 flex-shrink-0 shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary);">GBA Tracker & Reason OT</h1>
+                    <p class="text-xs sm:text-sm font-medium" style="color: var(--text-secondary);">Monitoring pipeline submission GA, reason overtime, dan otomasi salin template</p>
+                </div>
+            </div>
+            
+            <button onclick="openActivityLog()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0 self-start sm:self-auto">
+                <svg class="w-4 h-4 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Activity Log
+                <span>Activity Log</span>
             </button>
         </div>
 
-        <div class="overflow-y-auto flex-grow">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3 gap-4">
+        <!-- Main Content Area (Responsive Bento Grid) -->
+        <div class="w-full flex-grow pb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <?php if (empty($new_tasks_grouped) && empty($processed_tasks) && empty($clipboard_tasks)): ?>
-                    <div class="text-center p-8 bg-gray-700/50 rounded-xl text-md text-secondary col-span-full">
-                        Tidak ada task yang ditemukan.
+                    <div class="glass-panel p-12 text-center col-span-full flex flex-col items-center justify-center space-y-3">
+                        <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <h3 class="text-base font-bold" style="color: var(--text-primary);">Tidak ada task yang perlu diproses</h3>
+                        <p class="text-xs max-w-sm" style="color: var(--text-secondary);">Semua task GBA baru atau ongoing GA telah terselesaikan atau belum ditugaskan.</p>
                     </div>
                 <?php else: ?>
                     <?php
@@ -365,35 +339,43 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                             $pic_name = $clipboard_tasks[$email]['name'];
 
                         $picHash = str_replace('=', '', base64_encode($email));
-                        ?>
-                        <!-- Container untuk satu PIC (3 cards vertikal) -->
-                        <div class="flex flex-col space-y-3" data-pic-email="<?= htmlspecialchars($email) ?>">
+                    ?>
+                        <!-- Container untuk satu PIC (Stack 3 Card Vertikal) -->
+                        <div class="flex flex-col space-y-4" data-pic-email="<?= htmlspecialchars($email) ?>">
 
                             <!-- List 1: Daftar Task Baru -->
                             <?php if (isset($new_tasks_grouped[$email])): ?>
-                                <div id="list-card-<?= $picHash ?>"
-                                    class="pic-card rounded-xl p-4 shadow-lg flex flex-col space-y-2 overflow-hidden">
-                                    <div
-                                        class="flex items-center justify-between border-b border-[var(--card-border)] pb-2 flex-shrink-0">
+                                <div id="list-card-<?= $picHash ?>" class="sub-card p-4 sm:p-5 flex flex-col space-y-3 overflow-hidden border-l-4 border-l-blue-600">
+                                    <div class="flex items-center justify-between border-b pb-2.5 flex-shrink-0" style="border-color: var(--card-border);">
                                         <div class="flex items-center gap-2">
-                                            <span class="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">1</span>
-                                            <h3 class="text-lg font-bold text-blue-400">
-                                                <?= htmlspecialchars($pic_name) ?>
-                                            </h3>
+                                            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-sm">1</span>
+                                            <div>
+                                                <h3 class="text-sm font-bold" style="color: var(--text-primary);">
+                                                    <?= htmlspecialchars($pic_name) ?>
+                                                </h3>
+                                                <p class="text-[10px] font-medium" style="color: var(--text-secondary);">Task Baru & Downloaded</p>
+                                            </div>
                                         </div>
-                                        <span class="px-2 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">
-                                            <?= count($new_tasks_grouped[$email]['tasks']) ?>
+                                        <span class="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold rounded-lg">
+                                            <?= count($new_tasks_grouped[$email]['tasks']) ?> Task
                                         </span>
                                     </div>
-                                    <div class="overflow-y-auto flex-grow min-h-0 max-h-48">
-                                        <ul class="list-group list-disc pl-0 space-y-1">
+                                    <div class="overflow-y-auto max-h-56 pr-1">
+                                        <ul class="list-group space-y-2">
                                             <?php foreach ($new_tasks_grouped[$email]['tasks'] as $task): ?>
-                                                <li class="list-item text-sm text-secondary" data-task-id="<?= $task['id'] ?>"
+                                                <li class="tracker-item text-xs" data-task-id="<?= $task['id'] ?>"
                                                     data-ap="<?= htmlspecialchars($task['ap']) ?>"
                                                     data-model-name="<?= htmlspecialchars($task['model_name']) ?>"
                                                     onclick="openTaskModal(<?= $task['id'] ?>, '<?= htmlspecialchars($email) ?>', '<?= htmlspecialchars($task['ap']) ?>')">
-                                                    - <?= htmlspecialchars($task['ap']) ?>
-                                                    (<?= htmlspecialchars($task['model_name']) ?>)
+                                                    <div class="flex items-center gap-2 truncate flex-1 min-w-0">
+                                                        <span class="w-2 h-2 rounded-full <?= ($task['progress_status'] ?? '') === 'Downloaded' ? 'bg-cyan-500' : 'bg-blue-600' ?> flex-shrink-0"></span>
+                                                        <span class="font-bold truncate" style="color: var(--text-primary);"><?= htmlspecialchars($task['ap']) ?></span>
+                                                        <span class="truncate text-[11px]" style="color: var(--text-secondary);">(<?= htmlspecialchars($task['model_name']) ?>)</span>
+                                                        <?php if (($task['progress_status'] ?? '') === 'Downloaded'): ?>
+                                                            <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 flex-shrink-0">Downloaded</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                                 </li>
                                             <?php endforeach; ?>
                                         </ul>
@@ -401,10 +383,10 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                                 </div>
                             <?php endif; ?>
 
-                            <!-- List 2: Template Reason OT (Diproses) - Placeholder, akan diisi oleh JS -->
+                            <!-- List 2: Template Reason OT (Diproses) - Placeholder JS -->
                             <div id="processed-card-<?= $picHash ?>-container"></div>
 
-                            <!-- List 3: Template Reason OT Final - Placeholder, akan diisi oleh JS -->
+                            <!-- List 3: Template Reason OT Final - Placeholder JS -->
                             <div id="clipboard-card-<?= $picHash ?>-container"></div>
 
                         </div>
@@ -414,48 +396,113 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
         </div>
     </main>
 
+    <!-- Modal Kategori Task -->
     <div id="task-category-modal" class="modal">
-        <div class="modal-content">
-            <h2 class="text-xl font-bold text-header mb-4">Kategorikan Task</h2>
-            <p class="text-secondary mb-4">Pilih kategori untuk AP: <span id="modal-ap-display"
-                    class="font-bold text-primary"></span></p>
+        <div class="modal-content w-full max-w-lg p-6 flex flex-col space-y-5">
+            <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--card-border);">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 font-bold">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold" style="color: var(--text-primary);">Kategorikan Task GBA</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Pilih target timeline dan jenis proses</p>
+                    </div>
+                </div>
+                <button onclick="closeTaskModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-700">Target AP:</span>
+                <span id="modal-ap-display" class="font-mono font-bold text-sm text-blue-800"></span>
+            </div>
 
             <input type="hidden" id="modal-task-id">
             <input type="hidden" id="modal-pic-email">
             <input type="hidden" id="modal-ap-version">
 
-            <div class="modal-buttons">
-                <button onclick="processTaskCategory('GA Submit')">GA Submit (Target Submit: Hari Ini, Target Approved:
-                    Besok)</button>
-                <button onclick="processTaskCategory('GA Follow Up')">GA Follow Up (Target Submit: Hari Ini, Target
-                    Approved: Besok)</button>
-                <button onclick="processTaskCategory('GA Follow Up Besok')">GA Follow Up (Target Submit: Besok, Target
-                    Approved: Besok)</button>
-                <button onclick="processTaskCategory('GA First Run')">GA First Run (Target Submit: Besok, Target
-                    Approved: Besok)</button>
+            <div class="grid grid-cols-1 gap-2.5">
+                <button type="button" onclick="processTaskCategory('GA Submit')" class="w-full text-left p-3.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all flex items-center justify-between group active:scale-[0.99]">
+                    <div>
+                        <div class="text-sm font-bold text-blue-900 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                            GA Submit
+                        </div>
+                        <div class="text-[11px] text-slate-700 mt-0.5">Target Submit: <span class="font-bold text-slate-900">Hari Ini</span> &bull; Target Approved: <span class="font-bold text-slate-900">Besok</span></div>
+                    </div>
+                    <svg class="w-4 h-4 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <button type="button" onclick="processTaskCategory('GA Follow Up')" class="w-full text-left p-3.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-all flex items-center justify-between group active:scale-[0.99]">
+                    <div>
+                        <div class="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                            GA Follow Up
+                        </div>
+                        <div class="text-[11px] text-slate-700 mt-0.5">Target Submit: <span class="font-bold text-slate-900">Hari Ini</span> &bull; Target Approved: <span class="font-bold text-slate-900">Besok</span></div>
+                    </div>
+                    <svg class="w-4 h-4 text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <button type="button" onclick="processTaskCategory('GA Follow Up Besok')" class="w-full text-left p-3.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-all flex items-center justify-between group active:scale-[0.99]">
+                    <div>
+                        <div class="text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-600"></span>
+                            GA Follow Up Besok
+                        </div>
+                        <div class="text-[11px] text-slate-700 mt-0.5">Target Submit: <span class="font-bold text-slate-900">Besok</span> &bull; Target Approved: <span class="font-bold text-slate-900">Besok</span></div>
+                    </div>
+                    <svg class="w-4 h-4 text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <button type="button" onclick="processTaskCategory('GA First Run')" class="w-full text-left p-3.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-all flex items-center justify-between group active:scale-[0.99]">
+                    <div>
+                        <div class="text-sm font-bold text-purple-900 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                            GA First Run
+                        </div>
+                        <div class="text-[11px] text-slate-700 mt-0.5">Target Submit: <span class="font-bold text-slate-900">Besok</span> &bull; Target Approved: <span class="font-bold text-slate-900">Besok</span></div>
+                    </div>
+                    <svg class="w-4 h-4 text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </button>
             </div>
 
-            <button onclick="closeTaskModal()"
-                class="mt-6 w-full text-sm px-4 py-2 rounded-lg text-secondary border border-gray-600 hover:border-red-400 hover:text-red-400 transition-colors">Batal</button>
+            <div class="pt-2">
+                <button type="button" onclick="closeTaskModal()" class="w-full py-2.5 px-4 rounded-xl text-xs font-semibold border border-slate-300 hover:bg-slate-100 transition-colors" style="color: var(--text-secondary);">
+                    Batal
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Activity Log Modal -->
     <div id="activity-log-modal" class="modal">
-        <div class="modal-content w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                <h2 class="text-xl font-bold text-header">Activity Log (Copied Items)</h2>
-                <button onclick="closeActivityLog()" class="text-secondary hover:text-white text-2xl">&times;</button>
+        <div class="modal-content w-full max-w-3xl max-h-[85vh] p-6 flex flex-col space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 flex-shrink-0" style="border-color: var(--card-border);">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold" style="color: var(--text-primary);">Activity Log (Copied Items)</h2>
+                        <p class="text-xs" style="color: var(--text-secondary);">Riwayat salin template reason OT ke clipboard</p>
+                    </div>
+                </div>
+                <button onclick="closeActivityLog()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <div class="overflow-y-auto flex-grow pr-2" id="activity-log-container">
-                <!-- Log items will be injected here -->
-                <div class="text-center text-secondary py-8">Belum ada aktivitas copy.</div>
+            <div class="overflow-y-auto flex-grow pr-1 space-y-3" id="activity-log-container">
+                <div class="text-center text-slate-400 py-8 text-xs">Memuat log aktivitas...</div>
             </div>
 
-            <div class="mt-4 pt-2 border-t border-gray-700 flex justify-end">
-                <button onclick="closeActivityLog()"
-                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">Close</button>
+            <div class="pt-3 border-t flex justify-end flex-shrink-0" style="border-color: var(--card-border);">
+                <button onclick="closeActivityLog()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold transition-colors">
+                    Tutup
+                </button>
             </div>
         </div>
     </div>
@@ -463,64 +510,72 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
     <script>
         // --- Setup Data & Constants ---
         let clipboardData = <?= $initial_clipboard_data_json ?>;
-        let processedData = <?= $initial_processed_data_json ?>; // Data dari PHP untuk list 2
+        let processedData = <?= $initial_processed_data_json ?>; 
         let countdownTimers = [];
-        let activityLog = [];
 
         // --- Activity Log Functions ---
         function openActivityLog() {
             fetchActivityLogs();
-            document.getElementById('activity-log-modal').style.display = 'flex';
+            const modal = document.getElementById('activity-log-modal');
+            modal.classList.add('active-flex');
         }
 
         function closeActivityLog() {
-            document.getElementById('activity-log-modal').style.display = 'none';
+            const modal = document.getElementById('activity-log-modal');
+            modal.classList.remove('active-flex');
         }
 
         function fetchActivityLogs() {
             const container = document.getElementById('activity-log-container');
-            container.innerHTML = '<div class="text-center text-secondary py-8">Loading...</div>';
+            container.innerHTML = '<div class="text-center text-slate-400 py-8 text-xs">Memuat log aktivitas...</div>';
 
             fetch('handler.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'get_activity_logs' })
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        renderActivityLog(data.logs);
-                    } else {
-                        container.innerHTML = '<div class="text-center text-red-400 py-8">Gagal memuat log.</div>';
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    container.innerHTML = '<div class="text-center text-red-400 py-8">Terjadi kesalahan koneksi.</div>';
-                });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderActivityLog(data.logs);
+                } else {
+                    container.innerHTML = '<div class="text-center text-rose-600 py-8 text-xs font-semibold">Gagal memuat log aktivitas.</div>';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                container.innerHTML = '<div class="text-center text-rose-600 py-8 text-xs font-semibold">Terjadi kesalahan koneksi.</div>';
+            });
         }
 
         function renderActivityLog(logs) {
             const container = document.getElementById('activity-log-container');
             if (!logs || logs.length === 0) {
-                container.innerHTML = '<div class="text-center text-secondary py-8">Belum ada aktivitas copy.</div>';
+                container.innerHTML = `
+                    <div class="text-center py-10 flex flex-col items-center justify-center space-y-2">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <p class="text-xs font-medium" style="color: var(--text-secondary);">Belum ada aktivitas copy tercatat.</p>
+                    </div>
+                `;
                 return;
             }
 
             container.innerHTML = logs.map(log => `
-                <div class="bg-gray-800/50 rounded-lg p-4 mb-3 border border-gray-700 relative group">
-                    <div class="flex justify-between items-start mb-2">
+                <div class="sub-card p-3.5 space-y-2">
+                    <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 bg-blue-900/50 text-blue-400 text-xs rounded border border-blue-800">${log.timestamp}</span>
-                            <span class="font-bold text-primary">${log.pic_name}</span>
+                            <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-mono font-bold rounded-md border border-blue-200">${log.timestamp}</span>
+                            <span class="text-xs font-bold" style="color: var(--text-primary);">${log.pic_name}</span>
                         </div>
-                        <button onclick="deleteActivityLog(${log.id})" class="text-gray-500 hover:text-red-400 transition-colors p-1" title="Hapus Log">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button onclick="deleteActivityLog(${log.id})" class="text-slate-400 hover:text-rose-600 transition-colors p-1 rounded-md" title="Hapus Log">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                         </button>
                     </div>
-                    <div class="bg-gray-900 rounded p-3 font-mono text-sm text-gray-300 whitespace-pre-wrap border border-gray-800">${log.content}</div>
+                    <div class="output-mono rounded-lg p-3 text-xs whitespace-pre-wrap">${log.content}</div>
                 </div>
             `).join('');
         }
@@ -533,27 +588,24 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'delete_activity_log', id: id })
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        fetchActivityLogs(); // Refresh list
-                    } else {
-                        alert('Gagal menghapus log: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('Terjadi kesalahan koneksi.');
-                });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    fetchActivityLogs();
+                } else {
+                    showToast('Gagal menghapus log: ' + (data.error || 'Unknown error'), false);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Terjadi kesalahan koneksi.', false);
+            });
         }
-
 
         // Helper function for Clipboard API fallback
         function fallbackCopyToClipboard(textToCopy) {
             const textArea = document.createElement("textarea");
             textArea.value = textToCopy;
-
-            // Pastikan textarea tidak mengganggu tampilan atau scroll
             textArea.style.top = "0";
             textArea.style.left = "0";
             textArea.style.position = "fixed";
@@ -576,10 +628,8 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
         // --- Countdown Logic ---
         function calculateTimeRemaining(categorizedAtTime) {
             const categorizedTime = new Date(categorizedAtTime).getTime();
-            // Expiry time is 20 hours (20 * 60 * 60 * 1000 milliseconds)
             const expiryTime = categorizedTime + (20 * 3600 * 1000);
             const now = new Date().getTime();
-
             const remainingMilliseconds = expiryTime - now;
 
             if (remainingMilliseconds <= 0) {
@@ -603,15 +653,11 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
 
                 if (remaining === "Expired") {
                     const picEmail = cardElement.dataset.picEmail;
-                    // Hapus kartu dari tampilan dan struktur data
                     if (clipboardData[picEmail]) {
-                        // Hapus data card secara total karena sudah kedaluwarsa
                         delete clipboardData[picEmail];
                     }
                     cardElement.remove();
-
                     clearInterval(cardElement.timerId);
-                    // Tidak perlu panggil renderClipboardOutput() lagi karena card sudah dihapus
                 }
             }
 
@@ -626,11 +672,13 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             document.getElementById('modal-task-id').value = taskId;
             document.getElementById('modal-pic-email').value = picEmail;
             document.getElementById('modal-ap-version').value = apVersion;
-            document.getElementById('task-category-modal').style.display = 'flex';
+            const modal = document.getElementById('task-category-modal');
+            modal.classList.add('active-flex');
         }
 
         function closeTaskModal() {
-            document.getElementById('task-category-modal').style.display = 'none';
+            const modal = document.getElementById('task-category-modal');
+            modal.classList.remove('active-flex');
         }
 
         // --- Core Processing Logic ---
@@ -642,22 +690,17 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             closeTaskModal();
             showToast(`Memproses task #${taskId} ke ${category}...`, true);
 
-            // --- CATCH PIC NAME BEFORE REMOVAL ---
-            const listItem = document.querySelector(`.list-item[data-task-id="${taskId}"]`);
-            const card = listItem ? listItem.closest('.pic-card') : null;
+            const listItem = document.querySelector(`.tracker-item[data-task-id="${taskId}"]`);
             let picName = picEmail;
 
-            if (card) {
-                picName = card.querySelector('h3').textContent.trim();
-                if (picName.includes('-')) {
-                    picName = picName.substring(0, picName.indexOf('-')).trim();
-                } else if (picName.includes('(')) {
-                    picName = picName.substring(0, picName.indexOf('(')).trim();
+            if (listItem) {
+                const picContainer = listItem.closest('[data-pic-email]');
+                if (picContainer) {
+                    const h3 = picContainer.querySelector('h3');
+                    if (h3) picName = h3.textContent.trim();
                 }
             }
-            // ------------------------------------
 
-            // 1. Send API Call to Update Status and Notes
             fetch('handler.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -669,32 +712,26 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 })
             }).then(response => response.json()).then(data => {
                 if (data.success) {
-                    // 2. Determine destination based on category
                     if (category === 'GA Follow Up Besok' || category === 'GA First Run') {
-                        // Add to List 2 (Processed - clickable)
                         if (!processedData[picEmail]) {
                             processedData[picEmail] = { 'name': picName, 'tasks': [] };
                         }
-
-                        // Remove task with same AP from processedData
                         processedData[picEmail].tasks = processedData[picEmail].tasks.filter(
                             task => task.ap !== apVersion
                         );
-
-                        // Add new task
                         processedData[picEmail].tasks.push({
                             id: taskId,
                             ap: data.ap_version,
                             model_name: data.model_name || apVersion,
-                            category: category
+                            category: category,
+                            target_submit: data.target_submit,
+                            target_approved: data.target_approved
                         });
                     } else if (category === 'GA Submit' || category === 'GA Follow Up') {
-                        // Add to List 3 (Final - with timer)
                         if (!clipboardData[picEmail]) {
                             clipboardData[picEmail] = { 'name': picName, 'categories': { 'GA Submit': [], 'GA Follow Up': [] } };
                         }
 
-                        // Remove from all categories in clipboardData
                         ['GA Submit', 'GA Follow Up'].forEach(cat => {
                             if (clipboardData[picEmail].categories[cat]) {
                                 clipboardData[picEmail].categories[cat] = clipboardData[picEmail].categories[cat].filter(
@@ -703,7 +740,6 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                             }
                         });
 
-                        // Add to new category
                         if (!clipboardData[picEmail].categories[category]) {
                             clipboardData[picEmail].categories[category] = [];
                         }
@@ -713,7 +749,6 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                             timestamp: data.categorized_at
                         });
 
-                        // Remove from processedData if exists
                         if (processedData[picEmail]) {
                             processedData[picEmail].tasks = processedData[picEmail].tasks.filter(
                                 task => task.ap !== apVersion
@@ -724,10 +759,9 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                         }
                     }
 
-                    // 3. Remove from List 1 or List 2 (DOM)
                     if (listItem) {
                         const listGroup = listItem.closest('.list-group');
-                        const picCard = listItem.closest('.pic-card');
+                        const picCard = listItem.closest('.sub-card');
                         listItem.remove();
 
                         if (listGroup && listGroup.children.length === 0 && picCard) {
@@ -735,12 +769,11 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                         }
                     }
 
-                    // 4. Render both lists
                     renderProcessedOutput();
                     renderClipboardOutput();
-                    showToast(`Task #${taskId} berhasil diubah status menjadi 'Test Ongoing' dan dikategorikan sebagai ${category}.`, true);
+                    showToast(`Task #${taskId} berhasil dikategorikan sebagai ${category}.`, true);
                 } else {
-                    showToast(`Gagal update status task #${taskId}: ${data.error}`, false);
+                    showToast(`Gagal update task #${taskId}: ${data.error}`, false);
                     console.error("API Error:", data.error);
                 }
             }).catch(error => {
@@ -749,13 +782,8 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             });
         }
 
-
-
-
-
-        // --- Output Rendering for List 2 (Processed - Clickable like List 1) ---
+        // --- Output Rendering for List 2 (Processed - Clickable) ---
         function renderProcessedOutput() {
-            // Clear all processed containers first
             document.querySelectorAll('[id$="-container"]').forEach(container => {
                 if (container.id.includes('processed-card-')) {
                     container.innerHTML = '';
@@ -771,27 +799,35 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
 
                 if (data.tasks && data.tasks.length > 0) {
                     const cardHTML = `
-                        <div id="processed-card-${picHash}" class="pic-card rounded-xl p-4 shadow-lg flex flex-col space-y-2 overflow-hidden border-l-4 border-amber-600">
-                            <div class="flex items-center justify-between border-b border-[var(--card-border)] pb-2 flex-shrink-0">
+                        <div id="processed-card-${picHash}" class="sub-card p-4 sm:p-5 flex flex-col space-y-3 overflow-hidden border-l-4 border-l-amber-500">
+                            <div class="flex items-center justify-between border-b pb-2.5 flex-shrink-0" style="border-color: var(--card-border);">
                                 <div class="flex items-center gap-2">
-                                    <span class="px-2 py-1 bg-amber-600 text-white text-xs font-bold rounded-full">2</span>
-                                    <h3 class="text-lg font-bold text-amber-400">
-                                        ${data.name} - Diproses
-                                    </h3>
+                                    <span class="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shadow-sm">2</span>
+                                    <div>
+                                        <h3 class="text-sm font-bold" style="color: var(--text-primary);">
+                                            ${data.name}
+                                        </h3>
+                                        <p class="text-[10px] font-medium" style="color: var(--text-secondary);">Diproses (Jadwal Besok)</p>
+                                    </div>
                                 </div>
-                                <span class="px-2 py-1 bg-amber-600 text-white text-xs font-bold rounded-full">
-                                    ${data.tasks.length}
+                                <span class="px-2 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-lg">
+                                    ${data.tasks.length} Task
                                 </span>
                             </div>
-                            <div class="overflow-y-auto flex-grow min-h-0 max-h-48">
-                                <ul class="list-group list-disc pl-0 space-y-1">
+                            <div class="overflow-y-auto max-h-56 pr-1">
+                                <ul class="list-group space-y-2">
                                     ${data.tasks.map(task => `
-                                        <li class="list-item text-sm text-secondary cursor-pointer hover:text-primary transition-colors" 
+                                        <li class="tracker-item text-xs" 
                                             data-task-id="${task.id}" 
                                             data-ap="${task.ap}" 
                                             data-model-name="${task.model_name}"
                                             onclick="openTaskModal(${task.id}, '${picEmail}', '${task.ap}')">
-                                            - ${task.ap} [Target Submit: ${task.target_submit}] [Target Approved: ${task.target_approved}] <span class="text-xs text-blue-400">[${task.category}]</span>
+                                            <div class="flex items-center gap-2 truncate">
+                                                <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                                                <span class="font-bold truncate" style="color: var(--text-primary);">${task.ap}</span>
+                                                <span class="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded font-bold border border-amber-300">${task.category}</span>
+                                            </div>
+                                            <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                         </li>
                                     `).join('')}
                                 </ul>
@@ -805,18 +841,15 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
 
         // --- Output Rendering for List 3 (Final - includes List 2 data) ---
         function renderClipboardOutput() {
-            // Clear all clipboard containers first
             document.querySelectorAll('[id$="-container"]').forEach(container => {
                 if (container.id.includes('clipboard-card-')) {
                     container.innerHTML = '';
                 }
             });
 
-            // Clear all existing timers before redrawing
             countdownTimers.forEach(clearInterval);
             countdownTimers = [];
 
-            // Gabungkan data dari processedData (List 2) dan clipboardData
             const allPicEmails = new Set([...Object.keys(processedData), ...Object.keys(clipboardData)]);
 
             for (const picEmail of allPicEmails) {
@@ -833,16 +866,13 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 let totalItems = 0;
                 let picName = '';
 
-                // Get PIC name from either source
                 if (processedTasks) picName = processedTasks.name;
                 if (clipboardTasks) picName = clipboardTasks.name;
 
-                // 1. Prepare Data
                 let gaSubmitTasks = [];
                 let gaFollowUpTasks = [];
                 let gaFirstRunTasks = [];
 
-                // From clipboardData
                 if (clipboardTasks && clipboardTasks.categories) {
                     if (clipboardTasks.categories['GA Submit']) {
                         gaSubmitTasks = [...clipboardTasks.categories['GA Submit']];
@@ -852,12 +882,11 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     }
                 }
 
-                // From processedData
                 if (processedTasks && processedTasks.tasks) {
                     processedTasks.tasks.forEach(task => {
                         const taskObj = {
                             formatted_string: `- ${task.ap} [Target Submit: ${task.target_submit}] [Target Approved: ${task.target_approved}]`,
-                            timestamp: null // No timer for processed tasks
+                            timestamp: null
                         };
 
                         if (task.category === 'GA Follow Up Besok') {
@@ -868,53 +897,57 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     });
                 }
 
-                // 2. Render Categories
                 const categoriesToRender = [
-                    { name: 'GA Submit', tasks: gaSubmitTasks },
-                    { name: 'GA Follow Up', tasks: gaFollowUpTasks },
-                    { name: 'GA First Run', tasks: gaFirstRunTasks }
+                    { name: 'GA Submit', tasks: gaSubmitTasks, color: 'text-blue-800' },
+                    { name: 'GA Follow Up', tasks: gaFollowUpTasks, color: 'text-indigo-800' },
+                    { name: 'GA First Run', tasks: gaFirstRunTasks, color: 'text-purple-800' }
                 ];
 
                 categoriesToRender.forEach(cat => {
                     if (cat.tasks.length > 0) {
-                        outputContent += `<div class="category-group mb-4 last:mb-0" data-category="${cat.name}">\n`;
-                        outputContent += `<h4 class="font-semibold text-primary mb-1">${cat.name}:</h4>\n`;
-                        outputContent += `<ul class="output-list pl-4 list-none text-secondary">`;
+                        outputContent += `
+                            <div class="space-y-1" data-category="${cat.name}">
+                                <h4 class="text-xs font-black ${cat.color} uppercase tracking-wider">${cat.name}:</h4>
+                                <ul class="output-mono text-[11px] space-y-0.5 p-2.5 rounded-lg">
+                        `;
 
                         cat.tasks.forEach(taskObj => {
-                            // Update newestTimestamp only if timestamp exists (from clipboardData)
                             if (taskObj.timestamp) {
                                 if (!newestTimestamp || new Date(taskObj.timestamp) > new Date(newestTimestamp)) {
                                     newestTimestamp = taskObj.timestamp;
                                 }
                             }
-                            outputContent += `<li>${taskObj.formatted_string.trim()}</li>`;
+                            outputContent += `<li class="break-all">${taskObj.formatted_string.trim()}</li>`;
                             totalItems++;
                         });
-                        outputContent += `</ul></div>\n`;
+                        outputContent += `</ul></div>`;
                         hasContent = true;
                     }
                 });
 
                 if (hasContent) {
                     const cardHTML = `
-                        <div id="clipboard-card-${picHash}" class="output-card clipboard-card shadow-lg flex flex-col space-y-3 overflow-hidden border-l-4 border-green-600" data-pic-email="${picEmail}">
-                            <div class="flex justify-between items-center border-b border-green-600 pb-2 flex-shrink-0">
+                        <div id="clipboard-card-${picHash}" class="sub-card p-4 sm:p-5 flex flex-col space-y-3 overflow-hidden border-l-4 border-l-emerald-600" data-pic-email="${picEmail}">
+                            <div class="flex justify-between items-center border-b pb-2.5 flex-shrink-0" style="border-color: var(--card-border);">
                                 <div class="flex items-center gap-2">
-                                    <span class="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded-full">3</span>
-                                    <h3 class="text-lg font-bold text-green-400">${picName} - Final</h3>
-                                    <span class="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded-full">${totalItems}</span>
+                                    <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shadow-sm">3</span>
+                                    <div>
+                                        <h3 class="text-sm font-bold" style="color: var(--text-primary);">${picName}</h3>
+                                        <p class="text-[10px] font-medium" style="color: var(--text-secondary);">Final Template</p>
+                                    </div>
                                 </div>
-                                ${newestTimestamp ? `<span class="text-xs text-secondary countdown-label flex-shrink-0">Expired in: <span class="countdown-timer font-mono text-amber-400"></span></span>` : ''}
-                            </div>
-                            <div class="overflow-y-auto flex-grow min-h-0 max-h-64">
-                                <div class="space-y-4">
-                                    ${outputContent}
+                                <div class="flex items-center gap-2">
+                                    ${newestTimestamp ? `<span class="text-[11px] font-mono text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-300 countdown-timer"></span>` : ''}
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg">${totalItems} AP</span>
                                 </div>
                             </div>
-                            <div class="flex-shrink-0 pt-2 border-t border-green-600">
-                                <button onclick="copyCardContent(this, '${picEmail}')" class="copy-btn text-xs w-full px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                                    Salin ke Clipboard
+                            <div class="overflow-y-auto max-h-64 space-y-2.5 pr-1">
+                                ${outputContent}
+                            </div>
+                            <div class="flex-shrink-0 pt-2 border-t" style="border-color: var(--card-border);">
+                                <button onclick="copyCardContent(this, '${picEmail}')" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                                    <span>Salin Template ke Clipboard</span>
                                 </button>
                             </div>
                         </div>
@@ -929,7 +962,7 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             }
         }
 
-        // --- Clipboard Helper (Copy all data including List 2) ---
+        // --- Clipboard Helper ---
         function copyCardContent(button, picEmail) {
             const clipboardTasks = clipboardData[picEmail];
             const processedTasks = processedData[picEmail];
@@ -937,16 +970,12 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             if (!clipboardTasks && !processedTasks) return;
 
             let textToCopy = '';
-
-            // 1. Prepare Data Arrays
             let gaSubmitTasks = [];
             let gaFollowUpTasks = [];
             let gaFirstRunTasks = [];
 
-            // From clipboardData
             if (clipboardTasks && clipboardTasks.categories) {
                 if (clipboardTasks.categories['GA Submit']) {
-                    // Extract raw data if possible, or use formatted string but stripped
                     clipboardTasks.categories['GA Submit'].forEach(task => {
                         gaSubmitTasks.push(task.formatted_string);
                     });
@@ -958,12 +987,9 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 }
             }
 
-            // From processedData
             if (processedTasks && processedTasks.tasks) {
                 processedTasks.tasks.forEach(task => {
-                    // Format: - AP [Target Submit: ...] [Target Approved: ...]
                     const formattedString = `- ${task.ap} [Target Submit: ${task.target_submit}] [Target Approved: ${task.target_approved}]`;
-
                     if (task.category === 'GA Follow Up Besok') {
                         gaFollowUpTasks.push(formattedString);
                     } else if (task.category === 'GA First Run') {
@@ -972,7 +998,6 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 });
             }
 
-            // 2. Build Text Output
             const categoriesToCopy = [
                 { name: 'GA Submit', tasks: gaSubmitTasks },
                 { name: 'GA Follow Up', tasks: gaFollowUpTasks },
@@ -991,12 +1016,10 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             if (textToCopy) {
                 const finalContent = textToCopy.trim();
 
-                // Get PIC Name for log
                 let picName = picEmail;
                 if (clipboardTasks && clipboardTasks.name) picName = clipboardTasks.name;
                 else if (processedTasks && processedTasks.name) picName = processedTasks.name;
 
-                // Add to Activity Log (Database)
                 fetch('handler.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1006,93 +1029,134 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                         content: finalContent
                     })
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.success) {
-                            console.error('Gagal menyimpan log:', data.error);
-                        }
-                    })
-                    .catch(err => console.error('Error saving log:', err));
+                .then(response => response.json())
+                .catch(err => console.error('Error saving log:', err));
 
-                // 1. Coba API Clipboard modern
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(finalContent)
-                        .then(() => {
-                            showToast('Text berhasil disalin ke clipboard!', true);
-                        })
+                        .then(() => showToast('Template berhasil disalin ke clipboard!', true))
                         .catch(err => {
-                            // 2. Gunakan Fallback jika API modern gagal
-                            console.error('Gagal menyalin dengan API modern. Mencoba fallback:', err);
                             const success = fallbackCopyToClipboard(finalContent);
-                            if (success) {
-                                showToast('Text berhasil disalin ke clipboard!', true);
-                            } else {
-                                showToast('Gagal menyalin text.', false);
-                            }
+                            showToast(success ? 'Template berhasil disalin ke clipboard!' : 'Gagal menyalin text.', success);
                         });
                 } else {
-                    // 3. Langsung gunakan Fallback jika navigator.clipboard tidak tersedia
                     const success = fallbackCopyToClipboard(finalContent);
-                    if (success) {
-                        showToast('Text berhasil disalin ke clipboard!', true);
-                    } else {
-                        showToast('Gagal menyalin text.', false);
-                    }
+                    showToast(success ? 'Template berhasil disalin ke clipboard!' : 'Gagal menyalin text.', success);
                 }
             }
         }
-        // --- Utility Functions ---
+
+        // --- Toast Function ---
         function showToast(message, isSuccess) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.backgroundColor = isSuccess ? '#22c55e' : '#ef4444';
-            toast.classList.add('show');
-            toast.style.bottom = '30px';
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-msg');
+
+            msg.textContent = message;
+            if (isSuccess) {
+                toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-2xl flex items-center gap-2 bg-emerald-600 border border-emerald-500/50 opacity-100 translate-y-0 transition-all duration-300';
+                icon.innerHTML = '<svg class="w-4 h-4 text-emerald-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+            } else {
+                toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2.5 rounded-xl text-xs font-semibold text-white shadow-2xl flex items-center gap-2 bg-rose-600 border border-rose-500/50 opacity-100 translate-y-0 transition-all duration-300';
+                icon.innerHTML = '<svg class="w-4 h-4 text-rose-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+            }
+
             setTimeout(() => {
-                toast.style.bottom = '-100px';
-                toast.classList.remove('show');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-4');
             }, 3000);
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            console.log('DOMContentLoaded triggered');
-            console.log('processedData:', processedData);
-            console.log('clipboardData:', clipboardData);
+        // --- Neural Canvas Network ---
+        (function() {
+            const canvas = document.getElementById('neural-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w, h, particles = [];
 
+            function resize() {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            const count = Math.min(30, Math.floor((w * h) / 35000));
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    vx: (Math.random() - 0.5) * 0.4,
+                    vy: (Math.random() - 0.5) * 0.4,
+                    radius: Math.random() * 1.5 + 0.8
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, w, h);
+                const isLight = document.documentElement.classList.contains('light');
+                const pColor = isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(96, 165, 250, 0.25)';
+                const lColor = isLight ? 'rgba(59, 130, 246, 0.05)' : 'rgba(96, 165, 250, 0.05)';
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+                    if (p.y < 0) p.y = h;
+                    if (p.y > h) p.y = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = pColor;
+                    ctx.fill();
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dx = p.x - p2.x;
+                        const dy = p.y - p2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = lColor;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            draw();
+        })();
+
+        // --- Theme Sync & Init ---
+        document.addEventListener('DOMContentLoaded', function () {
             renderProcessedOutput();
             renderClipboardOutput();
 
-            // Tutup modal ketika di luar area modal diklik
-            // Tutup modal ketika di luar area modal diklik
-            window.onclick = function (event) {
+            // Backdrop click closing
+            window.addEventListener('click', function (event) {
                 const taskModal = document.getElementById('task-category-modal');
                 const logModal = document.getElementById('activity-log-modal');
 
-                if (event.target == taskModal) {
-                    closeTaskModal();
-                }
-                if (event.target == logModal) {
-                    closeActivityLog();
-                }
-            }
+                if (event.target === taskModal) closeTaskModal();
+                if (event.target === logModal) closeActivityLog();
+            });
 
-            // FIX: Tambahkan logika dropdown profile yang hilang
-            const profileMenu = document.getElementById('profile-menu');
-            if (profileMenu) {
-                const profileButton = profileMenu.querySelector('button');
-                const profileDropdown = document.getElementById('profile-dropdown');
-                profileButton.addEventListener('click', e => {
-                    e.stopPropagation();
-                    profileDropdown.classList.toggle('hidden');
-                });
-                document.addEventListener('click', e => {
-                    if (!profileMenu.contains(e.target)) {
-                        profileDropdown.classList.add('hidden');
-                    }
+            // Theme toggle listener from header
+            const themeBtn = document.getElementById('theme-toggle');
+            if (themeBtn) {
+                themeBtn.addEventListener('click', () => {
+                    setTimeout(() => {
+                        renderProcessedOutput();
+                        renderClipboardOutput();
+                    }, 50);
                 });
             }
         });
     </script>
 </body>
-
 </html>
