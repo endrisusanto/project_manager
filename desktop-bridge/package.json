@@ -1,6 +1,6 @@
 {
   "name": "project-manager-desktop-bridge",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Tauri Rust Desktop Bridge for Intranet MySQL to Cloudflare Remote Sync",
   "private": true,
   "type": "module",
