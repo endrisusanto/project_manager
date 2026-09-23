@@ -1,11 +1,11 @@
 {
-  "version": "1.0.6",
-  "notes": "Fix Windows RC icon format and MSI/NSIS build 1.0.6",
-  "pub_date": "2026-09-23T09:17:42.966Z",
+  "version": "1.0.7",
+  "notes": "Release v1.0.7 with valid bundle targets and version suffixed installer outputs 1.0.7",
+  "pub_date": "2026-09-23T09:22:29.668Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.6/project-manager-bridge_1.0.6_x64-setup.nsis.zip"
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.7/project-manager-bridge_1.0.7_x64-setup.nsis.zip"
     }
   }
 }
