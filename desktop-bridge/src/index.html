@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GBA Project Manager — Bridge Sync</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="logo-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1>GBA Bridge Sync</h1>
+                    <p class="subtitle">Intranet MySQL &harr; Cloudflare Remote</p>
+                </div>
+            </div>
+            <div class="status-pill" id="global-status-pill">
+                <span class="status-dot"></span>
+                <span id="global-status-text">Siap</span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('dashboard')">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard
+            </button>
+            <button class="tab-btn" onclick="switchTab('settings')">
+                <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Pengaturan
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- TAB 1: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <!-- Sync Control Card -->
+                <div class="card sync-hero-card">
+                    <div class="sync-hero-info">
+                        <div class="last-sync-time">
+                            <span class="label">Terakhir Disinkronkan:</span>
+                            <strong id="display-last-sync">-</strong>
+                        </div>
+                        <div class="auto-sync-status">
+                            <span class="label">Auto-Sync:</span>
+                            <span id="display-auto-sync" class="badge-pill active">Aktif (30s)</span>
+                        </div>
+                    </div>
+                    <button id="btn-manual-sync" class="btn-primary" onclick="triggerManualSync()">
+                        <svg class="spin-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Sync Sekarang</span>
+                    </button>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">GBA Tasks</span>
+                        <div class="stat-value" id="stat-gba-tasks">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Projects</span>
+                        <div class="stat-value" id="stat-projects">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Users</span>
+                        <div class="stat-value" id="stat-users">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">New Tasks</span>
+                        <div class="stat-value" id="stat-new-tasks">0</div>
+                    </div>
+                </div>
+
+                <!-- Live Sync Logs -->
+                <div class="card log-card">
+                    <div class="card-header">
+                        <h3>Aktivitas Log Real-time</h3>
+                        <button class="btn-link" onclick="clearLogs()">Bersihkan</button>
+                    </div>
+                    <div class="terminal-box" id="terminal-logs">
+                        <div class="log-entry info"><span class="time">[System]</span> Desktop Bridge diinisialisasi. Siap sinkronisasi.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: SETTINGS -->
+            <section id="tab-settings" class="tab-pane">
+                <div class="card settings-card">
+                    <h2>Koneksi MySQL Lokal (XAMPP)</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Host Database</label>
+                            <input type="text" id="cfg-db-host" value="127.0.0.1" placeholder="127.0.0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Port</label>
+                            <input type="number" id="cfg-db-port" value="3306" placeholder="3306">
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="cfg-db-user" value="root" placeholder="root">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="cfg-db-pass" placeholder="(Kosongkan jika default XAMPP)">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Nama Database</label>
+                            <input type="text" id="cfg-db-name" value="project_manager_db">
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button type="button" class="btn-secondary" onclick="testLocalDb()">Uji Koneksi Local MySQL</button>
+                    </div>
+
+                    <hr class="divider">
+
+                    <h2>Tujuan Sinkronisasi Cloudflare (Remote)</h2>
+                    <div class="form-group">
+                        <label>Endpoint Receiver URL</label>
+                        <input type="text" id="cfg-remote-url" value="https://gba.endrisusanto.my.id/api_sync_receiver.php" placeholder="https://domain.com/api_sync_receiver.php">
+                    </div>
+                    <div class="form-group">
+                        <label>Secret Sync Token (Bearer)</label>
+                        <input type="password" id="cfg-sync-token" value="gba-bridge-sync-key-2026">
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Interval Sync (detik)</label>
+                            <input type="number" id="cfg-sync-interval" value="30" min="5">
+                        </div>
+                        <div class="form-group flex-center">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="cfg-auto-sync" checked>
+                                <span>Aktifkan Background Auto-Sync</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button type="button" class="btn-secondary" onclick="testRemoteEndpoint()">Uji Endpoint Remote</button>
+                        <button type="button" class="btn-primary" onclick="saveSettings()">Simpan Konfigurasi</button>
+                    </div>
+
+                    <hr class="divider">
+
+                    <h2>Pembaruan Software (Auto-Updater)</h2>
+                    <div class="update-info-row">
+                        <div>
+                            <div class="text-secondary" style="font-size: 11px;">Versi Saat Ini: <strong id="app-version-label" style="color:#e0e7ff;">v1.0.0</strong></div>
+                            <div id="update-status-msg" class="text-muted" style="font-size: 10.5px; margin-top:2px;">Terverifikasi dengan digital signature (sig & pubkey)</div>
+                        </div>
+                        <button type="button" id="btn-check-update" class="btn-secondary" onclick="checkAppUpdate()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            <span>Periksa Update</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer Notification Info -->
+        <footer class="app-footer">
+            <span>Bridge berjalan di System Tray latar belakang</span>
+            <span class="tray-hint">Tutup jendela ini untuk minimize ke Tray</span>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

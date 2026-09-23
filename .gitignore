@@ -5,7 +5,14 @@ node_modules/
 # Environment variables
 .env
 .env.local
+.env.*
 mcp-server/.env
+desktop-bridge/.env*
+
+# Tauri & Rust build artifacts
+target/
+src-tauri/target/
+desktop-bridge/src-tauri/target/
 
 # Logs
 *.log

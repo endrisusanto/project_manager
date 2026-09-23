@@ -1,0 +1,20 @@
+{
+  "name": "project-manager-desktop-bridge",
+  "version": "1.0.0",
+  "description": "Tauri Rust Desktop Bridge for Intranet MySQL to Cloudflare Remote Sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "release": "node scripts/release.js",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
+    "release:dry": "node scripts/release.js --dry-run"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}
