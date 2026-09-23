@@ -140,7 +140,9 @@ async function main() {
     if (!skipBuild) {
         console.log('\n🚀 Memulai Build Tauri (NSIS / MSI dengan Signature .sig)...');
         try {
-            run('npx tauri build --bundles nsis,msi', {
+            const isWindows = process.platform === 'win32';
+            const buildCmd = isWindows ? 'npx tauri build --bundles nsis,nsis.zip,wix' : 'npx tauri build';
+            run(buildCmd, {
                 TAURI_SIGNING_PRIVATE_KEY: signingKey || '',
                 TAURI_SIGNING_PRIVATE_KEY_PASSWORD: signingPass
             });
