@@ -3,6 +3,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 include 'config.php';
+require_once 'sync_helper.php';
 session_start();
 
 // Cek apakah pengguna sudah login
@@ -29,6 +30,10 @@ function log_activity($conn, $task_id, $action_type, $details, $user_email)
     $log_stmt->bind_param("isss", $task_id_param, $action_type, $details, $user_email);
     @$log_stmt->execute();
     @$log_stmt->close();
+
+    if (function_exists('trigger_remote_sync_broadcast')) {
+        trigger_remote_sync_broadcast('gba_tasks', $action_type, ['task_id' => $task_id_param, 'details' => $details]);
+    }
 }
 
 

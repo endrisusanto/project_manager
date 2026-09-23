@@ -12,6 +12,7 @@ import { exec } from "child_process";
 
 import fs from "fs";
 import path from "path";
+import { WebSocketServer } from "ws";
 
 dotenv.config();
 
@@ -1004,6 +1005,48 @@ Jawab pertanyaan dan buatkan laporan secara profesional, ringkas, dan jelas dala
     return;
   }
 
+  // POST /api/sync/broadcast - Web changes trigger WSS push to desktop bridge clients
+  if (req.method === "POST" && url.pathname === "/api/sync/broadcast") {
+    let bodyText = "";
+    req.on("data", (chunk) => { bodyText += chunk; });
+    req.on("end", () => {
+      try {
+        const authHeader = req.headers["authorization"] || "";
+        const token = authHeader.replace("Bearer ", "").trim() || url.searchParams.get("token");
+        const syncSecret = process.env.SYNC_TOKEN || "gba-bridge-sync-key-2026";
+        if (token !== syncSecret) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ success: false, error: "Unauthorized" }));
+          return;
+        }
+
+        const payload = JSON.parse(bodyText || "{}");
+        const broadcastMsg = JSON.stringify({
+          type: "remote_mutation",
+          table: payload.table || "gba_tasks",
+          action: payload.action || "update",
+          data: payload.data || null,
+          timestamp: new Date().toISOString()
+        });
+
+        let sentCount = 0;
+        connectedSyncClients.forEach((client) => {
+          if (client.readyState === 1) { // OPEN
+            client.send(broadcastMsg);
+            sentCount++;
+          }
+        });
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: true, broadcasted_to: sentCount }));
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/mcp/call or POST /api/mcp/:toolName
   if (req.method === "POST" && url.pathname.startsWith("/api/mcp/")) {
     let bodyText = "";
@@ -1038,6 +1081,66 @@ Jawab pertanyaan dan buatkan laporan secara profesional, ringkas, dan jelas dala
   res.end(JSON.stringify({ error: "Endpoint not found" }));
 });
 
+// ponytail: Persistent WebSocket Server for 2-Way Remote-to-Desktop-Bridge Sync
+const wss = new WebSocketServer({ noServer: true });
+const connectedSyncClients = new Set();
+const SYNC_SECRET = process.env.SYNC_TOKEN || "gba-bridge-sync-key-2026";
+
+httpServer.on("upgrade", (request, socket, head) => {
+  const reqUrl = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+  if (reqUrl.pathname === "/ws/sync" || reqUrl.pathname === "/ws") {
+    const token = reqUrl.searchParams.get("token") || request.headers["authorization"]?.replace("Bearer ", "");
+    if (token !== SYNC_SECRET) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+wss.on("connection", (ws) => {
+  connectedSyncClients.add(ws);
+  console.log(`🔌 Desktop Bridge WSS Client Connected. Total clients: ${connectedSyncClients.size}`);
+  
+  ws.isAlive = true;
+  ws.on("pong", () => { ws.isAlive = true; });
+
+  ws.on("message", (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === "ping") {
+        ws.send(JSON.stringify({ type: "pong", timestamp: new Date().toISOString() }));
+      }
+    } catch (_) {}
+  });
+
+  ws.on("close", () => {
+    connectedSyncClients.delete(ws);
+    console.log(`🔌 Desktop Bridge WSS Client Disconnected. Total clients: ${connectedSyncClients.size}`);
+  });
+
+  // Welcome handshake
+  ws.send(JSON.stringify({
+    type: "connected",
+    message: "GBA Persistent WSS Bridge Connected",
+    timestamp: new Date().toISOString()
+  }));
+});
+
+// Periodic WSS Heartbeat to keep connection alive
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 25000);
+
 httpServer.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(`⚠️ Port ${HTTP_PORT} is already in use. HTTP/SSE bridge skipped on this instance, running in Stdio MCP mode.`);
@@ -1047,7 +1150,7 @@ httpServer.on("error", (err) => {
 });
 
 httpServer.listen(HTTP_PORT, "0.0.0.0", () => {
-  console.error(`🚀 MCP Server running on Stdio & HTTP/SSE Bridge (IPv4 port ${HTTP_PORT})`);
+  console.error(`🚀 MCP Server running on Stdio & HTTP/WSS Bridge (IPv4 port ${HTTP_PORT})`);
 });
 
 // Connect Stdio Transport

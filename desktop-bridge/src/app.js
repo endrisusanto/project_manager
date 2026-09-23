@@ -77,6 +77,7 @@ async function saveSettings() {
         const msg = await invoke('cmd_save_config', { config });
         appendLog(msg, 'success');
         loadSettingsIntoForm();
+        connectPersistentWebSocket(config);
     } catch (err) {
         appendLog('Gagal menyimpan: ' + err, 'error');
     }
@@ -197,6 +198,90 @@ async function checkAppUpdate() {
     }
 }
 
+// ponytail: Persistent WSS Client for Real-time 2-Way Sync
+let activeWebSocket = null;
+let wsReconnectTimer = null;
+let wsPingTimer = null;
+
+function getWebSocketUrl(config) {
+    let baseUrl = config.remote_sync_url || 'https://gba.endrisusanto.my.id/api_sync_receiver.php';
+    try {
+        let parsed = new URL(baseUrl);
+        let wsProto = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+        let token = encodeURIComponent(config.sync_token || 'gba-bridge-sync-key-2026');
+        return `${wsProto}//${parsed.host}/ws/sync?token=${token}`;
+    } catch (_) {
+        return `wss://gba.endrisusanto.my.id/ws/sync?token=${encodeURIComponent(config.sync_token || 'gba-bridge-sync-key-2026')}`;
+    }
+}
+
+function connectPersistentWebSocket(config) {
+    if (activeWebSocket) {
+        try { activeWebSocket.close(); } catch (_) {}
+        activeWebSocket = null;
+    }
+    if (wsReconnectTimer) clearTimeout(wsReconnectTimer);
+    if (wsPingTimer) clearInterval(wsPingTimer);
+
+    const wsUrl = getWebSocketUrl(config);
+    appendLog(`Menghubungkan persistent WSS ke ${wsUrl.split('?')[0]}...`, 'info');
+
+    try {
+        activeWebSocket = new WebSocket(wsUrl);
+
+        activeWebSocket.onopen = () => {
+            appendLog('WSS Real-time Terhubung! Siap menerima perubahan data dari web domain.', 'success');
+            const statusText = document.getElementById('global-status-text');
+            if (statusText) statusText.textContent = 'WSS Aktif';
+
+            // Start client keepalive ping
+            wsPingTimer = setInterval(() => {
+                if (activeWebSocket && activeWebSocket.readyState === WebSocket.OPEN) {
+                    activeWebSocket.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, 20000);
+        };
+
+        activeWebSocket.onmessage = async (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'remote_mutation') {
+                    appendLog(`[WSS Real-time] Perubahan remote pada tabel '${msg.table}' (${msg.action}) diterima! Sinkronisasi lokal...`, 'success');
+                    try {
+                        const res = await invoke('cmd_trigger_sync');
+                        updateStatsView(res);
+                        appendLog(`Database lokal berhasil disinkronkan (${res.timestamp})`, 'success');
+                    } catch (syncErr) {
+                        appendLog(`Sync otomatis gagal: ${syncErr}`, 'error');
+                    }
+                } else if (msg.type === 'connected') {
+                    appendLog(`Server: ${msg.message}`, 'info');
+                }
+            } catch (err) {
+                console.error('WSS parse error:', err);
+            }
+        };
+
+        activeWebSocket.onclose = () => {
+            const statusText = document.getElementById('global-status-text');
+            if (statusText) statusText.textContent = 'Menghubungkan...';
+            if (wsPingTimer) clearInterval(wsPingTimer);
+            wsReconnectTimer = setTimeout(() => {
+                connectPersistentWebSocket(config);
+            }, 4000);
+        };
+
+        activeWebSocket.onerror = () => {
+            try { activeWebSocket.close(); } catch (_) {}
+        };
+    } catch (err) {
+        appendLog(`Koneksi WSS gagal: ${err.message}. Mencoba lagi dalam 5 detik...`, 'error');
+        wsReconnectTimer = setTimeout(() => {
+            connectPersistentWebSocket(config);
+        }, 5000);
+    }
+}
+
 // Periodic status poll from background thread
 async function pollBackgroundStatus() {
     try {
@@ -207,8 +292,11 @@ async function pollBackgroundStatus() {
     } catch (_) {}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadSettingsIntoForm();
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadSettingsIntoForm();
     pollBackgroundStatus();
     setInterval(pollBackgroundStatus, 5000);
+
+    const cfg = getFormConfig();
+    connectPersistentWebSocket(cfg);
 });
