@@ -5,6 +5,7 @@ services:
     restart: always
     ports:
       - "8089:80"
+      - "8888:80"
     environment:
       DB_SERVER: db
       DB_USERNAME: root
