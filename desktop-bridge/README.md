@@ -108,3 +108,22 @@ npm run release:dry
 4. **Update Manifest**: Mengisi hash signature `.sig` ke dalam `updater/latest.json`.
 5. **Git Automation**: Melakukan `git add`, `git commit -m "chore(release): vX.Y.Z [auto-release]"`, dan membuat `git tag vX.Y.Z`.
 
+---
+
+## ⚡ GitHub Actions CI/CD Release
+
+Workflow otomatis diatur pada `.github/workflows/release-desktop-bridge.yml`.
+
+### Cara Kerja:
+1. Saat tag `v*` dipush (`git push origin master --tags`), GitHub Action akan:
+   - Menyiapkan runner Windows (`windows-latest`).
+   - Mengompilasi binary executable Tauri, installer **NSIS** (`.exe`) dan **MSI** (`.msi`).
+   - Menandatangani paket secara kriptografis menggunakan Minisign (`.sig`).
+   - Mengunggah seluruh installer dan signature ke **GitHub Release**.
+
+### Konfigurasi GitHub Repository Secrets:
+Buka repository di GitHub $\rightarrow$ **Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions** $\rightarrow$ **New repository secret**:
+1. `TAURI_SIGNING_PRIVATE_KEY`: Isi dengan private key dari file `.env.updater`.
+2. `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: Password private key (default: `password123`).
+
+
