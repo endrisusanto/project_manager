@@ -1,6 +1,6 @@
 [package]
 name = "project-manager-bridge"
-version = "1.0.3"
+version = "1.0.4"
 description = "Tauri Rust Desktop Bridge for Intranet MySQL to Cloudflare Remote Sync"
 edition = "2021"
 
