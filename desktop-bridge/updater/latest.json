@@ -1,11 +1,19 @@
 {
   "version": "1.0.10",
-  "notes": "feat: chunked batch table sync 50 rows per batch 1.0.10",
-  "pub_date": "2026-09-24T02:02:57.172Z",
+  "notes": "Pembaruan otomatis software GBA Bridge Sync v1.0.10. Dilengkapi verifikasi digital signature minisign (.sig) & installer NSIS/MSI.",
+  "pub_date": "2026-09-24T02:16:06.308Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.10/project-manager-bridge_1.0.10_x64-setup.nsis.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSbUZxajNFZWVGSHpCd3ozNHpkRW5LdVR5QUFETTF1aXQ0RzZud01tLyt5cmhMcmhROTV2bjFkL1V5YnBJZVhvNm1iT3dJaVp5THZEL3pmZHQ4Skg1M3JiOEJXNXVLaHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMjE2MTYyCWZpbGU6R0JBLUJyaWRnZS1TeW5jXzEuMC4xMF94NjRfZW4tVVMubXNpCXZlcnNpb246MS4wLjEwCmJGNjIwVnlUK2dlQlZleVNaMDE1UFdXNnl6NzJ3dm5hWjZ2RmpyaStadFRFQmNPY2pJNUNZeFdQT0lMRlpLb2NkUDZQcmJJbHJQQWdUWUE0cFNtMUNnPT0K",
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.10/GBA-Bridge-Sync_1.0.10_x64_en-US.msi"
+    },
+    "windows-x86_64-msi": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSbUZxajNFZWVGSHpCd3ozNHpkRW5LdVR5QUFETTF1aXQ0RzZud01tLyt5cmhMcmhROTV2bjFkL1V5YnBJZVhvNm1iT3dJaVp5THZEL3pmZHQ4Skg1M3JiOEJXNXVLaHc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMjE2MTYyCWZpbGU6R0JBLUJyaWRnZS1TeW5jXzEuMC4xMF94NjRfZW4tVVMubXNpCXZlcnNpb246MS4wLjEwCmJGNjIwVnlUK2dlQlZleVNaMDE1UFdXNnl6NzJ3dm5hWjZ2RmpyaStadFRFQmNPY2pJNUNZeFdQT0lMRlpLb2NkUDZQcmJJbHJQQWdUWUE0cFNtMUNnPT0K",
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.10/GBA-Bridge-Sync_1.0.10_x64_en-US.msi"
+    },
+    "windows-x86_64-nsis": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSbUZxajNFZWVGSDVhNCtMeFhmWWttTFc2cEpVR0FFRFQyM2JpU1RRSDZlVXVGZ2RBLzFNdms3Mi9qenc1SWtQY3hjN3FId0lZVnl4bjhYR2NrOC85Ynd0UjgvMDlEQWdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkwMjE2MTYyCWZpbGU6R0JBLUJyaWRnZS1TeW5jXzEuMC4xMF94NjQtc2V0dXAuZXhlCXZlcnNpb246MS4wLjEwCnNxMWFQdi9UMTdIcDhCYjdTQTd4RmVtRERWckQ2RXVvaE4xNjN0ZTlPcVRPdlhaVFhnV0NZekRyaWlvb3VxWm9OTC9jbUhwbGVFczJmNktlajhpU0RRPT0K",
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.10/GBA-Bridge-Sync_1.0.10_x64-setup.exe"
     }
   }
 }

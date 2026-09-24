@@ -180,7 +180,11 @@ async function main() {
         platforms: {
             "windows-x86_64": {
                 signature: generatedSignature || "",
-                url: `https://github.com/endrisusanto/project_manager/releases/download/v${newVersion}/project-manager-bridge_${newVersion}_x64-setup.nsis.zip`
+                url: `https://github.com/endrisusanto/project_manager/releases/download/v${newVersion}/GBA-Bridge-Sync_${newVersion}_x64_en-US.msi`
+            },
+            "windows-x86_64-nsis": {
+                signature: generatedSignature || "",
+                url: `https://github.com/endrisusanto/project_manager/releases/download/v${newVersion}/GBA-Bridge-Sync_${newVersion}_x64-setup.exe`
             }
         }
     };
