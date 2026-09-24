@@ -219,25 +219,26 @@ if ($due_soon_count > 0) {
 
 function get_pic_badge_class($pic_name) {
     $clean = trim((string)$pic_name);
-    if (empty($clean) || $clean === '-') return 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+    if (empty($clean) || $clean === '-') return 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
     
-    // Curated vibrant non-grey, non-white Tailwind color sets
+    // Curated vibrant high-contrast non-grey Tailwind color sets for both light and dark mode
     $classes = [
-        'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-        'bg-teal-500/15 text-teal-400 border-teal-500/30',
-        'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-        'bg-sky-500/15 text-sky-400 border-sky-500/30',
-        'bg-purple-500/15 text-purple-400 border-purple-500/30',
-        'bg-amber-500/15 text-amber-400 border-amber-500/30',
-        'bg-rose-500/15 text-rose-400 border-rose-500/30',
-        'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-        'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
-        'bg-violet-500/15 text-violet-400 border-violet-500/30',
-        'bg-orange-500/15 text-orange-400 border-orange-500/30',
+        'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+        'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30',
+        'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+        'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
+        'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+        'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
+        'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
+        'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+        'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30',
+        'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
+        'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30',
     ];
     $hash = crc32(strtolower($clean));
     return $classes[abs($hash) % count($classes)];
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -947,33 +948,36 @@ function get_pic_badge_class($pic_name) {
                             <?php foreach ($active_tasks as $at): 
                                 $pic_display = !empty($at['username']) ? $at['username'] : (!empty($at['pic_email']) ? explode('@', $at['pic_email'])[0] : 'Unassigned');
                                 
-                                // Status badge color (Pill shape)
-                                $status_class = 'bg-slate-500/15 text-slate-400 border-slate-500/30';
-                                if ($at['progress_status'] === 'Downloaded') $status_class = 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30';
-                                elseif ($at['progress_status'] === 'Test Ongoing') $status_class = 'bg-blue-500/15 text-blue-400 border-blue-500/30';
-                                elseif ($at['progress_status'] === 'Submitted') $status_class = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-                                elseif ($at['progress_status'] === 'Pending Feedback') $status_class = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
-                                elseif ($at['progress_status'] === 'Feedback Sent') $status_class = 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30';
-                                elseif (in_array($at['progress_status'], ['Approved', 'Passed'])) $status_class = 'bg-green-500/20 text-green-400 border-green-500/40';
-                                elseif ($at['progress_status'] === 'Batal') $status_class = 'bg-red-500/15 text-red-400 border-red-500/30';
+                                // Status badge color (Pill shape) - High contrast & WCAG AA compliant
+                                $st_clean = trim((string)$at['progress_status']);
+                                $status_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
+                                if ($st_clean === 'Task Baru') $status_class = 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30';
+                                elseif ($st_clean === 'Downloaded') $status_class = 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30';
+                                elseif ($st_clean === 'Test Ongoing') $status_class = 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30';
+                                elseif ($st_clean === 'Submitted') $status_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+                                elseif ($st_clean === 'Pending Feedback') $status_class = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+                                elseif ($st_clean === 'Feedback Sent') $status_class = 'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30';
+                                elseif (in_array($st_clean, ['Approved', 'Passed'])) $status_class = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40';
+                                elseif ($st_clean === 'Batal') $status_class = 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30';
 
-                                // Test Plan pill badge color
+                                // Test Plan pill badge color - High contrast & WCAG AA compliant
                                 $tp_clean = strtoupper(trim((string)$at['test_plan_type']));
-                                $tp_badge_class = 'bg-slate-500/15 text-slate-400 border-slate-500/30';
-                                if ($tp_clean === 'NORMAL MR' || $tp_clean === 'MR') $tp_badge_class = 'bg-sky-500/15 text-sky-400 border-sky-500/30';
-                                elseif ($tp_clean === 'SMR') $tp_badge_class = 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30';
-                                elseif ($tp_clean === 'FULL TEST' || $tp_clean === 'FULLTEST') $tp_badge_class = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
-                                elseif ($tp_clean === 'SANITY') $tp_badge_class = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-                                elseif ($tp_clean === 'DELTA' || $tp_clean === 'DELTA TEST') $tp_badge_class = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
-                                elseif ($tp_clean === 'PL') $tp_badge_class = 'bg-teal-500/15 text-teal-400 border-teal-500/30';
-                                elseif ($tp_clean === 'REGRESSION') $tp_badge_class = 'bg-rose-500/15 text-rose-400 border-rose-500/30';
+                                $tp_badge_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
+                                if ($tp_clean === 'SKU') $tp_badge_class = 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30';
+                                elseif ($tp_clean === 'NORMAL MR' || $tp_clean === 'MR') $tp_badge_class = 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30';
+                                elseif ($tp_clean === 'SMR') $tp_badge_class = 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30';
+                                elseif ($tp_clean === 'FULL TEST' || $tp_clean === 'FULLTEST') $tp_badge_class = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
+                                elseif ($tp_clean === 'SANITY') $tp_badge_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
+                                elseif ($tp_clean === 'DELTA' || $tp_clean === 'DELTA TEST') $tp_badge_class = 'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30';
+                                elseif ($tp_clean === 'PL' || $tp_clean === 'PRE') $tp_badge_class = 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30';
+                                elseif ($tp_clean === 'REGRESSION') $tp_badge_class = 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30';
 
                                 // Countdown badge color
-                                $cd_class = 'bg-slate-500/15 text-slate-400 border-slate-500/20';
-                                if ($at['deadline_badge_type'] === 'late') $cd_class = 'bg-red-500/20 text-red-500 border-red-500/40 animate-pulse';
-                                elseif ($at['deadline_badge_type'] === 'today') $cd_class = 'bg-red-500/20 text-red-500 border-red-500/30';
-                                elseif ($at['deadline_badge_type'] === 'urgent') $cd_class = 'bg-amber-500/20 text-amber-500 border-amber-500/30';
-                                elseif ($at['deadline_badge_type'] === 'safe') $cd_class = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20';
+                                $cd_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/20';
+                                if ($at['deadline_badge_type'] === 'late') $cd_class = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/40 animate-pulse';
+                                elseif ($at['deadline_badge_type'] === 'today') $cd_class = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30';
+                                elseif ($at['deadline_badge_type'] === 'urgent') $cd_class = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30';
+                                elseif ($at['deadline_badge_type'] === 'safe') $cd_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
                             ?>
                                 <tr class="hover:bg-[var(--table-row-hover)] transition-colors task-row" data-search="<?php echo htmlspecialchars(strtolower($at['model_name'] . ' ' . $at['marketing_name'] . ' ' . $pic_display . ' ' . $at['test_plan_type'] . ' ' . $at['progress_status'])); ?>" data-status="<?php echo htmlspecialchars($at['progress_status']); ?>">
                                     <!-- Model & Specs -->
