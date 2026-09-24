@@ -116,4 +116,21 @@ CREATE TABLE IF NOT EXISTS `user_notes` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+-- Struktur dari tabel `new_tasks`
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `new_tasks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `model_name` varchar(100) NOT NULL,
+  `ap` varchar(150) DEFAULT NULL,
+  `cp` varchar(150) DEFAULT NULL,
+  `csc` varchar(150) DEFAULT NULL,
+  `request_type` varchar(50) DEFAULT NULL,
+  `qb_user` text DEFAULT NULL,
+  `qb_userdebug` text DEFAULT NULL,
+  `is_manual` tinyint(1) DEFAULT 0,
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 COMMIT;

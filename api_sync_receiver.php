@@ -198,6 +198,21 @@ try {
 
     // 7.4 New Tasks (Smart Filter)
     if (isset($tables_data['new_tasks']) && is_array($tables_data['new_tasks'])) {
+        // Auto-create new_tasks table if it doesn't exist on this server
+        $conn->query("CREATE TABLE IF NOT EXISTS `new_tasks` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `model_name` varchar(100) NOT NULL,
+            `ap` varchar(150) DEFAULT NULL,
+            `cp` varchar(150) DEFAULT NULL,
+            `csc` varchar(150) DEFAULT NULL,
+            `request_type` varchar(50) DEFAULT NULL,
+            `qb_user` text DEFAULT NULL,
+            `qb_userdebug` text DEFAULT NULL,
+            `is_manual` tinyint(1) DEFAULT 0,
+            `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
         $nt_cols = ['id', 'model_name', 'ap', 'cp', 'csc', 'request_type', 'qb_user', 'qb_userdebug', 'is_manual', 'created_at'];
         $sanitized_nt = [];
         foreach ($tables_data['new_tasks'] as $nt) {
