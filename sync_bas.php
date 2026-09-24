@@ -238,14 +238,19 @@ foreach ($submissions as $sub) {
     $target_progress_status = null;
     $approved_date = null;
 
-    if (stripos($raw_status, 'Approve') !== false || stripos($raw_status, 'Pass') !== false) {
+    // Comprehensive status normalization from BAS
+    $norm_status_upper = strtoupper($raw_status);
+    $target_progress_status = null;
+    $approved_date = null;
+
+    if (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false) {
         $target_progress_status = 'Approved';
         $approved_date = $sub_date ?: $today_str;
-    } elseif (stripos($raw_status, 'Submit') !== false || stripos($raw_status, 'Waiting') !== false || stripos($raw_status, 'Review') !== false) {
+    } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
         $target_progress_status = 'Submitted';
-    } elseif (stripos($raw_status, 'Pending') !== false || stripos($raw_status, 'Ongoing') !== false || stripos($raw_status, 'Testing') !== false) {
+    } elseif (strpos($norm_status_upper, 'PENDING') !== false || strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
         $target_progress_status = 'Test Ongoing';
-    } elseif (stripos($raw_status, 'Reject') !== false || stripos($raw_status, 'Fail') !== false) {
+    } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false) {
         $target_progress_status = 'Rejected';
     }
 
@@ -258,7 +263,7 @@ foreach ($submissions as $sub) {
 
     // Match 1: By submission_id if exists
     if (!empty($sub_id)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE submission_id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE submission_id = ? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param("s", $sub_id);
             $stmt->execute();
@@ -272,7 +277,7 @@ foreach ($submissions as $sub) {
 
     // Match 2: By exact AP
     if (!$matched_task && !empty($ap_version)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE TRIM(ap) = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE TRIM(ap) = ? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param("s", $ap_version);
             $stmt->execute();
@@ -287,7 +292,7 @@ foreach ($submissions as $sub) {
     // Match 3: By AP containing / LIKE
     if (!$matched_task && !empty($ap_version) && strlen($ap_version) >= 6) {
         $like_ap = "%" . $ap_version . "%";
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE ap LIKE ? OR ? LIKE CONCAT('%', ap, '%') LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE ap LIKE ? OR ? LIKE CONCAT('%', ap, '%') LIMIT 1");
         if ($stmt) {
             $stmt->bind_param("ss", $like_ap, $ap_version);
             $stmt->execute();
@@ -301,7 +306,7 @@ foreach ($submissions as $sub) {
 
     // Match 4: By Model Name and AP prefix
     if (!$matched_task && !empty($model_name) && !empty($ap_version)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE model_name = ? AND ap LIKE ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE model_name = ? AND ap LIKE ? LIMIT 1");
         if ($stmt) {
             $like_ap = "%" . substr($ap_version, 0, 8) . "%";
             $stmt->bind_param("ss", $model_name, $like_ap);
@@ -328,7 +333,7 @@ foreach ($submissions as $sub) {
         $types = "";
         $params = [];
 
-        // Progress status update
+        // Progress status update (Submitted / Approved / Test Ongoing / Rejected)
         $final_status = $old_status;
         if ($target_progress_status !== null && $target_progress_status !== $old_status) {
             $updates[] = "progress_status = ?";
@@ -338,7 +343,7 @@ foreach ($submissions as $sub) {
             $need_update = true;
         }
 
-        // Approved date & sign off date update
+        // Approved date & sign off date update when Approved
         if ($target_progress_status === 'Approved') {
             if (empty($matched_task['approved_date'])) {
                 $updates[] = "approved_date = ?";
@@ -346,6 +351,20 @@ foreach ($submissions as $sub) {
                 $params[] = $approved_date;
                 $need_update = true;
             }
+            if (empty($matched_task['sign_off_date'])) {
+                $updates[] = "sign_off_date = ?";
+                $types .= "s";
+                $params[] = $approved_date;
+                $need_update = true;
+            }
+        }
+
+        // Submission date update when Submitted or Approved
+        if (($target_progress_status === 'Submitted' || $target_progress_status === 'Approved' || $target_progress_status === 'Test Ongoing') && $sub_date && empty($old_sub_date)) {
+            $updates[] = "submission_date = ?";
+            $types .= "s";
+            $params[] = $sub_date;
+            $need_update = true;
         }
 
         // Reviewer update
@@ -369,14 +388,6 @@ foreach ($submissions as $sub) {
             $updates[] = "submission_id = ?";
             $types .= "s";
             $params[] = $sub_id;
-            $need_update = true;
-        }
-
-        // Submission date update if empty and different
-        if ($sub_date && empty($old_sub_date)) {
-            $updates[] = "submission_date = ?";
-            $types .= "s";
-            $params[] = $sub_date;
             $need_update = true;
         }
 
