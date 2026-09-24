@@ -144,16 +144,71 @@ function parse_summary_list($data)
 
 // 3. AJAX Request Handler
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-        header('Content-Type: application/json');
-        try {
-            switch ($_POST['action']) {
-                case 'add_manual':
-                    if (empty($_POST['ap'])) {
-                        throw new Exception('AP Version wajib diisi.');
-                    }
+    header('Content-Type: application/json');
+    // ponytail: helper to return fresh tasks list for instant in-place DOM update
+    $get_tasks = function() use ($pdo) {
+        return $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    };
+
+    try {
+        switch ($_POST['action']) {
+            case 'get_tasks':
+                echo json_encode(['status' => 'success', 'tasks' => $get_tasks()]);
+                break;
+
+            case 'add_manual':
+                if (empty($_POST['ap'])) {
+                    throw new Exception('AP Version wajib diisi.');
+                }
+                $stmt = $pdo->prepare(
+                    "INSERT INTO new_tasks (model_name, ap, cp, csc, request_type, qb_user, qb_userdebug, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+                );
+                $stmt->execute([
+                    $_POST['model_name'] ?? '',
+                    trim($_POST['ap']),
+                    trim($_POST['cp'] ?? ''),
+                    trim($_POST['csc'] ?? ''),
+                    $_POST['request_type'] ?? 'Normal',
+                    trim($_POST['qb_user'] ?? ''),
+                    trim($_POST['qb_userdebug'] ?? '')
+                ]);
+                echo json_encode(['status' => 'success', 'message' => 'Task manual berhasil ditambahkan.', 'tasks' => $get_tasks()]);
+                break;
+
+            case 'delete_task':
+                if (empty($_POST['task_id'])) {
+                    throw new Exception('ID Task tidak valid.');
+                }
+                $stmt = $pdo->prepare("DELETE FROM new_tasks WHERE id = ?");
+                $stmt->execute([$_POST['task_id']]);
+                echo json_encode(['status' => 'success', 'message' => 'Task berhasil dihapus.', 'tasks' => $get_tasks()]);
+                break;
+
+            case 'bulk_delete':
+                if (empty($_POST['ids']) || !is_array($_POST['ids'])) {
+                    throw new Exception('Tidak ada task yang dipilih.');
+                }
+                $ids = array_map('intval', $_POST['ids']);
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $pdo->prepare("DELETE FROM new_tasks WHERE id IN ($placeholders)");
+                $stmt->execute($ids);
+                echo json_encode(['status' => 'success', 'message' => count($ids) . ' task berhasil dihapus.', 'tasks' => $get_tasks()]);
+                break;
+
+            case 'reset':
+                $pdo->exec("TRUNCATE TABLE new_tasks");
+                echo json_encode(['status' => 'success', 'message' => 'Semua data task berhasil direset.', 'tasks' => []]);
+                break;
+
+            case 'update_task':
+                if (empty($_POST['ap']) || empty($_POST['task_id'])) {
+                    echo json_encode(['status' => 'error', 'message' => 'Gagal: AP Version dan Task ID tidak boleh kosong.']);
+                } else {
                     $stmt = $pdo->prepare(
-                        "INSERT INTO new_tasks (model_name, ap, cp, csc, request_type, qb_user, qb_userdebug, is_manual) VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+                        "UPDATE new_tasks SET 
+                            model_name = ?, ap = ?, cp = ?, csc = ?, 
+                            request_type = ?, qb_user = ?, qb_userdebug = ? 
+                        WHERE id = ?"
                     );
                     $stmt->execute([
                         $_POST['model_name'] ?? '',
@@ -162,212 +217,165 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
                         trim($_POST['csc'] ?? ''),
                         $_POST['request_type'] ?? 'Normal',
                         trim($_POST['qb_user'] ?? ''),
-                        trim($_POST['qb_userdebug'] ?? '')
+                        trim($_POST['qb_userdebug'] ?? ''),
+                        $_POST['task_id']
                     ]);
-                    echo json_encode(['status' => 'success', 'message' => 'Task manual berhasil ditambahkan.']);
-                    break;
+                    echo json_encode(['status' => 'success', 'message' => 'Task berhasil diperbarui.', 'tasks' => $get_tasks()]);
+                }
+                break;
 
-                case 'delete_task':
-                    if (empty($_POST['task_id'])) {
-                        throw new Exception('ID Task tidak valid.');
+            case 'compare':
+                $manual_tasks = $pdo->query("SELECT * FROM new_tasks WHERE is_manual = 1")->fetchAll(PDO::FETCH_ASSOC);
+                $pdo->exec("TRUNCATE TABLE new_tasks");
+
+                $input_data['request_list'] = trim($_POST['request_list'] ?? '');
+                $input_data['gba_summary'] = trim($_POST['gba_summary'] ?? '');
+
+                $requests = [];
+                if (!empty($input_data['request_list'])) {
+                    $requests = parse_request_list($input_data['request_list']);
+                }
+
+                $summary_data = ['aps' => [], 'prefixes_to_models' => [], 'prefixes_to_csc' => []];
+                if (!empty($input_data['gba_summary'])) {
+                    $summary_data = parse_summary_list($input_data['gba_summary']);
+                }
+
+                $summary_aps = $summary_data['aps'];
+                $summary_prefixes = $summary_data['prefixes_to_models'];
+                $summary_cscs = $summary_data['prefixes_to_csc'];
+
+                $max_request_aps = [];
+                foreach ($requests as $req) {
+                    $ap = $req['ap'];
+                    $ap_prefix = substr($ap, 0, 8);
+                    $last5_val = base_convert(substr($ap, -5), 36, 10);
+
+                    if (!isset($max_request_aps[$ap_prefix]) || $last5_val > $max_request_aps[$ap_prefix]['val']) {
+                        $max_request_aps[$ap_prefix] = [
+                            'val' => $last5_val,
+                            'req' => $req
+                        ];
                     }
-                    $stmt = $pdo->prepare("DELETE FROM new_tasks WHERE id = ?");
-                    $stmt->execute([$_POST['task_id']]);
-                    echo json_encode(['status' => 'success', 'message' => 'Task berhasil dihapus.']);
-                    break;
+                }
 
-                case 'bulk_delete':
-                    if (empty($_POST['ids']) || !is_array($_POST['ids'])) {
-                        throw new Exception('Tidak ada task yang dipilih.');
+                $max_summary_aps = [];
+                foreach ($summary_aps as $sap) {
+                    $ap_prefix = substr($sap, 0, 8);
+                    $last5_val = base_convert(substr($sap, -5), 36, 10);
+                    if (!isset($max_summary_aps[$ap_prefix]) || $last5_val > $max_summary_aps[$ap_prefix]) {
+                        $max_summary_aps[$ap_prefix] = $last5_val;
                     }
-                    $ids = array_map('intval', $_POST['ids']);
-                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                    $stmt = $pdo->prepare("DELETE FROM new_tasks WHERE id IN ($placeholders)");
-                    $stmt->execute($ids);
-                    echo json_encode(['status' => 'success', 'message' => count($ids) . ' task berhasil dihapus.']);
-                    break;
+                }
 
-                case 'reset':
-                    $pdo->exec("TRUNCATE TABLE new_tasks");
-                    echo json_encode(['status' => 'success', 'message' => 'Semua data task berhasil direset.']);
-                    break;
+                $new_entries_count = 0;
+                if (!empty($max_request_aps)) {
+                    $stmt_insert = $pdo->prepare(
+                        "INSERT IGNORE INTO new_tasks (model_name, ap, cp, csc, request_type) VALUES (?, ?, ?, ?, ?)"
+                    );
 
-                case 'update_task':
-                    if (empty($_POST['ap']) || empty($_POST['task_id'])) {
-                        echo json_encode(['status' => 'error', 'message' => 'Gagal: AP Version dan Task ID tidak boleh kosong.']);
-                    } else {
-                        $stmt = $pdo->prepare(
-                            "UPDATE new_tasks SET 
-                                model_name = ?, ap = ?, cp = ?, csc = ?, 
-                                request_type = ?, qb_user = ?, qb_userdebug = ? 
-                            WHERE id = ?"
-                        );
-                        $stmt->execute([
-                            $_POST['model_name'] ?? '',
-                            trim($_POST['ap']),
-                            trim($_POST['cp'] ?? ''),
-                            trim($_POST['csc'] ?? ''),
-                            $_POST['request_type'] ?? 'Normal',
-                            trim($_POST['qb_user'] ?? ''),
-                            trim($_POST['qb_userdebug'] ?? ''),
-                            $_POST['task_id']
-                        ]);
-                        echo json_encode(['status' => 'success', 'message' => 'Task berhasil diperbarui.']);
-                    }
-                    break;
-
-                case 'compare':
-                    $manual_tasks = $pdo->query("SELECT * FROM new_tasks WHERE is_manual = 1")->fetchAll(PDO::FETCH_ASSOC);
-                    $pdo->exec("TRUNCATE TABLE new_tasks");
-
-                    $input_data['request_list'] = trim($_POST['request_list'] ?? '');
-                    $input_data['gba_summary'] = trim($_POST['gba_summary'] ?? '');
-
-                    $requests = [];
-                    if (!empty($input_data['request_list'])) {
-                        $requests = parse_request_list($input_data['request_list']);
-                    }
-
-                    $summary_data = ['aps' => [], 'prefixes_to_models' => [], 'prefixes_to_csc' => []];
-                    if (!empty($input_data['gba_summary'])) {
-                        $summary_data = parse_summary_list($input_data['gba_summary']);
-                    }
-
-                    $summary_aps = $summary_data['aps'];
-                    $summary_prefixes = $summary_data['prefixes_to_models'];
-                    $summary_cscs = $summary_data['prefixes_to_csc'];
-
-                    $max_request_aps = [];
-                    foreach ($requests as $req) {
+                    foreach ($max_request_aps as $ap_prefix => $data) {
+                        $req = $data['req'];
                         $ap = $req['ap'];
-                        $ap_prefix = substr($ap, 0, 8);
-                        $last5_val = base_convert(substr($ap, -5), 36, 10);
+                        $req_val = $data['val'];
+                        $prefix = substr($ap, 0, 6);
 
-                        if (!isset($max_request_aps[$ap_prefix]) || $last5_val > $max_request_aps[$ap_prefix]['val']) {
-                            $max_request_aps[$ap_prefix] = [
-                                'val' => $last5_val,
-                                'req' => $req
-                            ];
-                        }
-                    }
+                        if (isset($summary_prefixes[$prefix])) {
+                            $model_name = $summary_prefixes[$prefix];
+                            $should_insert = true;
 
-                    $max_summary_aps = [];
-                    foreach ($summary_aps as $sap) {
-                        $ap_prefix = substr($sap, 0, 8);
-                        $last5_val = base_convert(substr($sap, -5), 36, 10);
-                        if (!isset($max_summary_aps[$ap_prefix]) || $last5_val > $max_summary_aps[$ap_prefix]) {
-                            $max_summary_aps[$ap_prefix] = $last5_val;
-                        }
-                    }
-
-                    $new_entries_count = 0;
-                    if (!empty($max_request_aps)) {
-                        $stmt_insert = $pdo->prepare(
-                            "INSERT IGNORE INTO new_tasks (model_name, ap, cp, csc, request_type) VALUES (?, ?, ?, ?, ?)"
-                        );
-
-                        foreach ($max_request_aps as $ap_prefix => $data) {
-                            $req = $data['req'];
-                            $ap = $req['ap'];
-                            $req_val = $data['val'];
-                            $prefix = substr($ap, 0, 6);
-
-                            if (isset($summary_prefixes[$prefix])) {
-                                $model_name = $summary_prefixes[$prefix];
-                                $should_insert = true;
-
-                                if (isset($max_summary_aps[$ap_prefix])) {
-                                    $max_sap_val = $max_summary_aps[$ap_prefix];
-                                    if ($req_val <= $max_sap_val) {
-                                        $should_insert = false;
-                                    }
+                            if (isset($max_summary_aps[$ap_prefix])) {
+                                $max_sap_val = $max_summary_aps[$ap_prefix];
+                                if ($req_val <= $max_sap_val) {
+                                    $should_insert = false;
                                 }
+                            }
 
-                                if ($should_insert) {
-                                    $req_csc = $req['csc'];
+                            if ($should_insert) {
+                                $req_csc = $req['csc'];
 
-                                    if (isset($summary_cscs[$prefix])) {
-                                        $sum_csc = $summary_cscs[$prefix];
-                                        $gba_csc_code = null;
-                                        if (strpos($sum_csc, 'OLM') !== false) $gba_csc_code = 'OLM';
-                                        elseif (strpos($sum_csc, 'OXM') !== false) $gba_csc_code = 'OXM';
-                                        elseif (strpos($sum_csc, 'OLE') !== false) $gba_csc_code = 'OLE';
-                                        elseif (strpos($sum_csc, 'OLP') !== false) $gba_csc_code = 'OLP';
-                                        elseif (strpos($sum_csc, 'OXT') !== false) $gba_csc_code = 'OXT';
+                                if (isset($summary_cscs[$prefix])) {
+                                    $sum_csc = $summary_cscs[$prefix];
+                                    $gba_csc_code = null;
+                                    if (strpos($sum_csc, 'OLM') !== false) $gba_csc_code = 'OLM';
+                                    elseif (strpos($sum_csc, 'OXM') !== false) $gba_csc_code = 'OXM';
+                                    elseif (strpos($sum_csc, 'OLE') !== false) $gba_csc_code = 'OLE';
+                                    elseif (strpos($sum_csc, 'OLP') !== false) $gba_csc_code = 'OLP';
+                                    elseif (strpos($sum_csc, 'OXT') !== false) $gba_csc_code = 'OXT';
 
-                                        if ($gba_csc_code) {
-                                            $req_csc = str_replace(['OXM', 'OLM', 'OLE', 'OXT', 'OLP'], $gba_csc_code, $req_csc);
-                                        } else {
-                                            $req_csc = str_replace(['OXM', 'OLM'], 'OLE', $req_csc);
-                                            $req_csc = str_replace('OXT', 'OLP', $req_csc);
-                                        }
+                                    if ($gba_csc_code) {
+                                        $req_csc = str_replace(['OXM', 'OLM', 'OLE', 'OXT', 'OLP'], $gba_csc_code, $req_csc);
                                     } else {
                                         $req_csc = str_replace(['OXM', 'OLM'], 'OLE', $req_csc);
                                         $req_csc = str_replace('OXT', 'OLP', $req_csc);
                                     }
+                                } else {
+                                    $req_csc = str_replace(['OXM', 'OLM'], 'OLE', $req_csc);
+                                    $req_csc = str_replace('OXT', 'OLP', $req_csc);
+                                }
 
-                                    $raw_type = !empty($req['type']) ? strtoupper(trim($req['type'])) : '';
-                                    $request_type = 'Normal';
-                                    if (strpos($raw_type, 'SMR') !== false) {
-                                        $request_type = 'SMR';
-                                    } elseif (strpos($raw_type, 'SKU') !== false) {
-                                        $request_type = 'SKU';
-                                    }
+                                $raw_type = !empty($req['type']) ? strtoupper(trim($req['type'])) : '';
+                                $request_type = 'Normal';
+                                if (strpos($raw_type, 'SMR') !== false) {
+                                    $request_type = 'SMR';
+                                } elseif (strpos($raw_type, 'SKU') !== false) {
+                                    $request_type = 'SKU';
+                                }
 
-                                    $stmt_insert->execute([
-                                        $model_name,
-                                        $ap,
-                                        $req['cp'],
-                                        $req_csc,
-                                        $request_type
-                                    ]);
-                                    if ($stmt_insert->rowCount() > 0) {
-                                        $new_entries_count++;
-                                    }
+                                $stmt_insert->execute([
+                                    $model_name,
+                                    $ap,
+                                    $req['cp'],
+                                    $req_csc,
+                                    $request_type
+                                ]);
+                                if ($stmt_insert->rowCount() > 0) {
+                                    $new_entries_count++;
                                 }
                             }
                         }
                     }
+                }
 
-                    if (!empty($manual_tasks)) {
-                        $stmt_reinsert = $pdo->prepare(
-                            "INSERT INTO new_tasks (model_name, ap, cp, csc, request_type, qb_user, qb_userdebug, is_manual) 
-                             VALUES (:model_name, :ap, :cp, :csc, :request_type, :qb_user, :qb_userdebug, 1)"
-                        );
-                        foreach ($manual_tasks as $task) {
-                            $stmt_reinsert->execute([
-                                ':model_name' => $task['model_name'],
-                                ':ap' => $task['ap'],
-                                ':cp' => $task['cp'],
-                                ':csc' => $task['csc'],
-                                ':request_type' => $task['request_type'],
-                                ':qb_user' => $task['qb_user'],
-                                ':qb_userdebug' => $task['qb_userdebug']
-                            ]);
-                        }
+                if (!empty($manual_tasks)) {
+                    $stmt_reinsert = $pdo->prepare(
+                        "INSERT INTO new_tasks (model_name, ap, cp, csc, request_type, qb_user, qb_userdebug, is_manual) 
+                         VALUES (:model_name, :ap, :cp, :csc, :request_type, :qb_user, :qb_userdebug, 1)"
+                    );
+                    foreach ($manual_tasks as $task) {
+                        $stmt_reinsert->execute([
+                            ':model_name' => $task['model_name'],
+                            ':ap' => $task['ap'],
+                            ':cp' => $task['cp'],
+                            ':csc' => $task['csc'],
+                            ':request_type' => $task['request_type'],
+                            ':qb_user' => $task['qb_user'],
+                            ':qb_userdebug' => $task['qb_userdebug']
+                        ]);
                     }
-                    $manual_count = count($manual_tasks);
-                    echo json_encode([
-                        'status' => 'success',
-                        'message' => "Filter selesai: {$new_entries_count} task baru ditemukan & {$manual_count} entri manual dipertahankan."
-                    ]);
-                    break;
+                }
+                $manual_count = count($manual_tasks);
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => "Filter selesai: {$new_entries_count} task baru ditemukan & {$manual_count} entri manual dipertahankan.",
+                    'tasks' => $get_tasks()
+                ]);
+                break;
 
-                default:
-                    echo json_encode(['status' => 'error', 'message' => 'Aksi tidak diketahui.']);
-                    break;
-            }
-        } catch (PDOException $e) {
-            if ($e->errorInfo[1] == 1062) {
-                echo json_encode(['status' => 'error', 'message' => 'Gagal: AP Version sudah ada di database.']);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $e->getMessage()]);
-            }
-        } catch (Exception $e) {
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            default:
+                echo json_encode(['status' => 'error', 'message' => 'Aksi tidak diketahui.']);
+                break;
         }
-        exit;
+    } catch (PDOException $e) {
+        if ($e->errorInfo[1] == 1062) {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal: AP Version sudah ada di database.']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Database Error: ' . $e->getMessage()]);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
+    exit;
 }
 
 // Fetch all tasks
@@ -1460,6 +1468,79 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                 }
             }
 
+            // ponytail: Helper to escape HTML safely
+            function escapeHtml(str) {
+                if (str === null || str === undefined || str === '') return '-';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            // ponytail: In-place DataTable renderer (smooth AJAX updates without page reload)
+            function renderTable(tasks) {
+                table.clear();
+                if (tasks && tasks.length > 0) {
+                    tasks.forEach((task, index) => {
+                        const no = index + 1;
+                        const reqType = task.request_type || 'Normal';
+                        let typeColor = 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30';
+                        if (reqType === 'SMR') typeColor = 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30';
+                        else if (reqType === 'SKU') typeColor = 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30';
+
+                        const sourceBadge = Number(task.is_manual) === 1
+                            ? '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">Manual</span>'
+                            : '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30">Filtered</span>';
+
+                        const rowAdded = table.row.add([
+                            `<input type="checkbox" class="task-checkbox w-3.5 h-3.5 rounded cursor-pointer accent-blue-600" value="${task.id}">`,
+                            no,
+                            `<span class="px-2 py-0.5 rounded text-[11px] font-bold" style="background: var(--badge-bg); border: 1px solid var(--card-border); color: var(--text-primary);">${escapeHtml(task.model_name)}</span>`,
+                            escapeHtml(task.ap),
+                            escapeHtml(task.cp),
+                            escapeHtml(task.csc),
+                            `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${typeColor}">${escapeHtml(reqType)}</span>`,
+                            escapeHtml(task.qb_user),
+                            escapeHtml(task.qb_userdebug),
+                            sourceBadge,
+                            `<div class="inline-flex items-center gap-1">
+                                <button class="copy-row-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Copy Baris">
+                                    <i class="fas fa-copy text-xs"></i>
+                                </button>
+                                <button class="edit-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Edit Task">
+                                    <i class="fas fa-pencil-alt text-xs"></i>
+                                </button>
+                                <button class="delete-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Hapus Task">
+                                    <i class="fas fa-trash-alt text-xs"></i>
+                                </button>
+                            </div>`
+                        ]);
+
+                        const node = rowAdded.node();
+                        if (node) {
+                            $(node).attr('data-id', task.id);
+                            if (Number(task.is_manual) === 1) {
+                                $(node).addClass('manual-row');
+                            }
+                            $(node).find('td:eq(0)').addClass('text-center');
+                            $(node).find('td:eq(1)').addClass('text-center mono font-bold').css('color', 'var(--text-secondary)');
+                            $(node).find('td:eq(2)').addClass('font-bold');
+                            $(node).find('td:eq(3)').addClass('mono font-bold').css('color', 'var(--text-primary)');
+                            $(node).find('td:eq(4)').addClass('mono font-medium').css('color', 'var(--text-secondary)');
+                            $(node).find('td:eq(5)').addClass('mono font-bold').css('color', 'var(--text-primary)');
+                            $(node).find('td:eq(7)').addClass('mono text-[11px] font-semibold').css('color', 'var(--text-secondary)');
+                            $(node).find('td:eq(8)').addClass('mono text-[11px] font-semibold').css('color', 'var(--text-secondary)');
+                            $(node).find('td:eq(10)').addClass('text-center');
+                        }
+                    });
+                }
+                table.draw(false);
+                selectAll.prop('checked', false);
+                updateBulkState();
+            }
+
             // Compare Form Submission
             $('#compareForm').on('submit', function (e) {
                 e.preventDefault();
@@ -1478,7 +1559,9 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         submitBtn.prop('disabled', false).html(origHtml);
                         if (response.status === 'success') {
                             showToast(response.message);
-                            setTimeout(() => location.reload(), 1000);
+                            if (response.tasks) {
+                                renderTable(response.tasks);
+                            }
                         } else {
                             showToast(response.message, true);
                         }
@@ -1506,7 +1589,10 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         if (response.status === 'success') {
                             showToast(response.message);
                             addModal.addClass('hidden');
-                            setTimeout(() => location.reload(), 1000);
+                            $('#addManualForm')[0].reset();
+                            if (response.tasks) {
+                                renderTable(response.tasks);
+                            }
                         } else {
                             showToast(response.message, true);
                         }
@@ -1558,7 +1644,9 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         if (response.status === 'success') {
                             showToast(response.message);
                             editModal.addClass('hidden');
-                            setTimeout(() => location.reload(), 1000);
+                            if (response.tasks) {
+                                renderTable(response.tasks);
+                            }
                         } else {
                             showToast(response.message, true);
                         }
@@ -1582,7 +1670,11 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         success: function (response) {
                             if (response.status === 'success') {
                                 showToast(response.message);
-                                table.row(row).remove().draw(false);
+                                if (response.tasks) {
+                                    renderTable(response.tasks);
+                                } else {
+                                    table.row(row).remove().draw(false);
+                                }
                             } else {
                                 showToast(response.message, true);
                             }
@@ -1653,7 +1745,9 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         success: function (response) {
                             if (response.status === 'success') {
                                 showToast(response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                if (response.tasks) {
+                                    renderTable(response.tasks);
+                                }
                             } else {
                                 showToast(response.message, true);
                             }
@@ -1728,7 +1822,11 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         success: function (response) {
                             if (response.status === 'success') {
                                 showToast(response.message);
-                                setTimeout(() => location.reload(), 1000);
+                                if (response.tasks !== undefined) {
+                                    renderTable(response.tasks);
+                                } else {
+                                    renderTable([]);
+                                }
                             } else {
                                 showToast(response.message, true);
                             }
