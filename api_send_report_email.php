@@ -42,20 +42,62 @@ if (empty($validTo)) {
     exit;
 }
 
-$formattedDate = date('d F Y');
-$subject = !empty($customSubject) ? $customSubject : "[DAILY REPORT GBA] Summary Insight - {$formattedDate}";
+$is_weekly = (isset($input['report_type']) && strtolower($input['report_type']) === 'weekly');
+$target_date = isset($input['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $input['date']) ? $input['date'] : date('Y-m-d');
 
-$sql = "SELECT t.*, u.username 
-        FROM gba_tasks t 
-        LEFT JOIN users u ON t.pic_email = u.email 
-        ORDER BY t.deadline ASC, t.id DESC";
-$res = $conn->query($sql);
+if ($is_weekly) {
+    $current_dt = new DateTime($target_date);
+    $day_of_week = (int)$current_dt->format('w');
+    $diff_to_wed = $day_of_week >= 3 ? $day_of_week - 3 : $day_of_week + 4;
+    $start_dt = (clone $current_dt)->modify("-{$diff_to_wed} days");
+    $end_dt = (clone $start_dt)->modify("+6 days");
+    $start_date_str = $start_dt->format('Y-m-d');
+    $end_date_str = $end_dt->format('Y-m-d');
+    $range_label = $start_dt->format('d M Y') . ' - ' . $end_dt->format('d M Y');
+    $subject = !empty($customSubject) ? $customSubject : "[WEEKLY REPORT GBA] Insight Summary ({$range_label})";
+
+    $sql = "SELECT t.*, u.username 
+            FROM gba_tasks t 
+            LEFT JOIN users u ON t.pic_email = u.email 
+            WHERE (
+                (t.request_date BETWEEN ? AND ?) OR
+                (t.submission_date BETWEEN ? AND ?) OR
+                (t.approved_date BETWEEN ? AND ?) OR
+                (t.deadline BETWEEN ? AND ?) OR
+                (DATE(t.updated_at) BETWEEN ? AND ?) OR
+                (t.progress_status NOT IN ('Approved', 'Passed', 'Batal') AND (t.request_date <= ? OR t.request_date IS NULL))
+            )
+            ORDER BY t.deadline ASC, t.id DESC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("sssssssssss", 
+        $start_date_str, $end_date_str,
+        $start_date_str, $end_date_str,
+        $start_date_str, $end_date_str,
+        $start_date_str, $end_date_str,
+        $start_date_str, $end_date_str,
+        $end_date_str
+    );
+    $stmt->execute();
+    $res = $stmt->get_result();
+} else {
+    $formattedDate = date('d F Y');
+    $subject = !empty($customSubject) ? $customSubject : "[DAILY REPORT GBA] Summary Insight - {$formattedDate}";
+
+    $sql = "SELECT t.*, u.username 
+            FROM gba_tasks t 
+            LEFT JOIN users u ON t.pic_email = u.email 
+            ORDER BY t.deadline ASC, t.id DESC";
+    $res = $conn->query($sql);
+}
 
 $all_tasks = [];
 if ($res && $res->num_rows > 0) {
     while ($row = $res->fetch_assoc()) {
         $all_tasks[] = $row;
     }
+}
+if (isset($stmt) && $stmt) {
+    $stmt->close();
 }
 
 $today_str = date('Y-m-d');
@@ -342,10 +384,14 @@ ob_start();
                 Samsung GBA &bull; Quality Engineering
             </div>
             <h1 style="margin:0; font-size:22px; font-weight:800; color:#f8fafc; letter-spacing:-0.02em;">
-                Daily Report Summary Insight
+                <?php echo $is_weekly ? 'Weekly Report Summary Insight' : 'Daily Report Summary Insight'; ?>
             </h1>
             <p style="margin:6px 0 0 0; font-size:12px; color:#94a3b8;">
-                Tanggal Laporan: <strong style="color:#e2e8f0;"><?php echo $formattedDate; ?></strong> &bull; Waktu Kirim: <?php echo date('H:i'); ?> WIB &bull; Generator: MCP SMTP Mailer
+                <?php if ($is_weekly): ?>
+                    Periode Siklus: <strong style="color:#e2e8f0;"><?php echo $range_label; ?> (Rabu - Selasa)</strong> &bull; Waktu Kirim: <?php echo date('H:i'); ?> WIB &bull; Generator: MCP SMTP Mailer
+                <?php else: ?>
+                    Tanggal Laporan: <strong style="color:#e2e8f0;"><?php echo $formattedDate; ?></strong> &bull; Waktu Kirim: <?php echo date('H:i'); ?> WIB &bull; Generator: MCP SMTP Mailer
+                <?php endif; ?>
             </p>
         </div>
 
@@ -354,9 +400,9 @@ ob_start();
             <div style="background-color:#ffffff; border:1px solid #e2e8f0; border-left:4px solid #6366f1; border-radius:0 10px 10px 0; padding:18px 20px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.02);">
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                     <span style="display:inline-block; background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; padding:2px 8px; border-radius:9999px; font-size:10px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;">
-                        Daily Executive Insight
+                        <?php echo $is_weekly ? 'Weekly Executive Insight' : 'Daily Executive Insight'; ?>
                     </span>
-                    <span style="font-size:11.5px; color:#64748b; font-weight:500;"><?php echo date('l, d F Y'); ?></span>
+                    <span style="font-size:11.5px; color:#64748b; font-weight:500;"><?php echo $is_weekly ? htmlspecialchars($range_label) : date('l, d F Y'); ?></span>
                 </div>
                 <p style="margin:0; font-size:13px; color:#334155; line-height:1.65;">
                     <?php echo htmlspecialchars($narrative); ?>
@@ -651,8 +697,8 @@ ob_start();
             </div>
 
             <div style="text-align:left; margin-top:20px; margin-bottom:16px;">
-                <a href="http://107.102.39.55:8089/daily_report_summary.php" target="_blank" style="display:inline-block; background-color:#0f172a; color:#ffffff !important; text-decoration:none; padding:10px 20px; border-radius:6px; font-size:12px; font-weight:600; letter-spacing:0.02em;">
-                    Buka Daily Report Summary Dashboard
+                <a href="<?php echo $is_weekly ? 'http://107.102.39.55:8089/weekly_report_summary.php' : 'http://107.102.39.55:8089/daily_report_summary.php'; ?>" target="_blank" style="display:inline-block; background-color:#0f172a; color:#ffffff !important; text-decoration:none; padding:10px 20px; border-radius:6px; font-size:12px; font-weight:600; letter-spacing:0.02em;">
+                    Buka <?php echo $is_weekly ? 'Weekly' : 'Daily'; ?> Report Summary Dashboard
                 </a>
             </div>
 

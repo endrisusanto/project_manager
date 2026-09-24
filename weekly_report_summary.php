@@ -426,6 +426,133 @@ function get_status_badge_class($st) {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+
+        /* Chip Input & Email Config Styles */
+        .chip-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            min-height: 44px;
+            cursor: text;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .chip-container:focus-within {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+        .chip-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px 3px 10px;
+            border-radius: 9999px;
+            font-size: 11.5px;
+            font-weight: 500;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            animation: chipPop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        html.light .chip-tag {
+            background: #e0f2fe;
+            border-color: #bae6fd;
+            color: #0369a1;
+        }
+        .chip-tag.invalid {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+        .chip-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0.75;
+            transition: opacity 0.1s, transform 0.1s, background 0.1s;
+            font-size: 13px;
+            line-height: 1;
+        }
+        .chip-remove:hover {
+            opacity: 1;
+            transform: scale(1.15);
+            background: rgba(0,0,0,0.15);
+        }
+        .chip-input {
+            flex: 1 1 140px;
+            min-width: 120px;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 3px 2px;
+        }
+        .chip-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.65;
+        }
+
+        @keyframes chipPop {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Modal Transitions */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.68);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-dialog {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 580px;
+            transform: scale(0.95) translateY(8px);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+        .modal-backdrop.active .modal-dialog {
+            transform: scale(1) translateY(0);
+        }
+
+        /* Custom Scrollbar for tables/consoles */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.25);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -484,6 +611,21 @@ function get_status_badge_class($st) {
                     <span>Next Week</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </a>
+
+                <!-- Send Mail Button (Left-click: Send | Right-click: Configure) -->
+                <button id="btn-send-email-report" 
+                        onclick="handleSendEmailClick()" 
+                        oncontextmenu="openEmailConfigModal(event)" 
+                        class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-600/30 group relative flex-shrink-0 whitespace-nowrap"
+                        title="Klik kiri: Kirim Email Report langsung | Klik kanan: Atur Subject & Penerima">
+                    <span id="send-mail-icon-wrap" class="flex items-center justify-center w-4 h-4">
+                        <svg id="send-mail-icon" class="w-4 h-4 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </span>
+                    <span id="send-mail-text">Kirim Email Report</span>
+                    <span class="text-[9px] text-sky-100 bg-sky-700/80 px-1.5 py-0.5 rounded font-mono border border-sky-400/30 hidden xl:inline">R-Click ⚙️</span>
+                </button>
 
                 <button id="btn-copy-weekly" onclick="copyWeeklyReport()" class="btn-action-tactile bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-600/25 flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,6 +1170,443 @@ function get_status_badge_class($st) {
             }
             draw();
         })();
+
+        // ----------------------------------------------------
+        // EMAIL CONFIGURATION & MCP SENDMAIL CLIENT (Emil-Design-Eng)
+        // ----------------------------------------------------
+        const defaultEmailSubject = "<?php echo addslashes("[WEEKLY REPORT GBA] Insight Summary (" . $range_label . ")"); ?>";
+        const defaultEmailTo = ["<?php echo addslashes($_SESSION['user_details']['email'] ?? 'endri.s@samsung.com'); ?>"];
+
+        let emailSettings = {
+            subject: localStorage.getItem('gba_weekly_report_email_subject') || defaultEmailSubject,
+            to: JSON.parse(localStorage.getItem('gba_report_email_to') || 'null') || defaultEmailTo,
+            cc: JSON.parse(localStorage.getItem('gba_report_email_cc') || 'null') || []
+        };
+
+        const circleSpinnerSvg = `<svg class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>`;
+        const envelopeIconSvg = `<svg id="send-mail-icon" class="w-4 h-4 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`;
+
+        // Console Log Management Functions
+        function openSmtpConsole() {
+            const widget = document.getElementById('smtp-console-widget');
+            if (widget) {
+                widget.classList.remove('translate-y-8', 'opacity-0', 'pointer-events-none');
+                widget.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            }
+        }
+
+        function closeSmtpConsole() {
+            const widget = document.getElementById('smtp-console-widget');
+            if (widget) {
+                widget.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+                widget.classList.add('translate-y-8', 'opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function toggleSmtpConsoleMinimize() {
+            const body = document.getElementById('smtp-console-body');
+            if (body) {
+                body.classList.toggle('hidden');
+            }
+        }
+
+        function clearSmtpConsole() {
+            const body = document.getElementById('smtp-console-body');
+            if (body) body.innerHTML = '';
+        }
+
+        function logSmtpConsole(message, type = 'info') {
+            const body = document.getElementById('smtp-console-body');
+            if (!body) return;
+
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            
+            let colorClass = 'text-slate-300';
+            if (type === 'success') colorClass = 'text-emerald-400 font-semibold';
+            else if (type === 'error') colorClass = 'text-rose-400 font-semibold';
+            else if (type === 'warn') colorClass = 'text-amber-400 font-semibold';
+            else if (type === 'step') colorClass = 'text-sky-300';
+
+            const line = document.createElement('div');
+            line.className = `flex items-start gap-1.5 ${colorClass}`;
+            line.innerHTML = `<span class="text-slate-500 flex-shrink-0 select-none">[${timeStr}]</span> <span class="break-all flex-1">${escapeHtml(message)}</span>`;
+            body.appendChild(line);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function setSmtpConsoleStatus(status) {
+            const dot = document.getElementById('smtp-console-status-dot');
+            if (!dot) return;
+            dot.className = 'w-2.5 h-2.5 rounded-full';
+            if (status === 'busy') {
+                dot.classList.add('bg-amber-400', 'animate-pulse');
+            } else if (status === 'success') {
+                dot.classList.add('bg-emerald-400');
+            } else if (status === 'error') {
+                dot.classList.add('bg-rose-500');
+            }
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        function isValidEmail(email) {
+            return emailRegex.test(String(email).toLowerCase());
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Render Chip Tags for a given target ('to' or 'cc')
+        function renderChips(target) {
+            const listEl = document.getElementById(`chip-list-${target}`);
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            const items = emailSettings[target] || [];
+            items.forEach((email, idx) => {
+                const valid = isValidEmail(email);
+                const tag = document.createElement('span');
+                tag.className = `chip-tag ${valid ? '' : 'invalid'}`;
+                tag.innerHTML = `
+                    <span>${escapeHtml(email)}</span>
+                    <button type="button" class="chip-remove" onclick="removeEmailChip('${target}', ${idx}, event)" title="Hapus email">×</button>
+                `;
+                listEl.appendChild(tag);
+            });
+        }
+
+        function removeEmailChip(target, index, event) {
+            if (event) event.stopPropagation();
+            if (emailSettings[target] && emailSettings[target].length > index) {
+                emailSettings[target].splice(index, 1);
+                renderChips(target);
+            }
+        }
+
+        function addEmailChipsFromText(target, rawText) {
+            if (!rawText) return;
+            const tokens = rawText.split(/[\s,;]+/).map(t => t.trim()).filter(t => t.length > 0);
+            if (tokens.length === 0) return;
+
+            if (!emailSettings[target]) emailSettings[target] = [];
+            tokens.forEach(tok => {
+                if (!emailSettings[target].includes(tok)) {
+                    emailSettings[target].push(tok);
+                }
+            });
+            renderChips(target);
+        }
+
+        function focusChipInput(target) {
+            const inp = document.getElementById(`chip-input-${target}`);
+            if (inp) inp.focus();
+        }
+
+        // Setup Chip Input Listeners
+        function setupChipInput(target) {
+            const inp = document.getElementById(`chip-input-${target}`);
+            if (!inp) return;
+
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ',' || e.key === ';' || e.key === 'Tab') {
+                    if (this.value.trim().length > 0) {
+                        e.preventDefault();
+                        addEmailChipsFromText(target, this.value);
+                        this.value = '';
+                    }
+                } else if (e.key === 'Backspace' && this.value === '') {
+                    if (emailSettings[target] && emailSettings[target].length > 0) {
+                        emailSettings[target].pop();
+                        renderChips(target);
+                    }
+                }
+            });
+
+            inp.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                if (pasteText) {
+                    addEmailChipsFromText(target, pasteText);
+                    this.value = '';
+                }
+            });
+
+            inp.addEventListener('blur', function() {
+                if (this.value.trim().length > 0) {
+                    addEmailChipsFromText(target, this.value);
+                    this.value = '';
+                }
+            });
+        }
+
+        // Open Modal (Right Click Trigger or Config button)
+        function openEmailConfigModal(event) {
+            if (event) {
+                event.preventDefault();
+            }
+            const modal = document.getElementById('email-config-modal');
+            const subjInput = document.getElementById('input-email-subject');
+            if (subjInput) {
+                subjInput.value = emailSettings.subject || defaultEmailSubject;
+            }
+            renderChips('to');
+            renderChips('cc');
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeEmailConfigModal() {
+            const modal = document.getElementById('email-config-modal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        }
+
+        function handleBackdropClick(event) {
+            if (event.target && event.target.id === 'email-config-modal') {
+                closeEmailConfigModal();
+            }
+        }
+
+        function resetEmailSubjectToDefault() {
+            const subjInput = document.getElementById('input-email-subject');
+            if (subjInput) {
+                subjInput.value = defaultEmailSubject;
+            }
+        }
+
+        function saveEmailSettingsState() {
+            const subjInput = document.getElementById('input-email-subject');
+            if (subjInput) {
+                emailSettings.subject = subjInput.value.trim() || defaultEmailSubject;
+            }
+            localStorage.setItem('gba_weekly_report_email_subject', emailSettings.subject);
+            localStorage.setItem('gba_report_email_to', JSON.stringify(emailSettings.to || []));
+            localStorage.setItem('gba_report_email_cc', JSON.stringify(emailSettings.cc || []));
+        }
+
+        function saveEmailSettingsOnly() {
+            saveEmailSettingsState();
+            closeEmailConfigModal();
+            showToast('Daftar penerima dan subjek email berhasil diperbarui.', true);
+        }
+
+        function saveAndSendEmailNow() {
+            saveEmailSettingsState();
+            closeEmailConfigModal();
+            triggerSendEmailRequest();
+        }
+
+        function handleSendEmailClick() {
+            // If recipient list is empty, open configuration modal
+            if (!emailSettings.to || emailSettings.to.length === 0) {
+                showToast('Silakan masukkan minimal 1 email penerima terlebih dahulu.', false);
+                openEmailConfigModal();
+                return;
+            }
+            triggerSendEmailRequest();
+        }
+
+        async function triggerSendEmailRequest() {
+            const btn = document.getElementById('btn-send-email-report');
+            const textEl = document.getElementById('send-mail-text');
+            const iconWrap = document.getElementById('send-mail-icon-wrap');
+
+            const originalText = textEl ? textEl.innerHTML : 'Kirim Email Report';
+            if (btn) btn.disabled = true;
+            if (textEl) textEl.textContent = 'Mengirim email...';
+            if (iconWrap) iconWrap.innerHTML = circleSpinnerSvg;
+
+            // Open & Initialize Console Widget
+            openSmtpConsole();
+            clearSmtpConsole();
+            setSmtpConsoleStatus('busy');
+
+            logSmtpConsole("🚀 Memulai proses pengiriman Weekly Report via SMTP...", "step");
+            logSmtpConsole(`📋 Periode: "<?= addslashes($range_label) ?>"`, "info");
+            logSmtpConsole(`📋 Subjek: "${emailSettings.subject || defaultEmailSubject}"`, "info");
+            logSmtpConsole(`👥 Penerima (${(emailSettings.to || []).length} alamat): ${(emailSettings.to || []).join(', ')}`, "info");
+            if (emailSettings.cc && emailSettings.cc.length) {
+                logSmtpConsole(`👥 Tembusan CC (${emailSettings.cc.length} alamat): ${emailSettings.cc.join(', ')}`, "info");
+            }
+            logSmtpConsole("📡 Menghubungkan ke backend bridge & MCP SMTP Mailer (Port 3800)...", "step");
+            logSmtpConsole("⏳ Mengirim payload HTML ke server SMTP (timeout diset hingga 5 menit)...", "warn");
+
+            const startTime = Date.now();
+            const heartbeatInterval = setInterval(() => {
+                const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+                logSmtpConsole(`⏳ Masih memproses pengiriman SMTP... (${elapsedSec} detik)`, "info");
+            }, 5000);
+
+            try {
+                const payload = {
+                    report_type: 'weekly',
+                    date: '<?= $target_date ?>',
+                    subject: emailSettings.subject || defaultEmailSubject,
+                    to: emailSettings.to || [],
+                    cc: emailSettings.cc || []
+                };
+
+                const res = await fetch('api_send_report_email.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                clearInterval(heartbeatInterval);
+                const elapsedTotal = ((Date.now() - startTime) / 1000).toFixed(1);
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    setSmtpConsoleStatus('success');
+                    logSmtpConsole(`✅ Email berhasil dikirim dalam ${elapsedTotal}s!`, "success");
+                    if (data.mcp_response && data.mcp_response.result) {
+                        const mId = data.mcp_response.result.messageId || data.mcp_response.result.response || 'OK';
+                        logSmtpConsole(`📬 Respon SMTP: ${mId}`, "success");
+                    }
+                    showToast(data.message || `Laporan terkirim ke ${data.recipients.length} penerima.`, true);
+                } else {
+                    setSmtpConsoleStatus('error');
+                    const errMsg = data.error || 'Terjadi kesalahan saat memproses email via MCP SMTP.';
+                    logSmtpConsole(`❌ Pengiriman gagal (${elapsedTotal}s): ${errMsg}`, "error");
+                    showToast(errMsg, false);
+                }
+            } catch (err) {
+                clearInterval(heartbeatInterval);
+                const elapsedTotal = ((Date.now() - startTime) / 1000).toFixed(1);
+                setSmtpConsoleStatus('error');
+                logSmtpConsole(`❌ Koneksi terputus (${elapsedTotal}s): ${err.message}`, "error");
+                showToast(err.message || 'Gagal menghubungi server bridge.', false);
+            } finally {
+                clearInterval(heartbeatInterval);
+                if (btn) btn.disabled = false;
+                if (textEl) textEl.innerHTML = originalText;
+                if (iconWrap) iconWrap.innerHTML = envelopeIconSvg;
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeEmailConfigModal();
+            }
+        });
+
+        // Initialize chip input listeners
+        setupChipInput('to');
+        setupChipInput('cc');
     </script>
+
+    <!-- EMAIL DISPATCH & RECIPIENT CONFIG MODAL -->
+    <div id="email-config-modal" class="modal-backdrop" onclick="handleBackdropClick(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+            <!-- Modal Header -->
+            <div class="px-5 py-4 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--table-header-bg)]">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 flex-shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-primary">Kirim Weekly Report via Email</h3>
+                        <p class="text-[11px] text-secondary">Pengaturan subjek & daftar penerima laporan mingguan</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeEmailConfigModal()" class="w-7 h-7 rounded-lg text-secondary hover:text-primary hover:bg-[var(--metric-bg)] flex items-center justify-center transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto custom-scroll">
+                <!-- Subject input -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-primary">Subjek Email</label>
+                        <button type="button" onclick="resetEmailSubjectToDefault()" class="text-[11px] text-sky-400 hover:text-sky-300 transition-colors">Reset Default</button>
+                    </div>
+                    <input type="text" id="input-email-subject" class="w-full px-3.5 py-2 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)] text-primary placeholder-[var(--text-secondary)] focus:outline-none focus:border-sky-400 transition-all font-medium">
+                </div>
+
+                <!-- Recipient (TO) Chip Input -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-primary">Penerima Utama (To) <span class="text-rose-400">*</span></label>
+                        <span class="text-[10px] text-secondary">Ketik atau paste email (koma / enter)</span>
+                    </div>
+                    <div id="chip-container-to" class="chip-container" onclick="focusChipInput('to')">
+                        <div id="chip-list-to" class="flex flex-wrap gap-1.5"></div>
+                        <input type="text" id="chip-input-to" class="chip-input" placeholder="Ketik email lalu tekan Enter...">
+                    </div>
+                </div>
+
+                <!-- Recipient (CC) Chip Input -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold text-primary">Tembusan (CC) <span class="text-secondary font-normal">(Opsional)</span></label>
+                        <span class="text-[10px] text-secondary">Ketik atau paste email (koma / enter)</span>
+                    </div>
+                    <div id="chip-container-cc" class="chip-container" onclick="focusChipInput('cc')">
+                        <div id="chip-list-cc" class="flex flex-wrap gap-1.5"></div>
+                        <input type="text" id="chip-input-cc" class="chip-input" placeholder="Ketik email CC...">
+                    </div>
+                </div>
+
+                <!-- Info note -->
+                <div class="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] text-sky-400 flex items-start gap-2">
+                    <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Email akan dikirimkan otomatis dalam format HTML responsif yang memuat rekap mingguan, matriks penyelesaian, dan tabel breakdown task via MCP SMTP Mailer.</span>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-5 py-3.5 border-t border-[var(--card-border)] bg-[var(--metric-bg)] flex items-center justify-between gap-2">
+                <button type="button" onclick="closeEmailConfigModal()" class="px-3.5 py-1.5 rounded-lg border border-[var(--card-border)] text-secondary hover:text-primary text-xs font-medium transition-colors">
+                    Tutup
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="saveEmailSettingsOnly()" class="px-3.5 py-1.5 rounded-lg bg-[var(--input-bg)] hover:opacity-90 border border-[var(--input-border)] text-primary text-xs font-semibold transition-colors">
+                        Simpan Pengaturan
+                    </button>
+                    <button type="button" onclick="saveAndSendEmailNow()" class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-sm shadow-sky-600/30">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        <span>Simpan & Kirim</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMTP MAILER CONSOLE LOG WIDGET (Emil-Design-Engineering & Better-UI) -->
+    <div id="smtp-console-widget" class="fixed bottom-5 right-5 z-[10001] w-80 sm:w-[420px] rounded-2xl shadow-2xl border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-xl overflow-hidden transform translate-y-8 opacity-0 pointer-events-none transition-all duration-300">
+        <!-- Console Header -->
+        <div class="px-3.5 py-2.5 bg-[var(--table-header-bg)] border-b border-[var(--card-border)] flex items-center justify-between select-none">
+            <div class="flex items-center gap-2">
+                <span id="smtp-console-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                <span class="text-xs font-mono font-bold text-primary flex items-center gap-1.5">
+                    <span>SMTP Mailer Console</span>
+                    <span class="text-[9px] text-sky-400 bg-sky-500/10 px-1 py-0.2 rounded border border-sky-400/20">LIVE</span>
+                </span>
+            </div>
+            <div class="flex items-center gap-1">
+                <button type="button" onclick="toggleSmtpConsoleMinimize()" class="p-1 rounded text-secondary hover:text-primary transition-colors text-xs" title="Minimize / Expand">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                <button type="button" onclick="closeSmtpConsole()" class="p-1 rounded text-secondary hover:text-primary transition-colors text-xs" title="Tutup console">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        </div>
+        <!-- Console Output Terminal -->
+        <div id="smtp-console-body" class="p-3 font-mono text-[11px] leading-relaxed max-h-56 overflow-y-auto custom-scroll space-y-1.5 bg-slate-950/90 text-slate-200">
+            <!-- Dynamic logs -->
+        </div>
+    </div>
 </body>
 </html>

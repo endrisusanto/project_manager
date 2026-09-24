@@ -3494,7 +3494,7 @@ dependencies = [
 
 [[package]]
 name = "project-manager-bridge"
-version = "1.0.9"
+version = "1.0.12"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
