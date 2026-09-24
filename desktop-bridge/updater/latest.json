@@ -1,11 +1,11 @@
 {
-  "version": "1.0.9",
-  "notes": "Release v1.0.9 with 2-way WSS persistent real-time sync, solid dark theme, and bug icon 1.0.9",
-  "pub_date": "2026-09-24T00:33:09.627Z",
+  "version": "1.0.10",
+  "notes": "feat: chunked batch table sync 50 rows per batch 1.0.10",
+  "pub_date": "2026-09-24T02:02:57.172Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.9/project-manager-bridge_1.0.9_x64-setup.nsis.zip"
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.10/project-manager-bridge_1.0.10_x64-setup.nsis.zip"
     }
   }
 }
