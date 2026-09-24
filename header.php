@@ -9,6 +9,76 @@ $username = $_SESSION['username'] ?? 'User';
 //     $is_endri = (strtolower($_SESSION['user_details']['email'] ?? '') === 'endri@samsung.com');
 //     return $is_admin || $is_endri;
 // }
+
+if (!function_exists('get_header_bas_status')) {
+    function get_header_bas_status() {
+        global $conn;
+        $candidate_paths = [
+            __DIR__ . '/.bas_session.json',
+            sys_get_temp_dir() . '/.bas_session.json',
+            '/var/www/html/.bas_session.json',
+            '/home/endri-pro/dev/App/project_manager/.bas_session.json',
+            '/opt/lampp/htdocs/project_manager/.bas_session.json'
+        ];
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $candidate_paths[] = 'C:/xampp/htdocs/project_manager/.bas_session.json';
+            $candidate_paths[] = 'D:/xampp/htdocs/project_manager/.bas_session.json';
+        }
+
+        $best_data = null;
+        $best_ts = 0;
+
+        foreach ($candidate_paths as $sp) {
+            if (file_exists($sp) && is_readable($sp)) {
+                $raw = @file_get_contents($sp);
+                $parsed = json_decode($raw, true);
+                if ($parsed && !empty($parsed['sid'])) {
+                    $ts = $parsed['timestamp'] ?? 0;
+                    if ($ts > $best_ts) {
+                        $best_ts = $ts;
+                        $best_data = $parsed;
+                    }
+                }
+            }
+        }
+
+        if ((!$best_data || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+            $res = @$conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+            if ($res && $row = $res->fetch_assoc()) {
+                $db_data = json_decode($row['setting_value'], true);
+                if ($db_data && !empty($db_data['sid'])) {
+                    $db_ts = $db_data['timestamp'] ?? 0;
+                    if ($db_ts > $best_ts) {
+                        $best_ts = $db_ts;
+                        $best_data = $db_data;
+                    }
+                }
+            }
+        }
+
+        if ($best_data && !empty($best_data['sid'])) {
+            $age_sec = time() - $best_ts;
+            $mins = max(1, round($age_sec / 60));
+            $is_active = $age_sec < (8 * 3600);
+            $updated_time = $best_data['updated_at'] ?? (isset($best_data['timestamp']) ? date('Y-m-d H:i', $best_data['timestamp']) : '-');
+            $time_label = ($mins < 60) ? "{$mins}m ago" : round($mins / 60, 1) . "h ago";
+            return [
+                'active' => $is_active,
+                'status' => $is_active ? 'Active' : 'Expired',
+                'detail' => $time_label,
+                'updated_at' => $updated_time
+            ];
+        }
+
+        return [
+            'active' => false,
+            'status' => 'Disconnected',
+            'detail' => 'No Token',
+            'updated_at' => '-'
+        ];
+    }
+}
+$hdr_bas_status = get_header_bas_status();
 ?>
 
 <?php if (in_array($active_page, ['project_dashboard', 'gba_tasks', 'gba_tasks_summary'])): ?>
@@ -672,9 +742,70 @@ $username = $_SESSION['username'] ?? 'User';
         color: #7e22ce;
         border-color: #e9d5ff;
     }
-    html.light .hdr-btn-purple:hover {
+    .hdr-btn-purple:hover {
         background: #f3e8ff;
         color: #6b21a8;
+    }
+
+    /* BAS Status Badge Styles */
+    .hdr-btn-bas-active {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.28);
+    }
+    .hdr-btn-bas-active:hover {
+        background: rgba(16, 185, 129, 0.22);
+        color: #6ee7b7;
+        border-color: rgba(16, 185, 129, 0.45);
+    }
+    html.light .hdr-btn-bas-active {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+    }
+    html.light .hdr-btn-bas-active:hover {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .hdr-btn-bas-expired {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.28);
+    }
+    .hdr-btn-bas-expired:hover {
+        background: rgba(245, 158, 11, 0.22);
+        color: #fcd34d;
+        border-color: rgba(245, 158, 11, 0.45);
+    }
+    html.light .hdr-btn-bas-expired {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: #fde68a;
+    }
+    html.light .hdr-btn-bas-expired:hover {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .hdr-btn-bas-inactive {
+        background: rgba(244, 63, 94, 0.10);
+        color: #fb7185;
+        border: 1px solid rgba(244, 63, 94, 0.25);
+    }
+    .hdr-btn-bas-inactive:hover {
+        background: rgba(244, 63, 94, 0.18);
+        color: #fda4af;
+        border-color: rgba(244, 63, 94, 0.40);
+    }
+    html.light .hdr-btn-bas-inactive {
+        background: #fff1f2;
+        color: #be123c;
+        border-color: #fecdd3;
+    }
+    html.light .hdr-btn-bas-inactive:hover {
+        background: #ffe4e6;
+        color: #9f1239;
     }
 
     .hdr-icon-btn {
@@ -916,6 +1047,21 @@ $username = $_SESSION['username'] ?? 'User';
                             fill-rule="evenodd" clip-rule="evenodd"></path>
                     </svg>
                 </button>
+
+                <!-- BAS Connection Status Badge -->
+                <a href="ga_submission_tracker.php"
+                    id="header-bas-badge"
+                    class="hdr-btn <?= $hdr_bas_status['active'] ? 'hdr-btn-bas-active' : ($hdr_bas_status['status'] === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive') ?>"
+                    title="BAS Token Status: <?= htmlspecialchars($hdr_bas_status['status']) ?> (Last Update: <?= htmlspecialchars($hdr_bas_status['updated_at']) ?>). Klik untuk buka Reason OT / BAS Tracker.">
+                    <span class="relative flex h-2 w-2">
+                        <span id="header-bas-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full <?= $hdr_bas_status['active'] ? 'bg-emerald-400 opacity-75' : 'hidden' ?>"></span>
+                        <span id="header-bas-dot" class="relative inline-flex rounded-full h-2 w-2 <?= $hdr_bas_status['active'] ? 'bg-emerald-400' : ($hdr_bas_status['status'] === 'Expired' ? 'bg-amber-400' : 'bg-rose-400') ?>"></span>
+                    </span>
+                    <span class="text-xs font-semibold" id="header-bas-text">
+                        BAS: <span id="header-bas-status-label"><?= htmlspecialchars($hdr_bas_status['status']) ?></span>
+                    </span>
+                    <span class="text-[11px] opacity-80 hidden lg:inline" id="header-bas-detail">(<?= htmlspecialchars($hdr_bas_status['detail']) ?>)</span>
+                </a>
 
                 <a href="smart_filter.php"
                     class="hdr-btn hdr-btn-purple <?= ($active_page == 'smart_filter') ? 'active' : '' ?>">
@@ -1610,5 +1756,52 @@ if (isset($_GET['chat_popup'])) {
                 appendMessage('<em>⚠️ Gagal terhubung ke MCP Chat Proxy (' + N8N_WEBHOOK_URL + '). Pastikan MCP Server sudah aktif.</em>', false);
             });
         });
+
+        // --- Live BAS Status Polling / Focus Refresh ---
+        function updateHeaderBasBadge() {
+            fetch('api_bas_bridge.php', { cache: 'no-store' })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    var badge = document.getElementById('header-bas-badge');
+                    var ping = document.getElementById('header-bas-ping');
+                    var dot = document.getElementById('header-bas-dot');
+                    var statusLabel = document.getElementById('header-bas-status-label');
+                    var detail = document.getElementById('header-bas-detail');
+                    if (!badge || !dot || !statusLabel) return;
+
+                    var isActive = res.active === true;
+                    var status = res.status ? (res.status.charAt(0).toUpperCase() + res.status.slice(1)) : (isActive ? 'Active' : 'Disconnected');
+                    var ageHours = res.age_hours !== undefined ? res.age_hours : null;
+                    var timeLabel = 'No Token';
+
+                    if (ageHours !== null) {
+                        var mins = Math.max(1, Math.round(ageHours * 60));
+                        timeLabel = mins < 60 ? (mins + 'm ago') : (ageHours + 'h ago');
+                    }
+
+                    statusLabel.textContent = status;
+                    if (detail) detail.textContent = '(' + timeLabel + ')';
+
+                    badge.className = 'hdr-btn ' + (isActive ? 'hdr-btn-bas-active' : (status === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive'));
+                    
+                    if (ping) {
+                        if (isActive) {
+                            ping.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+                        } else {
+                            ping.className = 'hidden';
+                        }
+                    }
+
+                    if (dot) {
+                        dot.className = 'relative inline-flex rounded-full h-2 w-2 ' + (isActive ? 'bg-emerald-400' : (status === 'Expired' ? 'bg-amber-400' : 'bg-rose-400'));
+                    }
+
+                    badge.title = 'BAS Token Status: ' + status + ' (Last Update: ' + (res.updated_at || '-') + '). Klik untuk buka Reason OT / BAS Tracker.';
+                })
+                .catch(function() {});
+        }
+
+        window.addEventListener('focus', updateHeaderBasBadge);
+        setInterval(updateHeaderBasBadge, 30000); // 30s auto-refresh
     })();
 </script>
