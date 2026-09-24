@@ -241,9 +241,11 @@ foreach ($submissions as $sub) {
     if (stripos($raw_status, 'Approve') !== false || stripos($raw_status, 'Pass') !== false) {
         $target_progress_status = 'Approved';
         $approved_date = $sub_date ?: $today_str;
-    } elseif (stripos($raw_status, 'Pending') !== false || stripos($raw_status, 'Ongoing') !== false || stripos($raw_status, 'Submit') !== false || stripos($raw_status, 'Review') !== false) {
+    } elseif (stripos($raw_status, 'Submit') !== false || stripos($raw_status, 'Waiting') !== false || stripos($raw_status, 'Review') !== false) {
+        $target_progress_status = 'Submitted';
+    } elseif (stripos($raw_status, 'Pending') !== false || stripos($raw_status, 'Ongoing') !== false || stripos($raw_status, 'Testing') !== false) {
         $target_progress_status = 'Test Ongoing';
-    } elseif (stripos($raw_status, 'Reject') !== false) {
+    } elseif (stripos($raw_status, 'Reject') !== false || stripos($raw_status, 'Fail') !== false) {
         $target_progress_status = 'Rejected';
     }
 
@@ -256,52 +258,60 @@ foreach ($submissions as $sub) {
 
     // Match 1: By submission_id if exists
     if (!empty($sub_id)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date FROM gba_tasks WHERE submission_id = ? LIMIT 1");
-        $stmt->bind_param("s", $sub_id);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $row = $res->fetch_assoc()) {
-            $matched_task = $row;
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE submission_id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("s", $sub_id);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $matched_task = $row;
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 
     // Match 2: By exact AP
     if (!$matched_task && !empty($ap_version)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date FROM gba_tasks WHERE ap = ? LIMIT 1");
-        $stmt->bind_param("s", $ap_version);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $row = $res->fetch_assoc()) {
-            $matched_task = $row;
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE TRIM(ap) = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("s", $ap_version);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $matched_task = $row;
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 
     // Match 3: By AP containing / LIKE
     if (!$matched_task && !empty($ap_version) && strlen($ap_version) >= 6) {
         $like_ap = "%" . $ap_version . "%";
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date FROM gba_tasks WHERE ap LIKE ? OR ? LIKE CONCAT('%', ap, '%') LIMIT 1");
-        $stmt->bind_param("ss", $like_ap, $ap_version);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $row = $res->fetch_assoc()) {
-            $matched_task = $row;
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE ap LIKE ? OR ? LIKE CONCAT('%', ap, '%') LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("ss", $like_ap, $ap_version);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $matched_task = $row;
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 
     // Match 4: By Model Name and AP prefix
     if (!$matched_task && !empty($model_name) && !empty($ap_version)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date FROM gba_tasks WHERE model_name = ? AND ap LIKE ? LIMIT 1");
-        $like_ap = "%" . substr($ap_version, 0, 8) . "%";
-        $stmt->bind_param("ss", $model_name, $like_ap);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        if ($res && $row = $res->fetch_assoc()) {
-            $matched_task = $row;
+        $stmt = $conn->prepare("SELECT id, model_name, ap, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date FROM gba_tasks WHERE model_name = ? AND ap LIKE ? LIMIT 1");
+        if ($stmt) {
+            $like_ap = "%" . substr($ap_version, 0, 8) . "%";
+            $stmt->bind_param("ss", $model_name, $like_ap);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $row = $res->fetch_assoc()) {
+                $matched_task = $row;
+            }
+            $stmt->close();
         }
-        $stmt->close();
     }
 
     // If task found, evaluate if changes are needed
@@ -311,6 +321,7 @@ foreach ($submissions as $sub) {
         $old_reviewer = $matched_task['reviewer_email'];
         $old_urgent = (int)$matched_task['is_urgent'];
         $old_sub_id = $matched_task['submission_id'];
+        $old_sub_date = $matched_task['submission_date'];
 
         $need_update = false;
         $updates = [];
@@ -327,12 +338,14 @@ foreach ($submissions as $sub) {
             $need_update = true;
         }
 
-        // Approved date update
-        if ($target_progress_status === 'Approved' && empty($matched_task['approved_date'])) {
-            $updates[] = "approved_date = ?";
-            $types .= "s";
-            $params[] = $approved_date;
-            $need_update = true;
+        // Approved date & sign off date update
+        if ($target_progress_status === 'Approved') {
+            if (empty($matched_task['approved_date'])) {
+                $updates[] = "approved_date = ?";
+                $types .= "s";
+                $params[] = $approved_date;
+                $need_update = true;
+            }
         }
 
         // Reviewer update
@@ -359,15 +372,15 @@ foreach ($submissions as $sub) {
             $need_update = true;
         }
 
-        // Submission date update if empty
-        if ($sub_date && empty($matched_task['submission_date'])) {
+        // Submission date update if empty and different
+        if ($sub_date && empty($old_sub_date)) {
             $updates[] = "submission_date = ?";
             $types .= "s";
             $params[] = $sub_date;
             $need_update = true;
         }
 
-        if ($need_update) {
+        if ($need_update && !empty($updates)) {
             $updates[] = "updated_at = NOW()";
             $updates[] = "updated_by_email = 'BAS-AutoSync'";
 
@@ -376,39 +389,47 @@ foreach ($submissions as $sub) {
             $params[] = $task_id;
 
             $stmt_up = $conn->prepare($sql_update);
-            $stmt_up->bind_param($types, ...$params);
-            $stmt_up->execute();
-            $stmt_up->close();
+            if ($stmt_up) {
+                $stmt_up->bind_param($types, ...$params);
+                $exec_ok = $stmt_up->execute();
+                
+                if ($exec_ok) {
+                    // Record in activity_log
+                    $log_details = "BAS Auto-Sync: Status [{$old_status} -> {$final_status}]";
+                    if (!empty($reviewer) && $reviewer !== $old_reviewer) {
+                        $log_details .= ", Reviewer: {$reviewer}";
+                    }
+                    if ($is_urgent !== $old_urgent) {
+                        $log_details .= ", Urgent: " . ($is_urgent ? 'Yes' : 'No');
+                    }
+                    if (!empty($sub_id) && $sub_id !== $old_sub_id) {
+                        $log_details .= ", SubID: {$sub_id}";
+                    }
 
-            // Record in activity_log
-            $log_details = "BAS Auto-Sync: Status [{$old_status} -> {$final_status}]";
-            if (!empty($reviewer) && $reviewer !== $old_reviewer) {
-                $log_details .= ", Reviewer: {$reviewer}";
-            }
-            if ($is_urgent !== $old_urgent) {
-                $log_details .= ", Urgent: " . ($is_urgent ? 'Yes' : 'No');
-            }
-            if (!empty($sub_id) && $sub_id !== $old_sub_id) {
-                $log_details .= ", SubID: {$sub_id}";
-            }
+                    $stmt_log = $conn->prepare("INSERT INTO activity_log (task_id, action_type, details, user_email) VALUES (?, 'BAS Auto-Sync', ?, 'BAS-AutoSync')");
+                    if ($stmt_log) {
+                        $stmt_log->bind_param("is", $task_id, $log_details);
+                        @$stmt_log->execute();
+                        $stmt_log->close();
+                    }
 
-            $stmt_log = $conn->prepare("INSERT INTO activity_log (task_id, action_type, details, user_email) VALUES (?, 'BAS Auto-Sync', ?, 'BAS-AutoSync')");
-            if ($stmt_log) {
-                $stmt_log->bind_param("is", $task_id, $log_details);
-                @$stmt_log->execute();
-                $stmt_log->close();
+                    $updated_tasks[] = [
+                        'id' => $task_id,
+                        'model_name' => $matched_task['model_name'],
+                        'ap' => $matched_task['ap'],
+                        'old_status' => $old_status,
+                        'new_status' => $final_status,
+                        'reviewer' => $reviewer ?: $old_reviewer,
+                        'is_urgent' => $is_urgent,
+                        'submission_id' => $sub_id ?: $old_sub_id
+                    ];
+                } else {
+                    error_log("Execute failed for task #{$task_id}: " . $stmt_up->error);
+                }
+                $stmt_up->close();
+            } else {
+                error_log("Prepare failed for task #{$task_id}: " . $conn->error);
             }
-
-            $updated_tasks[] = [
-                'id' => $task_id,
-                'model_name' => $matched_task['model_name'],
-                'ap' => $matched_task['ap'],
-                'old_status' => $old_status,
-                'new_status' => $final_status,
-                'reviewer' => $reviewer ?: $old_reviewer,
-                'is_urgent' => $is_urgent,
-                'submission_id' => $sub_id ?: $old_sub_id
-            ];
         }
     }
 }
