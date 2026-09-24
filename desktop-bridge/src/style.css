@@ -246,6 +246,12 @@ body {
     margin-bottom: 8px;
 }
 
+.log-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .card-header h3 {
     font-size: 12px;
     font-weight: 700;
@@ -263,16 +269,31 @@ body {
     height: 145px;
     overflow-y: auto;
     color: #e2e8f0;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
 }
 
 .log-entry {
     margin-bottom: 3px;
     word-break: break-all;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
+    padding: 1px 2px;
+    border-radius: 2px;
+    transition: background-color 0.1s ease;
+}
+
+.log-entry:hover {
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .log-entry .time {
     color: var(--text-muted);
     margin-right: 6px;
+    user-select: text !important;
+    -webkit-user-select: text !important;
 }
 
 .log-entry.success { color: #34d399; }

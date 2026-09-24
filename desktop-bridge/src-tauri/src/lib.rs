@@ -30,33 +30,49 @@ fn cmd_save_config(config: SyncConfig) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn cmd_test_db(config: SyncConfig) -> Result<String, String> {
-    test_local_connection(&config)
+async fn cmd_test_db(config: SyncConfig) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || test_local_connection(&config))
+        .await
+        .map_err(|e| format!("Task execution error: {}", e))?
 }
 
 #[tauri::command]
-fn cmd_test_remote(config: SyncConfig) -> Result<String, String> {
-    test_remote_url(&config)
+async fn cmd_test_remote(config: SyncConfig) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || test_remote_url(&config))
+        .await
+        .map_err(|e| format!("Task execution error: {}", e))?
 }
 
 #[tauri::command]
-fn cmd_trigger_sync(state: State<'_, Arc<AppState>>) -> Result<SyncResult, String> {
-    let mut is_syncing = state.is_syncing.lock().unwrap();
-    if *is_syncing {
-        return Err("Proses sinkronisasi sedang berjalan...".to_string());
+async fn cmd_trigger_sync(state: State<'_, Arc<AppState>>) -> Result<SyncResult, String> {
+    let state_inner = Arc::clone(&state);
+
+    // Atomically check and acquire sync lock
+    {
+        let mut is_syncing = state_inner.is_syncing.lock().unwrap();
+        if *is_syncing {
+            return Err("Proses sinkronisasi sedang berjalan...".to_string());
+        }
+        *is_syncing = true;
     }
-    *is_syncing = true;
-    drop(is_syncing);
 
     let config = load_config();
-    let result = execute_sync(&config);
+    let state_task = Arc::clone(&state_inner);
 
-    let mut is_syncing = state.is_syncing.lock().unwrap();
-    *is_syncing = false;
+    // Execute heavy database querying & HTTP posting in background thread pool without locking Webview GUI thread
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let res = execute_sync(&config);
+        if let Ok(mut is_syncing) = state_task.is_syncing.lock() {
+            *is_syncing = false;
+        }
+        res
+    })
+    .await
+    .map_err(|e| format!("Task execution error: {}", e))?;
 
     match result {
         Ok(res) => {
-            let mut last = state.last_result.lock().unwrap();
+            let mut last = state_inner.last_result.lock().unwrap();
             *last = Some(res.clone());
             Ok(res)
         }
@@ -139,9 +155,22 @@ pub fn run() {
                         let cfg = load_config();
                         let state_clone = Arc::clone(&state_for_tray);
                         std::thread::spawn(move || {
-                            if let Ok(res) = execute_sync(&cfg) {
-                                let mut last = state_clone.last_result.lock().unwrap();
-                                *last = Some(res);
+                            let mut should_sync = false;
+                            if let Ok(mut is_syncing) = state_clone.is_syncing.lock() {
+                                if !*is_syncing {
+                                    *is_syncing = true;
+                                    should_sync = true;
+                                }
+                            }
+                            if should_sync {
+                                let res = execute_sync(&cfg);
+                                if let Ok(mut is_syncing) = state_clone.is_syncing.lock() {
+                                    *is_syncing = false;
+                                }
+                                if let Ok(res_val) = res {
+                                    let mut last = state_clone.last_result.lock().unwrap();
+                                    *last = Some(res_val);
+                                }
                             }
                         });
                     }
@@ -187,9 +216,23 @@ pub fn run() {
                 let interval = if cfg.sync_interval_seconds < 5 { 5 } else { cfg.sync_interval_seconds };
 
                 if cfg.auto_sync_enabled {
-                    if let Ok(res) = execute_sync(&cfg) {
-                        let mut last = state_for_bg.last_result.lock().unwrap();
-                        *last = Some(res);
+                    let mut should_sync = false;
+                    if let Ok(mut is_syncing) = state_for_bg.is_syncing.lock() {
+                        if !*is_syncing {
+                            *is_syncing = true;
+                            should_sync = true;
+                        }
+                    }
+
+                    if should_sync {
+                        let res = execute_sync(&cfg);
+                        if let Ok(mut is_syncing) = state_for_bg.is_syncing.lock() {
+                            *is_syncing = false;
+                        }
+                        if let Ok(res_val) = res {
+                            let mut last = state_for_bg.last_result.lock().unwrap();
+                            *last = Some(res_val);
+                        }
                     }
                 }
 

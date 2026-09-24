@@ -79,9 +79,12 @@
                 <div class="card log-card">
                     <div class="card-header">
                         <h3>Aktivitas Log Real-time</h3>
-                        <button class="btn-link" onclick="clearLogs()">Bersihkan</button>
+                        <div class="log-actions">
+                            <button class="btn-link" id="btn-copy-logs" onclick="copyAllLogs()" title="Salin seluruh isi log ke clipboard">📋 Salin Log</button>
+                            <button class="btn-link" onclick="clearLogs()">Bersihkan</button>
+                        </div>
                     </div>
-                    <div class="terminal-box" id="terminal-logs">
+                    <div class="terminal-box" id="terminal-logs" title="Teks log dapat diseleksi & di-copy">
                         <div class="log-entry info"><span class="time">[System]</span> Desktop Bridge diinisialisasi. Siap sinkronisasi.</div>
                     </div>
                 </div>

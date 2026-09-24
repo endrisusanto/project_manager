@@ -19,9 +19,73 @@ function appendLog(message, type = 'info') {
     const time = new Date().toLocaleTimeString('id-ID');
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    entry.innerHTML = `<span class="time">[${time}]</span> ${message}`;
+    entry.title = 'Klik dua kali untuk menyalin baris ini';
+    entry.innerHTML = `<span class="time">[${time}]</span> <span class="log-text">${escapeHtml(message)}</span>`;
+    
+    // Double click to copy specific line
+    entry.addEventListener('dblclick', () => {
+        const lineText = `[${time}] ${message}`;
+        copyTextToClipboard(lineText, () => {
+            const originalBg = entry.style.backgroundColor;
+            entry.style.backgroundColor = 'rgba(52, 211, 153, 0.2)';
+            setTimeout(() => { entry.style.backgroundColor = originalBg; }, 600);
+        });
+    });
+
     box.appendChild(entry);
     box.scrollTop = box.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function copyTextToClipboard(text, onSuccess) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (onSuccess) onSuccess();
+        }).catch(() => {
+            fallbackCopy(text, onSuccess);
+        });
+    } else {
+        fallbackCopy(text, onSuccess);
+    }
+}
+
+function fallbackCopy(text, onSuccess) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        if (onSuccess) onSuccess();
+    } catch (e) {
+        console.error('Fallback copy error:', e);
+    }
+    document.body.removeChild(ta);
+}
+
+function copyAllLogs() {
+    const box = document.getElementById('terminal-logs');
+    if (!box) return;
+
+    const text = box.innerText || box.textContent;
+    if (!text || text.trim() === '') {
+        return;
+    }
+
+    const btn = document.getElementById('btn-copy-logs');
+    copyTextToClipboard(text.trim(), () => {
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✅ Tersalin!';
+            setTimeout(() => { btn.innerHTML = orig; }, 1800);
+        }
+    });
 }
 
 function clearLogs() {
