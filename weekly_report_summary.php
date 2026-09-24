@@ -743,6 +743,24 @@ function get_pic_badge_class($name) {
             border-color: rgba(16, 185, 129, 0.45);
         }
 
+        .badge-submit-approve {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #0f766e;
+        }
+        html.dark .badge-submit-approve {
+            color: #2dd4bf;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.22) 0%, rgba(16, 185, 129, 0.22) 100%);
+            border-color: rgba(45, 212, 191, 0.45);
+        }
+
         .btn-action-tactile {
             padding: 8px 16px;
             border-radius: 12px;
@@ -1348,32 +1366,23 @@ function get_pic_badge_class($name) {
                                 <!-- 8 Daily Columns -->
                                 <?php foreach ($schedule_days as $s_day): 
                                     $d_str = $s_day['date_str'];
-                                    $markers = [];
-                                    if (!empty($t['request_date']) && $t['request_date'] === $d_str) {
-                                        $markers[] = 'Test';
-                                    }
-                                    if (!empty($t['submission_date']) && $t['submission_date'] === $d_str) {
-                                        $markers[] = 'Submit';
-                                    }
-                                    if (!empty($t['approved_date']) && $t['approved_date'] === $d_str) {
-                                        $markers[] = 'Approve';
-                                    }
-                                    // Fallback: updated_at match for testing
-                                    if (empty($markers) && !empty($t['updated_at']) && substr($t['updated_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru'])) {
-                                        $markers[] = 'Test';
-                                    }
+                                    $has_test = (!empty($t['request_date']) && $t['request_date'] === $d_str) ||
+                                                (empty($t['request_date']) && !empty($t['updated_at']) && substr($t['updated_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru']));
+                                    $has_submit = (!empty($t['submission_date']) && $t['submission_date'] === $d_str);
+                                    $has_approve = (!empty($t['approved_date']) && $t['approved_date'] === $d_str);
                                 ?>
                                 <td class="py-2 px-1.5 text-center whitespace-nowrap text-xs <?= $s_day['is_weekend'] ? 'bg-slate-500/[0.03] dark:bg-slate-900/40' : '' ?>">
                                     <div class="flex items-center justify-center gap-1 flex-wrap">
-                                        <?php foreach ($markers as $m): ?>
-                                            <?php if ($m === 'Test'): ?>
-                                                <span class="badge-test">Test</span>
-                                            <?php elseif ($m === 'Submit'): ?>
-                                                <span class="badge-submit">Submit</span>
-                                            <?php elseif ($m === 'Approve'): ?>
-                                                <span class="badge-approve">Approve</span>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
+                                        <?php if ($has_test): ?>
+                                            <span class="badge-test">Test</span>
+                                        <?php endif; ?>
+                                        <?php if ($has_submit && $has_approve): ?>
+                                            <span class="badge-submit-approve">Submit & Approve</span>
+                                        <?php elseif ($has_submit): ?>
+                                            <span class="badge-submit">Submit</span>
+                                        <?php elseif ($has_approve): ?>
+                                            <span class="badge-approve">Approve</span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <?php endforeach; ?>
