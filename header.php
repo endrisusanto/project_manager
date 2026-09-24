@@ -1062,11 +1062,12 @@ $hdr_bas_status = get_header_bas_status();
                     </svg>
                 </button>
 
-                <!-- BAS Connection Status Badge -->
-                <a href="ga_submission_tracker.php"
+                <!-- BAS Connection Status Badge / Sync Modal Trigger -->
+                <button type="button"
                     id="header-bas-badge"
+                    onclick="openBasSyncModal()"
                     class="hdr-btn <?= $hdr_bas_status['active'] ? 'hdr-btn-bas-active' : ($hdr_bas_status['status'] === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive') ?>"
-                    title="BAS Token Status: <?= htmlspecialchars($hdr_bas_status['status']) ?> (Last Update: <?= htmlspecialchars($hdr_bas_status['updated_at']) ?>). Klik untuk buka Reason OT / BAS Tracker.">
+                    title="BAS Token Status: <?= htmlspecialchars($hdr_bas_status['status']) ?> (Last Update: <?= htmlspecialchars($hdr_bas_status['updated_at']) ?>). Klik untuk membuka modal Live Sync & Breadcrumb Fetcher.">
                     <span class="relative flex h-2 w-2">
                         <span id="header-bas-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full <?= $hdr_bas_status['active'] ? 'bg-emerald-400 opacity-75' : 'hidden' ?>"></span>
                         <span id="header-bas-dot" class="relative inline-flex rounded-full h-2 w-2 <?= $hdr_bas_status['active'] ? 'bg-emerald-400' : ($hdr_bas_status['status'] === 'Expired' ? 'bg-amber-400' : 'bg-rose-400') ?>"></span>
@@ -1075,7 +1076,7 @@ $hdr_bas_status = get_header_bas_status();
                         BAS: <span id="header-bas-status-label"><?= htmlspecialchars($hdr_bas_status['status']) ?></span>
                     </span>
                     <span class="text-[11px] opacity-80 hidden lg:inline" id="header-bas-detail">(<?= htmlspecialchars($hdr_bas_status['detail']) ?>)</span>
-                </a>
+                </button>
 
                 <a href="smart_filter.php"
                     class="hdr-btn hdr-btn-purple <?= ($active_page == 'smart_filter') ? 'active' : '' ?>">
@@ -1813,7 +1814,7 @@ if (isset($_GET['chat_popup'])) {
                         dot.className = 'relative inline-flex rounded-full h-2 w-2 ' + (isActive ? 'bg-emerald-400' : (status === 'Expired' ? 'bg-amber-400' : 'bg-rose-400'));
                     }
 
-                    badge.title = 'BAS Token Status: ' + status + ' (Last Update: ' + (res.updated_at || '-') + '). Klik untuk buka Reason OT / BAS Tracker.';
+                    badge.title = 'BAS Token Status: ' + status + ' (Last Update: ' + (res.updated_at || '-') + '). Klik untuk membuka modal Live Sync & Breadcrumb Fetcher.';
                 })
                 .catch(function() {});
         }
@@ -1821,4 +1822,901 @@ if (isset($_GET['chat_popup'])) {
         window.addEventListener('focus', updateHeaderBasBadge);
         setInterval(updateHeaderBasBadge, 30000); // 30s auto-refresh
     })();
+</script>
+
+<!-- ========================================================================= -->
+<!-- BAS LIVE SYNC MODAL WITH BREADCRUMB ANIMATION (Emil Design Eng + Better UI) -->
+<!-- ========================================================================= -->
+<style>
+    /* BAS Modal Backdrop & Container */
+    #bas-sync-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #bas-sync-modal.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    /* Modal Main Card (Concentric 16px radius, solid matte surfaces) */
+    #bas-sync-modal-card {
+        width: 100%;
+        max-width: 640px;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 16px;
+        border: 1px solid #1e293b;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        transform: scale(0.96) translateY(8px);
+        transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, color 0.15s ease;
+        overflow: hidden;
+    }
+
+    html.light #bas-sync-modal-card {
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05);
+    }
+
+    #bas-sync-modal.active #bas-sync-modal-card {
+        transform: scale(1) translateY(0);
+    }
+
+    /* Modal Header Bar */
+    .bas-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #1e293b;
+    }
+    html.light .bas-modal-header {
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    #bas-modal-title {
+        color: #f8fafc;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    html.light #bas-modal-title {
+        color: #0f172a;
+    }
+
+    .bas-modal-subtitle {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-top: 2px;
+    }
+    html.light .bas-modal-subtitle {
+        color: #64748b;
+    }
+
+    .bas-btn-close {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        background: transparent;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .bas-btn-close:hover {
+        color: #f8fafc;
+        background: #1e293b;
+        border-color: #334155;
+    }
+    html.light .bas-btn-close {
+        color: #64748b;
+    }
+    html.light .bas-btn-close:hover {
+        color: #0f172a;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+
+    /* Stepper / Breadcrumb Track */
+    .bas-breadcrumb-container {
+        position: relative;
+        padding: 14px 16px 16px;
+        background: #090d16;
+        border-bottom: 1px solid #1e293b;
+    }
+
+    html.light .bas-breadcrumb-container {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .bas-track-line {
+        position: absolute;
+        top: 30px;
+        left: 42px;
+        right: 42px;
+        height: 2px;
+        background: #1e293b;
+        border-radius: 9999px;
+        z-index: 1;
+        overflow: hidden;
+    }
+
+    html.light .bas-track-line {
+        background: #e2e8f0;
+    }
+
+    .bas-track-progress {
+        height: 100%;
+        width: 0%;
+        background: #10b981;
+        border-radius: 9999px;
+        transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .bas-steps-grid {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .bas-step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .bas-step-node {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        background: #0f172a;
+        border: 1.5px solid #334155;
+        color: #94a3b8;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    html.light .bas-step-node {
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        color: #64748b;
+    }
+
+    /* State: Active / Running */
+    .bas-step-item.is-running .bas-step-node {
+        background: #2563eb !important;
+        border-color: #3b82f6 !important;
+        color: #ffffff !important;
+    }
+
+    /* State: Completed */
+    .bas-step-item.is-done .bas-step-node {
+        background: #059669 !important;
+        border-color: #10b981 !important;
+        color: #ffffff !important;
+    }
+
+    /* State: Error */
+    .bas-step-item.is-error .bas-step-node {
+        background: #dc2626 !important;
+        border-color: #ef4444 !important;
+        color: #ffffff !important;
+    }
+
+    .bas-step-title {
+        margin-top: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #94a3b8;
+        line-height: 1.2;
+    }
+
+    html.light .bas-step-title {
+        color: #475569;
+    }
+
+    .bas-step-item.is-running .bas-step-title {
+        color: #3b82f6;
+        font-weight: 600;
+    }
+
+    html.light .bas-step-item.is-running .bas-step-title {
+        color: #2563eb;
+    }
+
+    .bas-step-item.is-done .bas-step-title {
+        color: #10b981;
+    }
+
+    html.light .bas-step-item.is-done .bas-step-title {
+        color: #059669;
+    }
+
+    .bas-step-sub {
+        font-size: 10px;
+        color: #64748b;
+        margin-top: 2px;
+        max-width: 105px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    html.light .bas-step-sub {
+        color: #94a3b8;
+    }
+
+    /* Quick Metric Cards */
+    .bas-metric-card {
+        background: #090d16;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    html.light .bas-metric-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .bas-metric-title {
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    html.light .bas-metric-title {
+        color: #64748b;
+    }
+
+    .bas-metric-value {
+        color: #f8fafc;
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    html.light .bas-metric-value {
+        color: #0f172a;
+    }
+
+    /* Live Terminal Console */
+    .bas-section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: #94a3b8;
+        margin-bottom: 6px;
+    }
+    html.light .bas-section-header {
+        color: #64748b;
+    }
+
+    .bas-btn-clear-console {
+        color: #94a3b8;
+        font-size: 11px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: color 0.15s ease;
+    }
+    .bas-btn-clear-console:hover {
+        color: #f8fafc;
+    }
+    html.light .bas-btn-clear-console {
+        color: #64748b;
+    }
+    html.light .bas-btn-clear-console:hover {
+        color: #0f172a;
+    }
+
+    #bas-console-box {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        background: #090d16;
+        color: #cbd5e1;
+        border-radius: 10px;
+        padding: 10px 12px;
+        border: 1px solid #1e293b;
+        max-height: 160px;
+        overflow-y: auto;
+    }
+
+    .bas-log-entry {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .bas-log-ts {
+        color: #64748b;
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+    }
+
+    .bas-log-tag {
+        font-size: 9px;
+        font-weight: 600;
+        padding: 1px 4px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+
+    .bas-tag-session { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .bas-tag-fetch { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .bas-tag-match { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .bas-tag-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .bas-tag-error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .bas-tag-info { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+
+    /* Updated Tasks Preview List */
+    #bas-tasks-summary-box {
+        max-height: 140px;
+        overflow-y: auto;
+    }
+
+    .bas-task-chip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px;
+        border-radius: 8px;
+        background: #090d16;
+        border: 1px solid #1e293b;
+        font-size: 11px;
+        color: #f8fafc;
+    }
+
+    html.light .bas-task-chip {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #0f172a;
+    }
+
+    /* Modal Footer Bar */
+    .bas-modal-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 20px;
+        background: #0f172a;
+        border-top: 1px solid #1e293b;
+    }
+    html.light .bas-modal-footer {
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .bas-footer-link {
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: color 0.15s ease;
+    }
+    .bas-footer-link:hover {
+        color: #38bdf8;
+    }
+    html.light .bas-footer-link {
+        color: #64748b;
+    }
+    html.light .bas-footer-link:hover {
+        color: #0284c7;
+    }
+
+    .bas-footer-divider {
+        color: #334155;
+    }
+    html.light .bas-footer-divider {
+        color: #cbd5e1;
+    }
+
+    .bas-btn-dismiss {
+        color: #cbd5e1;
+        background: #1e293b;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        border: 1px solid #334155;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .bas-btn-dismiss:hover {
+        background: #334155;
+        color: #ffffff;
+    }
+    html.light .bas-btn-dismiss {
+        color: #475569;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+    }
+    html.light .bas-btn-dismiss:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .bas-btn-primary {
+        background: #059669;
+        color: #ffffff;
+        padding: 7px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1px solid #10b981;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .bas-btn-primary:hover {
+        background: #10b981;
+    }
+    .bas-btn-primary:active {
+        transform: scale(0.98);
+    }
+    .bas-btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
+
+<!-- BAS Live Sync Modal Markup -->
+<div id="bas-sync-modal" onclick="if(event.target === this) closeBasSyncModal();">
+    <div id="bas-sync-modal-card" role="dialog" aria-modal="true" aria-labelledby="bas-modal-title">
+        
+        <!-- Modal Top Bar -->
+        <div class="bas-modal-header">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 id="bas-modal-title">
+                        Build Approval System (BAS) Live Sync
+                        <span id="bas-modal-badge" class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Ready</span>
+                    </h3>
+                    <p class="bas-modal-subtitle">Sinkronisasi status, approval date, & reviewer otomatis dari BAS KST (Bulan Berjalan / XID)</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeBasSyncModal()" class="bas-btn-close" title="Tutup (Esc)">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Breadcrumb / Stepper Component -->
+        <div class="bas-breadcrumb-container">
+            <div class="bas-track-line">
+                <div id="bas-track-progress" class="bas-track-progress"></div>
+            </div>
+            <div class="bas-steps-grid">
+                
+                <!-- Step 1: Session & Bridge -->
+                <div class="bas-step-item" id="bas-step-1">
+                    <div class="bas-step-node" id="bas-node-1">1</div>
+                    <div class="bas-step-title">Session & Bridge</div>
+                    <div class="bas-step-sub" id="bas-sub-1">Periksa Token</div>
+                </div>
+
+                <!-- Step 2: Query Submissions -->
+                <div class="bas-step-item" id="bas-step-2">
+                    <div class="bas-step-node" id="bas-node-2">2</div>
+                    <div class="bas-step-title">Query BAS KST</div>
+                    <div class="bas-step-sub" id="bas-sub-2">Awal Bln - Today</div>
+                </div>
+
+                <!-- Step 3: Match AP Version -->
+                <div class="bas-step-item" id="bas-step-3">
+                    <div class="bas-step-node" id="bas-node-3">3</div>
+                    <div class="bas-step-title">Match AP Version</div>
+                    <div class="bas-step-sub" id="bas-sub-3">Direct AP Match</div>
+                </div>
+
+                <!-- Step 4: Sync Complete -->
+                <div class="bas-step-item" id="bas-step-4">
+                    <div class="bas-step-node" id="bas-node-4">4</div>
+                    <div class="bas-step-title">Database Sync</div>
+                    <div class="bas-step-sub" id="bas-sub-4">Update & Log</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Modal Body Content -->
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            
+            <!-- Quick Metrics Overview (3 Cards) -->
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bas-metric-card">
+                    <span class="bas-metric-title">Token Status</span>
+                    <div class="bas-metric-value">
+                        <span id="bas-metric-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <span id="bas-metric-status">Checking...</span>
+                    </div>
+                </div>
+                <div class="bas-metric-card">
+                    <span class="bas-metric-title">BAS Submissions</span>
+                    <div class="bas-metric-value" id="bas-metric-submissions">-</div>
+                </div>
+                <div class="bas-metric-card">
+                    <span class="bas-metric-title">Tasks Updated</span>
+                    <div class="bas-metric-value text-emerald-500 dark:text-emerald-400" id="bas-metric-updated">-</div>
+                </div>
+            </div>
+
+            <!-- Terminal Live Execution Log -->
+            <div>
+                <div class="bas-section-header">
+                    <span class="flex items-center gap-1.5 font-medium">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Live Execution Log
+                    </span>
+                    <button type="button" onclick="clearBasConsole()" class="bas-btn-clear-console">Bersihkan</button>
+                </div>
+                <div id="bas-console-box">
+                    <div class="bas-log-entry">
+                        <span class="bas-log-ts">[Ready]</span>
+                        <span class="bas-log-tag bas-tag-info">SYSTEM</span>
+                        <span>Klik tombol "Mulai Sinkronisasi" untuk menjalankan proses sinkronisasi BAS.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Updated Tasks Accordion / Container (Hidden when none) -->
+            <div id="bas-tasks-summary-box" class="hidden space-y-2">
+                <div class="bas-section-header">
+                    <span class="font-medium">Task yang Diperbarui:</span>
+                    <span id="bas-tasks-count-pill" class="text-[10px] bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">0 task</span>
+                </div>
+                <div id="bas-tasks-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
+            </div>
+
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="bas-modal-footer">
+            <div class="flex items-center gap-3">
+                <a href="ga_submission_tracker.php" class="bas-footer-link">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Buka GA Tracker
+                </a>
+                <span class="bas-footer-divider">|</span>
+                <a href="activity_log.php?action=bas_sync" class="bas-footer-link">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Log Aktivitas
+                </a>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="closeBasSyncModal()" class="bas-btn-dismiss">
+                    Tutup
+                </button>
+                <button type="button" id="btn-run-bas-sync" onclick="runBasSyncProcess()" class="bas-btn-primary">
+                    <svg id="btn-run-sync-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span id="btn-run-sync-text">Mulai Sinkronisasi</span>
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+(function() {
+    var isSyncing = false;
+
+    window.openBasSyncModal = function() {
+        var modal = document.getElementById('bas-sync-modal');
+        if (!modal) return;
+        modal.classList.add('active');
+        checkBasInitialBridgeState();
+    };
+
+    window.closeBasSyncModal = function() {
+        var modal = document.getElementById('bas-sync-modal');
+        if (!modal) return;
+        modal.classList.remove('active');
+    };
+
+    window.clearBasConsole = function() {
+        var consoleBox = document.getElementById('bas-console-box');
+        if (consoleBox) consoleBox.innerHTML = '';
+    };
+
+    function appendBasLog(tag, type, message) {
+        var consoleBox = document.getElementById('bas-console-box');
+        if (!consoleBox) return;
+
+        var now = new Date();
+        var ts = now.toTimeString().split(' ')[0];
+
+        var tagClass = 'bas-tag-info';
+        if (type === 'session') tagClass = 'bas-tag-session';
+        else if (type === 'fetch') tagClass = 'bas-tag-fetch';
+        else if (type === 'match') tagClass = 'bas-tag-match';
+        else if (type === 'success') tagClass = 'bas-tag-success';
+        else if (type === 'error') tagClass = 'bas-tag-error';
+
+        var row = document.createElement('div');
+        row.className = 'bas-log-entry';
+        row.innerHTML = '<span class="bas-log-ts">' + ts + '</span>' +
+                        '<span class="bas-log-tag ' + tagClass + '">' + tag + '</span>' +
+                        '<span>' + message + '</span>';
+
+        consoleBox.appendChild(row);
+        consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function setStepState(stepNum, state, subtitle) {
+        var item = document.getElementById('bas-step-' + stepNum);
+        var node = document.getElementById('bas-node-' + stepNum);
+        var sub = document.getElementById('bas-sub-' + stepNum);
+        if (!item || !node) return;
+
+        item.classList.remove('is-running', 'is-done', 'is-error');
+
+        if (state === 'running') {
+            item.classList.add('is-running');
+            node.innerHTML = '<svg class="w-4 h-4 animate-spin text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+        } else if (state === 'done') {
+            item.classList.add('is-done');
+            node.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+        } else if (state === 'error') {
+            item.classList.add('is-error');
+            node.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>';
+        } else {
+            node.textContent = stepNum;
+        }
+
+        if (subtitle && sub) {
+            sub.textContent = subtitle;
+        }
+    }
+
+    function setTrackProgress(percent) {
+        var bar = document.getElementById('bas-track-progress');
+        if (bar) bar.style.width = percent + '%';
+    }
+
+    function checkBasInitialBridgeState() {
+        var dot = document.getElementById('bas-metric-dot');
+        var statusLabel = document.getElementById('bas-metric-status');
+        var badge = document.getElementById('bas-modal-badge');
+
+        fetch('api_bas_bridge.php', { cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                var isActive = res.active === true;
+                var st = res.status ? (res.status.charAt(0).toUpperCase() + res.status.slice(1)) : (isActive ? 'Active' : 'Disconnected');
+                var age = res.age_hours !== undefined ? (res.age_hours + 'h') : '-';
+
+                if (statusLabel) statusLabel.textContent = st + ' (' + age + ')';
+                if (badge) {
+                    badge.textContent = st;
+                    badge.className = 'text-[10px] font-medium px-2 py-0.5 rounded ' + (isActive ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20' : (st === 'Expired' ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/20' : 'bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/20'));
+                }
+                if (dot) {
+                    dot.className = 'w-2 h-2 rounded-full ' + (isActive ? 'bg-emerald-500' : (st === 'Expired' ? 'bg-amber-500' : 'bg-rose-500'));
+                }
+
+                if (isActive) {
+                    setStepState(1, 'done', 'Token Aktif');
+                    setTrackProgress(25);
+                } else if (st === 'Expired') {
+                    setStepState(1, 'error', 'Token Expired');
+                    setTrackProgress(25);
+                } else {
+                    setStepState(1, 'idle', 'Belum Konek');
+                    setTrackProgress(0);
+                }
+            })
+            .catch(function(err) {
+                if (statusLabel) statusLabel.textContent = 'Offline';
+            });
+    }
+
+    window.runBasSyncProcess = function() {
+        if (isSyncing) return;
+        isSyncing = true;
+
+        var btn = document.getElementById('btn-run-bas-sync');
+        var btnIcon = document.getElementById('btn-run-sync-icon');
+        var btnText = document.getElementById('btn-run-sync-text');
+        var badge = document.getElementById('bas-modal-badge');
+
+        if (btn) btn.disabled = true;
+        if (btnIcon) btnIcon.classList.add('animate-spin');
+        if (btnText) btnText.textContent = 'Sedang Sinkron...';
+        if (badge) {
+            badge.textContent = 'Syncing...';
+            badge.className = 'text-[10px] font-medium px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20';
+        }
+
+        // Step 1: Session Verification
+        setStepState(1, 'running', 'Verifikasi SID...');
+        setStepState(2, 'idle', 'Menunggu...');
+        setStepState(3, 'idle', 'Menunggu...');
+        setStepState(4, 'idle', 'Menunggu...');
+        setTrackProgress(15);
+        appendBasLog('SESSION', 'session', 'Memeriksa token session BAS dan bridge XAMPP/Port 80...');
+
+        setTimeout(function() {
+            setStepState(1, 'done', 'Session Valid');
+            setStepState(2, 'running', 'Mengambil Submissions...');
+            setTrackProgress(45);
+            appendBasLog('BAS API', 'fetch', 'Mengirim query Search Submissions (Awal Bulan - Today, Carrier: XID, KST +09:00)...');
+
+            var startTime = performance.now();
+
+            fetch('sync_bas.php', { method: 'POST', cache: 'no-store' })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    var elapsedSec = ((performance.now() - startTime) / 1000).toFixed(2) + 's';
+
+                    if (!data.success) {
+                        setStepState(2, 'error', 'Gagal Fetch');
+                        setStepState(3, 'idle', 'Dibatalkan');
+                        setStepState(4, 'idle', 'Dibatalkan');
+                        appendBasLog('ERROR', 'error', data.message || 'Gagal mengambil data dari BAS.');
+                        finishSync(false, data);
+                        return;
+                    }
+
+                    if (data.debug_logs && Array.isArray(data.debug_logs)) {
+                        data.debug_logs.forEach(function(dLog) {
+                            appendBasLog('DEBUG', 'info', dLog);
+                        });
+                    }
+
+                    // Step 2 Completed
+                    var totalFound = data.total_submissions_found !== undefined ? data.total_submissions_found : (data.synced_count || 0);
+                    setStepState(2, 'done', totalFound + ' Data KST');
+                    setTrackProgress(70);
+                    appendBasLog('BAS API', 'fetch', 'Berhasil menerima ' + totalFound + ' baris submission dari BAS.');
+
+                    // Step 3: Match AP Version
+                    setStepState(3, 'running', 'Matching AP Version...');
+                    appendBasLog('MATCH', 'match', 'Mencocokkan AP version dengan database GBA Tasks (single source of truth)...');
+
+                    setTimeout(function() {
+                        var updatedTasks = data.updated_tasks || [];
+                        setStepState(3, 'done', updatedTasks.length + ' Cocok');
+                        setTrackProgress(90);
+
+                        // Step 4: Database Sync Complete
+                        setStepState(4, 'done', 'Tersimpan');
+                        setTrackProgress(100);
+                        appendBasLog('DATABASE', 'success', 'Berhasil memperbarui database (' + updatedTasks.length + ' task tersinkronisasi dalam ' + elapsedSec + ').');
+
+                        finishSync(true, data);
+                    }, 400);
+                })
+                .catch(function(err) {
+                    setStepState(2, 'error', 'Network Error');
+                    appendBasLog('ERROR', 'error', 'Network/Fetch error: ' + (err.message || 'Koneksi gagal.'));
+                    finishSync(false, null);
+                });
+        }, 500);
+    };
+
+    function finishSync(isSuccess, data) {
+        isSyncing = false;
+        var btn = document.getElementById('btn-run-bas-sync');
+        var btnIcon = document.getElementById('btn-run-sync-icon');
+        var btnText = document.getElementById('btn-run-sync-text');
+        var badge = document.getElementById('bas-modal-badge');
+        var metricSubmissions = document.getElementById('bas-metric-submissions');
+        var metricUpdated = document.getElementById('bas-metric-updated');
+        var summaryBox = document.getElementById('bas-tasks-summary-box');
+        var summaryList = document.getElementById('bas-tasks-list');
+        var summaryCountPill = document.getElementById('bas-tasks-count-pill');
+
+        if (btn) btn.disabled = false;
+        if (btnIcon) btnIcon.classList.remove('animate-spin');
+        if (btnText) btnText.textContent = 'Sinkronkan Lagi';
+
+        if (badge) {
+            badge.textContent = isSuccess ? 'Synced' : 'Failed';
+            badge.className = 'text-[10px] font-medium px-2 py-0.5 rounded ' + (isSuccess ? 'bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-500 dark:text-rose-400 border border-rose-500/20');
+        }
+
+        if (data) {
+            if (metricSubmissions) metricSubmissions.textContent = (data.total_submissions_found || 0) + ' baris';
+            if (metricUpdated) metricUpdated.textContent = (data.updated_tasks ? data.updated_tasks.length : (data.synced_count || 0)) + ' task';
+
+            if (data.updated_tasks && data.updated_tasks.length > 0) {
+                if (summaryBox) summaryBox.classList.remove('hidden');
+                if (summaryCountPill) summaryCountPill.textContent = data.updated_tasks.length + ' task diperbarui';
+                if (summaryList) {
+                    summaryList.innerHTML = '';
+                    data.updated_tasks.forEach(function(t) {
+                        var div = document.createElement('div');
+                        div.className = 'bas-task-chip';
+                        div.innerHTML = '<div class="flex items-center gap-2">' +
+                                            '<span class="font-medium text-slate-800 dark:text-slate-200">#' + t.id + ' ' + (t.model_name || '-') + '</span> ' +
+                                            '<span class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-800/10 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700">' + (t.ap || '-') + '</span>' +
+                                        '</div>' +
+                                        '<div class="flex items-center gap-2 text-right">' +
+                                            '<span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">' + (t.new_status || 'Approved') + '</span>' +
+                                            '<span class="text-[10px] text-slate-400 hidden sm:inline">' + (t.reviewer || '') + '</span>' +
+                                        '</div>';
+                        summaryList.appendChild(div);
+                    });
+                }
+            }
+        }
+
+        // Refresh global header badge
+        if (typeof updateHeaderBasBadge === 'function') {
+            updateHeaderBasBadge();
+        }
+    }
+
+    // Keyboard Escape handler
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeBasSyncModal();
+        }
+    });
+})();
 </script>

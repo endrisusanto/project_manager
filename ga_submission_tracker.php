@@ -21,12 +21,17 @@ $candidate_session_paths = [
     __DIR__ . '/.bas_session.json',
     sys_get_temp_dir() . '/.bas_session.json',
     '/var/www/html/.bas_session.json',
+    '/var/www/html/tkdn/.bas_session.json',
+    '/var/www/html/project_manager/.bas_session.json',
     '/home/endri-pro/dev/App/project_manager/.bas_session.json',
-    '/opt/lampp/htdocs/project_manager/.bas_session.json'
+    '/opt/lampp/htdocs/project_manager/.bas_session.json',
+    '/opt/lampp/htdocs/tkdn/.bas_session.json'
 ];
 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
     $candidate_session_paths[] = 'C:/xampp/htdocs/project_manager/.bas_session.json';
+    $candidate_session_paths[] = 'C:/xampp/htdocs/tkdn/.bas_session.json';
     $candidate_session_paths[] = 'D:/xampp/htdocs/project_manager/.bas_session.json';
+    $candidate_session_paths[] = 'D:/xampp/htdocs/tkdn/.bas_session.json';
 }
 
 foreach ($candidate_session_paths as $sp) {
@@ -1162,7 +1167,13 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                const data = await response.json();
+                const rawText = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (jsonErr) {
+                    throw new Error(rawText ? rawText.substring(0, 120) : ('HTTP ' + response.status + ' - Respon server kosong'));
+                }
 
                 if (data.success) {
                     showToast(data.message || 'Sinkronisasi BAS berhasil!', true);
@@ -1187,7 +1198,7 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     }
                 }
             } catch (err) {
-                showToast('Kesalahan jaringan: ' + err.message, false);
+                showToast('Koneksi BAS: ' + err.message, false);
             } finally {
                 isSyncingBas = false;
                 if (icon) icon.classList.remove('animate-spin');

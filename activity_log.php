@@ -20,7 +20,11 @@ $sql = "SELECT al.*, u.username, u.profile_picture,
                CASE 
                    WHEN al.task_id IS NOT NULL THEN t.project_name 
                    ELSE NULL 
-               END as task_project_name
+               END as task_project_name,
+               CASE 
+                   WHEN al.task_id IS NOT NULL THEN t.ap 
+                   ELSE NULL 
+               END as task_ap
         FROM activity_log al
         LEFT JOIN users u ON al.user_email = u.email
         LEFT JOIN gba_tasks t ON al.task_id = t.id
@@ -38,6 +42,14 @@ if ($result) {
 // Helper untuk metadata action
 function getActionMeta($action_type) {
     switch ($action_type) {
+        case 'BAS Auto-Sync':
+        case 'BAS_SYNC':
+            return [
+                'label' => 'BAS Sync',
+                'badge' => 'action-badge-bas',
+                'dot' => 'dot-bas',
+                'icon' => '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>'
+            ];
         case 'TASK_CREATED':
             return [
                 'label' => 'Task Created',
@@ -236,6 +248,10 @@ function getPicInitials($email) {
         }
 
         /* Action Badges & Dots */
+        .action-badge-bas { background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3); }
+        .dot-bas { background: #06b6d4; box-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+        html.light .action-badge-bas { background: #ecfeff; color: #0891b2; border-color: #a5f3fc; }
+
         .action-badge-created { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
         .dot-created { background: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
         html.light .action-badge-created { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
@@ -355,6 +371,7 @@ function getPicInitials($email) {
             <!-- Filter Pills Row -->
             <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" id="action-filters">
                 <button class="filter-pill active" data-filter="ALL">Semua (<?= count($logs) ?>)</button>
+                <button class="filter-pill" data-filter="BAS Auto-Sync">BAS Sync</button>
                 <button class="filter-pill" data-filter="TASK_CREATED">Created</button>
                 <button class="filter-pill" data-filter="STATUS_CHANGE">Status</button>
                 <button class="filter-pill" data-filter="TOGGLE_URGENT">Urgent</button>
@@ -383,6 +400,7 @@ function getPicInitials($email) {
                     // Marketing name mapper fallback
                     $model_name = $log['task_model_name'] ?? '';
                     $project_name = $log['task_project_name'] ?? '';
+                    $task_ap = $log['task_ap'] ?? '';
                     $marketing_name = !empty($project_name) ? $project_name : ($model_name && function_exists('get_marketing_name') ? get_marketing_name($model_name) : '');
                 ?>
                     <div class="timeline-item" data-action="<?= htmlspecialchars($log['action_type']) ?>">
@@ -401,9 +419,14 @@ function getPicInitials($email) {
                                         <?= htmlspecialchars($meta['label']) ?>
                                     </span>
 
-                                    <?php if ($model_name): ?>
+                                    <?php if ($model_name || $task_ap): ?>
                                         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-mono bg-white/5 border border-white/10 text-primary font-medium">
-                                            <span><?= htmlspecialchars($model_name) ?></span>
+                                            <?php if ($model_name): ?>
+                                                <span><?= htmlspecialchars($model_name) ?></span>
+                                            <?php endif; ?>
+                                            <?php if ($task_ap): ?>
+                                                <span class="text-sky-400 font-mono font-bold text-[11px] px-1 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">AP: <?= htmlspecialchars($task_ap) ?></span>
+                                            <?php endif; ?>
                                             <?php if ($marketing_name): ?>
                                                 <span class="text-secondary font-sans font-normal text-[11px]">• <?= htmlspecialchars($marketing_name) ?></span>
                                             <?php endif; ?>
@@ -433,8 +456,24 @@ function getPicInitials($email) {
                                     <?php
                                     $details_string = $log['details'];
                                     
+                                    // Parse BAS Auto-Sync formatted string (AP: ... | Model: ... | Status: ...)
+                                    if (strpos($details_string, 'AP: ') === 0 || strpos($details_string, 'BAS Auto-Sync:') === 0) {
+                                        $clean_str = str_replace('BAS Auto-Sync: ', '', $details_string);
+                                        $segments = explode(' | ', $clean_str);
+                                        echo "<div class='flex flex-wrap gap-1.5 items-center mt-1'>";
+                                        foreach ($segments as $seg) {
+                                            if (strpos($seg, 'AP:') === 0) {
+                                                echo "<span class='diff-chip text-sky-400 font-bold bg-sky-500/10 border-sky-500/25'>" . htmlspecialchars($seg) . "</span>";
+                                            } elseif (strpos($seg, 'Status:') === 0) {
+                                                echo "<span class='diff-chip text-emerald-400 font-semibold bg-emerald-500/10 border-emerald-500/25'>" . htmlspecialchars($seg) . "</span>";
+                                            } else {
+                                                echo "<span class='diff-chip text-secondary'>" . htmlspecialchars($seg) . "</span>";
+                                            }
+                                        }
+                                        echo "</div>";
+                                    }
                                     // Parse TASK_UPDATED changes list
-                                    if ($log['action_type'] === 'TASK_UPDATED' && strpos($details_string, 'Changes: ') !== false) {
+                                    elseif ($log['action_type'] === 'TASK_UPDATED' && strpos($details_string, 'Changes: ') !== false) {
                                         $parts = explode(' Changes: ', $details_string, 2);
                                         $context_prefix = $parts[0] ?? '';
                                         $changes_list = $parts[1] ?? '';

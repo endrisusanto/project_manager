@@ -38,6 +38,9 @@ $test_plan_distribution = [];
 $monthly_summary = [];
 $weekly_summary = [];
 $all_pics = [];
+$all_weeks_pic_data = [];
+$weekly_chart_data = ['labels' => [], 'datasets' => []];
+$pic_colors = [];
 
 $today = new DateTime();
 $day_of_week = (int)$today->format('w');
@@ -47,7 +50,6 @@ $end_of_week = (clone $start_of_week)->modify("+6 days");
 
 if (!empty($all_tasks)) {
     // 1. Distribusi Mingguan PIC (Rabu - Selasa) dengan Dukungan Multi-Minggu (Previous / Next Week)
-    $all_weeks_pic_data = [];
     $max_week_offset = 26; // 26 minggu ke belakang (~6 bulan)
     
     for ($w = 0; $w <= $max_week_offset; $w++) {
@@ -788,8 +790,8 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
     const themeToggleBtn = document.getElementById('theme-toggle');
 
     const allWeeksPicData = <?= json_encode($all_weeks_pic_data ?? []) ?>;
-    const yearlyChartData = <?= json_encode($weekly_chart_data) ?>;
-    const picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '[]' ?>;
+    const yearlyChartData = <?= json_encode($weekly_chart_data ?? ['labels' => [], 'datasets' => []]) ?>;
+    const picColors = <?= isset($pic_colors) ? json_encode($pic_colors) : '{}' ?>;
     let currentWeekOffset = 0;
     const maxWeekOffset = <?= count($all_weeks_pic_data ?? []) > 0 ? count($all_weeks_pic_data) - 1 : 0 ?>;
 
@@ -939,7 +941,7 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
 
     function createYearlyTaskChart() {
         const ctx = document.getElementById('weeklyTaskChart');
-        if (!ctx || !yearlyChartData.labels || yearlyChartData.labels.length === 0) return;
+        if (!ctx || !yearlyChartData || !yearlyChartData.labels || yearlyChartData.labels.length === 0) return;
         if (window.yearlyTaskChart instanceof Chart) window.yearlyTaskChart.destroy();
 
         window.yearlyTaskChart = new Chart(ctx, {
@@ -1004,6 +1006,9 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
         createPicDoughnutChart();
         createYearlyTaskChart();
     }
+
+    // Initial render
+    renderCharts();
 
     window.addEventListener('themechanged', (e) => {
         currentTheme = (e.detail && e.detail.isLight) ? 'light' : 'dark';
@@ -1154,6 +1159,7 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        renderCharts();
         updateClocks();
         setInterval(updateClocks, 1000);
     });

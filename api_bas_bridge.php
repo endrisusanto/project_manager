@@ -18,12 +18,17 @@ function get_bas_fallback_paths() {
         __DIR__ . '/.bas_session.json',
         sys_get_temp_dir() . '/.bas_session.json',
         '/var/www/html/.bas_session.json',
+        '/var/www/html/tkdn/.bas_session.json',
+        '/var/www/html/project_manager/.bas_session.json',
         '/home/endri-pro/dev/App/project_manager/.bas_session.json',
-        '/opt/lampp/htdocs/project_manager/.bas_session.json'
+        '/opt/lampp/htdocs/project_manager/.bas_session.json',
+        '/opt/lampp/htdocs/tkdn/.bas_session.json'
     ];
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         $paths[] = 'C:/xampp/htdocs/project_manager/.bas_session.json';
+        $paths[] = 'C:/xampp/htdocs/tkdn/.bas_session.json';
         $paths[] = 'D:/xampp/htdocs/project_manager/.bas_session.json';
+        $paths[] = 'D:/xampp/htdocs/tkdn/.bas_session.json';
     }
     return array_values(array_unique($paths));
 }
