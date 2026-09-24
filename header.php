@@ -1014,9 +1014,50 @@ $username = $_SESSION['username'] ?? 'User';
 </header>
 
 <script>
-// ponytail: robust profile dropdown controller in header.php (capture phase debounced)
+// ponytail: Universal Centralized Dark/Light Theme Controller & Profile Dropdown
 (function() {
+    function updateThemeIcons(isLight) {
+        var lightIcon = document.getElementById('theme-toggle-light-icon');
+        var darkIcon = document.getElementById('theme-toggle-dark-icon');
+        if (lightIcon && darkIcon) {
+            if (isLight) {
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+            } else {
+                lightIcon.classList.add('hidden');
+                darkIcon.classList.remove('hidden');
+            }
+        }
+    }
+
+    function applyTheme(isLight) {
+        if (isLight) {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.classList.remove('light');
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        updateThemeIcons(isLight);
+        window.dispatchEvent(new CustomEvent('themechanged', { detail: { isLight: isLight, theme: isLight ? 'light' : 'dark' } }));
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+        var currentIsLight = localStorage.getItem('theme') === 'light';
+        updateThemeIcons(currentIsLight);
+
+        var toggleBtn = document.getElementById('theme-toggle');
+        if (toggleBtn) {
+            toggleBtn.onclick = function(e) {
+                e.preventDefault();
+                var newIsLight = !document.documentElement.classList.contains('light');
+                applyTheme(newIsLight);
+            };
+        }
+
+        // Profile Menu Dropdown
         var profileMenu = document.getElementById('profile-menu');
         if (!profileMenu) return;
         var btnTrigger = profileMenu.querySelector('button');
