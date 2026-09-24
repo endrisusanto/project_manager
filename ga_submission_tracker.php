@@ -6,9 +6,35 @@ require_once "session.php";
 
 $active_page = 'ga_tracker';
 
-// --- 1. Date Calculation ---
+// --- 1. Date & BAS Status Calculation ---
 date_default_timezone_set('Asia/Jakarta');
 $today_str = date('Y-m-d');
+
+// Read BAS session bridge file status
+$session_file = __DIR__ . '/.bas_session.json';
+$bas_session_active = false;
+$bas_session_status_label = 'Disconnected';
+$bas_session_detail = 'Belum ada token';
+
+if (file_exists($session_file)) {
+    $bas_raw = @file_get_contents($session_file);
+    $bas_data = json_decode($bas_raw, true);
+    if ($bas_data && !empty($bas_data['sid'])) {
+        $bas_ts = $bas_data['timestamp'] ?? 0;
+        $bas_age = time() - $bas_ts;
+        if ($bas_age < (8 * 3600)) {
+            $bas_session_active = true;
+            $mins = max(1, round($bas_age / 60));
+            $bas_session_status_label = 'Active';
+            $bas_session_detail = ($mins < 60) ? "Updated {$mins}m ago" : "Updated " . round($mins / 60, 1) . "h ago";
+        } else {
+            $hours = round($bas_age / 3600, 1);
+            $bas_session_status_label = 'Expired';
+            $bas_session_detail = "Expired ({$hours}h ago)";
+        }
+    }
+}
+
 
 // --- 2. Fetch and Group Tasks ---
 $sql = "
@@ -290,24 +316,43 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
     <main class="w-full flex-grow p-4 sm:p-6 sm:py-8 flex flex-col max-w-7xl mx-auto space-y-6">
         
         <!-- Header HUD -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-600 flex-shrink-0 shadow-sm">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
                 <div>
-                    <h1 class="text-2xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary);">GBA Tracker & Reason OT</h1>
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight" style="color: var(--text-primary);">GBA Tracker & Reason OT</h1>
+                        
+                        <!-- BAS Status Badge -->
+                        <div id="bas-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors <?= $bas_session_active ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30' ?>">
+                            <span id="bas-status-dot" class="w-2 h-2 rounded-full <?= $bas_session_active ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400' ?>"></span>
+                            <span id="bas-status-text">BAS: <?= $bas_session_status_label ?> (<?= $bas_session_detail ?>)</span>
+                        </div>
+                    </div>
                     <p class="text-xs sm:text-sm font-medium" style="color: var(--text-secondary);">Monitoring pipeline submission GA, reason overtime, dan otomasi salin template</p>
                 </div>
             </div>
             
-            <button onclick="openActivityLog()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0 self-start sm:self-auto">
-                <svg class="w-4 h-4 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Activity Log</span>
-            </button>
+            <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                <!-- Sync BAS Now Button -->
+                <button id="btn-sync-bas" onclick="triggerBasSync()" class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0">
+                    <svg id="sync-bas-icon" class="w-4 h-4 text-emerald-100 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span id="sync-bas-text">Sync BAS Now</span>
+                </button>
+
+                <button onclick="openActivityLog()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0">
+                    <svg class="w-4 h-4 text-blue-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Activity Log</span>
+                </button>
+            </div>
         </div>
+
 
         <!-- Main Content Area (Responsive Bento Grid) -->
         <div class="w-full flex-grow pb-8">
@@ -1043,6 +1088,64 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                     const success = fallbackCopyToClipboard(finalContent);
                     showToast(success ? 'Template berhasil disalin ke clipboard!' : 'Gagal menyalin text.', success);
                 }
+            }
+        }
+
+        // --- BAS Sync Action ---
+        let isSyncingBas = false;
+        async function triggerBasSync() {
+            if (isSyncingBas) return;
+            isSyncingBas = true;
+
+            const btn = document.getElementById('btn-sync-bas');
+            const icon = document.getElementById('sync-bas-icon');
+            const btnText = document.getElementById('sync-bas-text');
+            const badge = document.getElementById('bas-status-badge');
+            const dot = document.getElementById('bas-status-dot');
+            const badgeText = document.getElementById('bas-status-text');
+
+            if (icon) icon.classList.add('animate-spin');
+            if (btnText) btnText.textContent = 'Syncing...';
+            if (btn) btn.disabled = true;
+
+            showToast('Menghubungkan ke Build Approval System...', true);
+
+            try {
+                const response = await fetch('sync_bas.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast(data.message || 'Sinkronisasi BAS berhasil!', true);
+                    
+                    if (badge && dot && badgeText) {
+                        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                        dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                        badgeText.textContent = 'BAS: Active (Just synced)';
+                    }
+
+                    if (data.updated_count > 0) {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1200);
+                    }
+                } else {
+                    showToast(data.message || 'Gagal sinkronisasi BAS.', false);
+                    if (badge && dot && badgeText && (data.message.includes('Session') || data.message.includes('kedaluwarsa') || data.message.includes('tidak ditemukan'))) {
+                        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors bg-rose-500/15 text-rose-400 border-rose-500/30';
+                        dot.className = 'w-2 h-2 rounded-full bg-rose-400';
+                        badgeText.textContent = 'BAS: Disconnected / Expired';
+                    }
+                }
+            } catch (err) {
+                showToast('Kesalahan jaringan: ' + err.message, false);
+            } finally {
+                isSyncingBas = false;
+                if (icon) icon.classList.remove('animate-spin');
+                if (btnText) btnText.textContent = 'Sync BAS Now';
+                if (btn) btn.disabled = false;
             }
         }
 
