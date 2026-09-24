@@ -239,6 +239,17 @@ const toolsDefinition = [
         format: { type: "string", enum: ["markdown", "json"], default: "markdown", description: "Output format preference" }
       }
     }
+  },
+  {
+    name: "get_weekly_summary_report",
+    description: "Generate executive weekly summary report for Wednesday to Tuesday cycle covering all statuses",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "Optional anchor date (YYYY-MM-DD), defaults to current week" },
+        format: { type: "string", enum: ["markdown", "json"], default: "markdown", description: "Output format preference" }
+      }
+    }
   }
 ];
 
@@ -517,6 +528,97 @@ async function executeTool(name, args = {}) {
         late: lateTasks.length,
         due_soon: dueSoonTasks.length
       }
+    };
+  }
+
+  // ponytail: Weekly Summary Insight Report generator (Wednesday - Tuesday cycle)
+  if (name === "get_weekly_summary_report") {
+    const anchor = args.date ? new Date(args.date) : new Date();
+    const dayOfWeek = anchor.getDay(); // 0 (Sun) - 6 (Sat). Wednesday = 3
+    const diffToWed = dayOfWeek >= 3 ? dayOfWeek - 3 : dayOfWeek + 4;
+    
+    const startDt = new Date(anchor);
+    startDt.setDate(startDt.getDate() - diffToWed);
+    const endDt = new Date(startDt);
+    endDt.setDate(endDt.getDate() + 6);
+
+    const startStr = startDt.toISOString().slice(0, 10);
+    const endStr = endDt.toISOString().slice(0, 10);
+
+    const [rows] = await pool.query(`
+      SELECT 
+        t.id, 
+        t.model_name, 
+        t.ap, 
+        t.pic_email, 
+        t.test_plan_type, 
+        t.progress_status, 
+        t.deadline, 
+        t.request_date,
+        t.submission_date,
+        t.approved_date,
+        t.is_urgent,
+        u.username
+      FROM gba_tasks t
+      LEFT JOIN users u ON t.pic_email = u.email
+      WHERE (
+        (t.request_date BETWEEN ? AND ?) OR
+        (t.submission_date BETWEEN ? AND ?) OR
+        (t.approved_date BETWEEN ? AND ?) OR
+        (t.deadline BETWEEN ? AND ?) OR
+        (DATE(t.updated_at) BETWEEN ? AND ?) OR
+        (t.progress_status NOT IN ('Approved', 'Passed', 'Batal') AND (t.request_date <= ? OR t.request_date IS NULL))
+      )
+      ORDER BY t.deadline ASC, t.id DESC
+    `, [startStr, endStr, startStr, endStr, startStr, endStr, startStr, endStr, startStr, endStr, endStr]);
+
+    let approvedCount = 0;
+    let submittedCount = 0;
+    let ongoingCount = 0;
+    let urgentCount = 0;
+    const picLoad = {};
+    const testPlanDist = {};
+
+    rows.forEach(r => {
+      const st = r.progress_status || 'Task Baru';
+      if (['Approved', 'Passed'].includes(st)) approvedCount++;
+      else if (st === 'Submitted') submittedCount++;
+      else if (st === 'Test Ongoing') ongoingCount++;
+
+      if (r.is_urgent) urgentCount++;
+
+      const pic = r.username || (r.pic_email ? r.pic_email.split('@')[0] : 'Unassigned');
+      picLoad[pic] = (picLoad[pic] || 0) + 1;
+
+      const tp = r.test_plan_type || 'Unassigned';
+      testPlanDist[tp] = (testPlanDist[tp] || 0) + 1;
+    });
+
+    const completionRate = rows.length > 0 ? ((approvedCount / rows.length) * 100).toFixed(1) : 0;
+    const topPic = Object.entries(picLoad).sort((a, b) => b[1] - a[1])[0] || ["-", 0];
+
+    let md = `## 📊 Weekly Summary Insight Report (${startStr} s/d ${endStr})\n\n`;
+    md += `### 📈 Performance & Metrics (Siklus Rabu - Selasa):\n`;
+    md += `- **Total Task Terdata**: ${rows.length}\n`;
+    md += `- **Approved / Passed**: ${approvedCount} (${completionRate}%)\n`;
+    md += `- **Submitted**: ${submittedCount}\n`;
+    md += `- **Test Ongoing**: ${ongoingCount}\n`;
+    md += `- **Task Urgent**: ${urgentCount}\n`;
+    md += `- **PIC Beban Tertinggi**: ${topPic[0]} (${topPic[1]} task)\n\n`;
+
+    return {
+      success: true,
+      period: { start: startStr, end: endStr },
+      stats: {
+        total: rows.length,
+        approved: approvedCount,
+        completion_rate: completionRate + '%',
+        submitted: submittedCount,
+        ongoing: ongoingCount,
+        urgent: urgentCount,
+        top_pic: { name: topPic[0], count: topPic[1] }
+      },
+      report_text: md
     };
   }
 
