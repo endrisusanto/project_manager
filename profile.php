@@ -9,7 +9,10 @@ $user = $_SESSION['user_details'];
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <script>if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');</script>
+    <script>
+        if(localStorage.getItem('theme')==='light')document.documentElement.classList.add('light');
+        if(localStorage.getItem('disable_canvas_animation')==='true')document.documentElement.classList.add('disable-canvas-animation');
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profil Saya - Project Manager</title>
@@ -160,7 +163,42 @@ $user = $_SESSION['user_details'];
             </form>
         </div>
 
-        <!-- Card 2: Password Change -->
+        <!-- Card 2: Performance & Appearance Settings (Ponytail Lean Resource Saver) -->
+        <div class="glass-panel p-5 sm:p-8 space-y-4">
+            <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--card-border);">
+                <div class="flex items-center gap-2">
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                    <h2 class="text-base font-bold" style="color: var(--text-primary);">Tampilan & Performa</h2>
+                </div>
+                <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 flex items-center gap-1.5">
+                    <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Hemat Resource
+                </span>
+            </div>
+
+            <div class="pt-2">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] transition-colors">
+                    <div class="space-y-1 pr-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold" style="color: var(--text-primary);">Animasi Background Canvas (Neural Particles)</span>
+                        </div>
+                        <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+                            Matikan partikel canvas bergerak di seluruh halaman untuk menghemat daya baterai, penggunaan CPU, dan memori browser.
+                        </p>
+                    </div>
+                    
+                    <div class="flex items-center gap-3 flex-shrink-0 self-start sm:self-center">
+                        <span id="canvas-status-text" class="text-xs font-bold text-emerald-500">Aktif</span>
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            <input type="checkbox" id="toggle-canvas-anim" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Password Change -->
         <div class="glass-panel p-5 sm:p-8 space-y-4">
             <div class="flex items-center gap-2 border-b pb-3" style="border-color: var(--card-border);">
                 <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
@@ -198,12 +236,12 @@ $user = $_SESSION['user_details'];
     </main>
 
     <script>
-        // Background neural particles
+        // Background neural particles with resource-saving pause/resume
         (function() {
             const canvas = document.getElementById('neural-canvas');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            let w, h, particles = [];
+            let w, h, particles = [], animId = null;
 
             function resize() {
                 w = canvas.width = window.innerWidth;
@@ -224,6 +262,10 @@ $user = $_SESSION['user_details'];
             }
 
             function draw() {
+                if (document.documentElement.classList.contains('disable-canvas-animation')) {
+                    animId = null;
+                    return;
+                }
                 ctx.clearRect(0, 0, w, h);
                 const isLight = document.documentElement.classList.contains('light');
                 const pColor = isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(96, 165, 250, 0.25)';
@@ -258,12 +300,54 @@ $user = $_SESSION['user_details'];
                         }
                     }
                 }
-                requestAnimationFrame(draw);
+                animId = requestAnimationFrame(draw);
             }
-            draw();
+
+            if (!document.documentElement.classList.contains('disable-canvas-animation')) {
+                draw();
+            }
+
+            window.addEventListener('canvasanimationchanged', function(e) {
+                if (!e.detail.disabled) {
+                    if (!animId) draw();
+                } else {
+                    if (animId) cancelAnimationFrame(animId);
+                    animId = null;
+                    ctx.clearRect(0, 0, w, h);
+                }
+            });
         })();
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Canvas Animation Toggle Controller
+            const canvasToggle = document.getElementById('toggle-canvas-anim');
+            const canvasStatusText = document.getElementById('canvas-status-text');
+
+            function updateCanvasToggleUI(isDisabled) {
+                if (canvasToggle) canvasToggle.checked = !isDisabled;
+                if (canvasStatusText) {
+                    if (isDisabled) {
+                        canvasStatusText.textContent = 'Nonaktif (Hemat Daya)';
+                        canvasStatusText.className = 'text-xs font-bold text-amber-500';
+                    } else {
+                        canvasStatusText.textContent = 'Aktif (Normal)';
+                        canvasStatusText.className = 'text-xs font-bold text-emerald-500';
+                    }
+                }
+            }
+
+            const isCanvasDisabled = localStorage.getItem('disable_canvas_animation') === 'true';
+            updateCanvasToggleUI(isCanvasDisabled);
+
+            if (canvasToggle) {
+                canvasToggle.addEventListener('change', function() {
+                    const disabled = !this.checked;
+                    localStorage.setItem('disable_canvas_animation', disabled ? 'true' : 'false');
+                    document.documentElement.classList.toggle('disable-canvas-animation', disabled);
+                    updateCanvasToggleUI(disabled);
+                    window.dispatchEvent(new CustomEvent('canvasanimationchanged', { detail: { disabled: disabled } }));
+                });
+            }
 
             // URL Cleanup
             if (window.location.search.includes('success=') || window.location.search.includes('error=')) {

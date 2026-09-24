@@ -94,6 +94,10 @@ $hdr_bas_status = get_header_bas_status();
 <?php if (in_array($active_page, ['project_dashboard', 'gba_tasks', 'gba_tasks_summary'])): ?>
     <!-- ponytail: Spotlight Search Overlay — shared across pages via header.php -->
     <style>
+        html.disable-canvas-animation #neural-canvas {
+            display: none !important;
+        }
+
         #spotlight-overlay {
             position: fixed;
             inset: 0;
@@ -1172,6 +1176,9 @@ $hdr_bas_status = get_header_bas_status();
 <script>
 // ponytail: Universal Centralized Dark/Light Theme Controller & Profile Dropdown
 (function() {
+    if (localStorage.getItem('disable_canvas_animation') === 'true') {
+        document.documentElement.classList.add('disable-canvas-animation');
+    }
     function updateThemeIcons(isLight) {
         var lightIcon = document.getElementById('theme-toggle-light-icon');
         var darkIcon = document.getElementById('theme-toggle-dark-icon');
