@@ -54,7 +54,15 @@ pub fn execute_sync(config: &SyncConfig) -> Result<SyncResult, String> {
         .map_err(|e| format!("HTTP Client error: {}", e))?;
 
 
-    let target_tables = vec!["users", "projects", "gba_tasks", "new_tasks"];
+    let target_tables = vec![
+        "users",
+        "projects",
+        "gba_tasks",
+        "new_tasks",
+        "activity_log",
+        "activity_logs",
+        "user_notes",
+    ];
     let mut local_stats = HashMap::new();
     let mut total_chunks_sent = 0;
 

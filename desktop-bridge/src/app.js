@@ -211,11 +211,15 @@ function updateStatsView(result) {
         const projEl = document.getElementById('stat-projects');
         const userEl = document.getElementById('stat-users');
         const ntEl = document.getElementById('stat-new-tasks');
+        const actEl = document.getElementById('stat-activity-log');
+        const noteEl = document.getElementById('stat-user-notes');
 
         if (gbaEl) gbaEl.textContent = result.stats['gba_tasks'] || 0;
         if (projEl) projEl.textContent = result.stats['projects'] || 0;
         if (userEl) userEl.textContent = result.stats['users'] || 0;
         if (ntEl) ntEl.textContent = result.stats['new_tasks'] || 0;
+        if (actEl) actEl.textContent = (result.stats['activity_log'] || 0) + (result.stats['activity_logs'] || 0);
+        if (noteEl) noteEl.textContent = result.stats['user_notes'] || 0;
     }
 }
 

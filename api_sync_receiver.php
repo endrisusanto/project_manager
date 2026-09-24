@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'status' => 'online',
         'message' => 'Project Manager Sync Receiver is ready',
         'server_time' => date('Y-m-d H:i:s'),
-        'supported_tables' => ['gba_tasks', 'projects', 'users', 'new_tasks']
+        'supported_tables' => ['gba_tasks', 'projects', 'users', 'new_tasks', 'activity_log', 'activity_logs', 'user_notes']
     ]);
     exit;
 }
@@ -221,6 +221,54 @@ try {
             $sanitized_nt[] = $nt;
         }
         $stats['new_tasks'] = upsert_table_data($conn, 'new_tasks', $sanitized_nt, $nt_cols, ['id']);
+    }
+
+    // 7.5 Activity Log (GBA task changes & BAS sync)
+    if (isset($tables_data['activity_log']) && is_array($tables_data['activity_log'])) {
+        $conn->query("CREATE TABLE IF NOT EXISTS `activity_log` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `task_id` int(11) DEFAULT NULL,
+            `action_type` varchar(50) NOT NULL,
+            `details` text DEFAULT NULL,
+            `user_email` varchar(255) DEFAULT NULL,
+            `action_time` timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+        $act_cols = ['id', 'task_id', 'action_type', 'details', 'user_email', 'action_time'];
+        $stats['activity_log'] = upsert_table_data($conn, 'activity_log', $tables_data['activity_log'], $act_cols, ['id']);
+    }
+
+    // 7.6 Activity Logs (Submission Tracker activity entries)
+    if (isset($tables_data['activity_logs']) && is_array($tables_data['activity_logs'])) {
+        $conn->query("CREATE TABLE IF NOT EXISTS `activity_logs` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `user_email` varchar(255) DEFAULT NULL,
+            `pic_name` varchar(255) DEFAULT NULL,
+            `content` text DEFAULT NULL,
+            `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+        $acts_cols = ['id', 'user_email', 'pic_name', 'content', 'created_at'];
+        $stats['activity_logs'] = upsert_table_data($conn, 'activity_logs', $tables_data['activity_logs'], $acts_cols, ['id']);
+    }
+
+    // 7.7 User Notes
+    if (isset($tables_data['user_notes']) && is_array($tables_data['user_notes'])) {
+        $conn->query("CREATE TABLE IF NOT EXISTS `user_notes` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `user_email` varchar(255) NOT NULL,
+            `note_date` date NOT NULL,
+            `title` varchar(255) NOT NULL,
+            `content` text DEFAULT NULL,
+            `priority` varchar(50) DEFAULT 'Normal',
+            `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+        $note_cols = ['id', 'user_email', 'note_date', 'title', 'content', 'priority', 'created_at'];
+        $stats['user_notes'] = upsert_table_data($conn, 'user_notes', $tables_data['user_notes'], $note_cols, ['id']);
     }
 
     $conn->commit();
