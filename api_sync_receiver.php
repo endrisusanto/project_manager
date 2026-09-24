@@ -143,13 +143,37 @@ try {
     // 7.1 Users
     if (isset($tables_data['users']) && is_array($tables_data['users'])) {
         $user_cols = ['id', 'username', 'email', 'password', 'role', 'profile_picture'];
-        $stats['users'] = upsert_table_data($conn, 'users', $tables_data['users'], $user_cols, ['id']);
+        $sanitized_users = [];
+        foreach ($tables_data['users'] as $u) {
+            if (!is_array($u)) continue;
+            if (empty($u['password'])) {
+                // Default placeholder hash for users synced without password
+                $u['password'] = '$2y$10$e7bE9u1QZg51lW5i6zJ.9u8B3N7qgP2LwE5/1g1Y.7o7tQx3h2eX6';
+            }
+            if (empty($u['role'])) {
+                $u['role'] = 'user';
+            }
+            if (empty($u['profile_picture'])) {
+                $u['profile_picture'] = 'default.png';
+            }
+            $sanitized_users[] = $u;
+        }
+        $stats['users'] = upsert_table_data($conn, 'users', $sanitized_users, $user_cols, ['id']);
     }
 
     // 7.2 Projects
     if (isset($tables_data['projects']) && is_array($tables_data['projects'])) {
         $proj_cols = ['id', 'project_name', 'product_model', 'project_type', 'status', 'description', 'ap', 'cp', 'csc', 'qb_user', 'qb_userdebug', 'software_released', 'use_gba_testing'];
-        $stats['projects'] = upsert_table_data($conn, 'projects', $tables_data['projects'], $proj_cols, ['id']);
+        $sanitized_projects = [];
+        foreach ($tables_data['projects'] as $p) {
+            if (!is_array($p)) continue;
+            if (empty($p['project_name'])) $p['project_name'] = 'Untitled Project';
+            if (empty($p['product_model'])) $p['product_model'] = 'N/A';
+            if (empty($p['project_type'])) $p['project_type'] = 'General';
+            if (empty($p['status'])) $p['status'] = 'Active';
+            $sanitized_projects[] = $p;
+        }
+        $stats['projects'] = upsert_table_data($conn, 'projects', $sanitized_projects, $proj_cols, ['id']);
     }
 
     // 7.3 GBA Tasks
@@ -161,13 +185,27 @@ try {
             'notes', 'test_items_checklist', 'project_name', 'qb_userdebug', 'approved_date', 
             'is_urgent', 'updated_at', 'updated_by_email'
         ];
-        $stats['gba_tasks'] = upsert_table_data($conn, 'gba_tasks', $tables_data['gba_tasks'], $gba_cols, ['id']);
+        $sanitized_tasks = [];
+        foreach ($tables_data['gba_tasks'] as $t) {
+            if (!is_array($t)) continue;
+            if (empty($t['test_plan_type'])) $t['test_plan_type'] = 'Normal MR';
+            if (empty($t['progress_status'])) $t['progress_status'] = 'Task Baru';
+            if (!isset($t['is_urgent'])) $t['is_urgent'] = 0;
+            $sanitized_tasks[] = $t;
+        }
+        $stats['gba_tasks'] = upsert_table_data($conn, 'gba_tasks', $sanitized_tasks, $gba_cols, ['id']);
     }
 
     // 7.4 New Tasks (Smart Filter)
     if (isset($tables_data['new_tasks']) && is_array($tables_data['new_tasks'])) {
         $nt_cols = ['id', 'model_name', 'ap', 'cp', 'csc', 'request_type', 'qb_user', 'qb_userdebug', 'is_manual', 'created_at'];
-        $stats['new_tasks'] = upsert_table_data($conn, 'new_tasks', $tables_data['new_tasks'], $nt_cols, ['id']);
+        $sanitized_nt = [];
+        foreach ($tables_data['new_tasks'] as $nt) {
+            if (!is_array($nt)) continue;
+            if (!isset($nt['is_manual'])) $nt['is_manual'] = 0;
+            $sanitized_nt[] = $nt;
+        }
+        $stats['new_tasks'] = upsert_table_data($conn, 'new_tasks', $sanitized_nt, $nt_cols, ['id']);
     }
 
     $conn->commit();

@@ -19,6 +19,7 @@ pub struct SyncResult {
 pub fn test_remote_url(config: &SyncConfig) -> Result<String, String> {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(10))
+        .danger_accept_invalid_certs(true)
         .build()
         .map_err(|e| format!("HTTP Client error: {}", e))?;
 
@@ -48,8 +49,10 @@ pub fn execute_sync(config: &SyncConfig) -> Result<SyncResult, String> {
     // 2. HTTP Client with resilient timeout & headers
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(30))
+        .danger_accept_invalid_certs(true)
         .build()
         .map_err(|e| format!("HTTP Client error: {}", e))?;
+
 
     let target_tables = vec!["users", "projects", "gba_tasks", "new_tasks"];
     let mut local_stats = HashMap::new();
