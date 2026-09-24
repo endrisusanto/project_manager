@@ -31,24 +31,55 @@ function respond_output($data, $is_cli, $status_code = 200) {
     exit($data['success'] ? 0 : 1);
 }
 
-// 1. Read .bas_session.json
-$session_file = __DIR__ . '/.bas_session.json';
-if (!file_exists($session_file)) {
-    respond_output([
-        'success' => false,
-        'message' => 'File .bas_session.json tidak ditemukan. Silakan buka Build Approval System di browser yang terpasang ekstensi untuk sinkronisasi token session.',
-        'synced_count' => 0,
-        'updated_tasks' => []
-    ], $is_cli, 400);
+// 1. Read BAS session with multi-tier fallback (Local File -> Fallback Paths -> Database system_settings)
+$session = null;
+$best_ts = 0;
+
+$candidate_session_paths = [
+    __DIR__ . '/.bas_session.json',
+    sys_get_temp_dir() . '/.bas_session.json',
+    '/var/www/html/.bas_session.json',
+    '/home/endri-pro/dev/App/project_manager/.bas_session.json',
+    '/opt/lampp/htdocs/project_manager/.bas_session.json'
+];
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    $candidate_session_paths[] = 'C:/xampp/htdocs/project_manager/.bas_session.json';
+    $candidate_session_paths[] = 'D:/xampp/htdocs/project_manager/.bas_session.json';
 }
 
-$raw_session = @file_get_contents($session_file);
-$session = json_decode($raw_session, true);
+foreach ($candidate_session_paths as $sp) {
+    if (file_exists($sp) && is_readable($sp)) {
+        $raw = @file_get_contents($sp);
+        $parsed = json_decode($raw, true);
+        if ($parsed && !empty($parsed['sid'])) {
+            $ts = $parsed['timestamp'] ?? 0;
+            if ($ts > $best_ts) {
+                $best_ts = $ts;
+                $session = $parsed;
+            }
+        }
+    }
+}
+
+// Check database system_settings table if file missing or expired
+if ((!$session || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+    $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+    if ($res && $row = $res->fetch_assoc()) {
+        $db_data = json_decode($row['setting_value'], true);
+        if ($db_data && !empty($db_data['sid'])) {
+            $db_ts = $db_data['timestamp'] ?? 0;
+            if ($db_ts > $best_ts) {
+                $best_ts = $db_ts;
+                $session = $db_data;
+            }
+        }
+    }
+}
 
 if (!$session || empty($session['sid'])) {
     respond_output([
         'success' => false,
-        'message' => 'Token session BAS (sid) kosong atau format tidak valid di .bas_session.json.',
+        'message' => 'Token session BAS (sid) tidak ditemukan atau kosong. Silakan buka Build Approval System di browser yang terpasang ekstensi untuk sinkronisasi token session.',
         'synced_count' => 0,
         'updated_tasks' => []
     ], $is_cli, 400);

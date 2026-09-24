@@ -10,28 +10,65 @@ $active_page = 'ga_tracker';
 date_default_timezone_set('Asia/Jakarta');
 $today_str = date('Y-m-d');
 
-// Read BAS session bridge file status
-$session_file = __DIR__ . '/.bas_session.json';
+// Read BAS session bridge with multi-tier fallback (Local File -> Fallback Paths -> Database system_settings)
 $bas_session_active = false;
 $bas_session_status_label = 'Disconnected';
 $bas_session_detail = 'Belum ada token';
+$bas_data = null;
+$best_ts = 0;
 
-if (file_exists($session_file)) {
-    $bas_raw = @file_get_contents($session_file);
-    $bas_data = json_decode($bas_raw, true);
-    if ($bas_data && !empty($bas_data['sid'])) {
-        $bas_ts = $bas_data['timestamp'] ?? 0;
-        $bas_age = time() - $bas_ts;
-        if ($bas_age < (8 * 3600)) {
-            $bas_session_active = true;
-            $mins = max(1, round($bas_age / 60));
-            $bas_session_status_label = 'Active';
-            $bas_session_detail = ($mins < 60) ? "Updated {$mins}m ago" : "Updated " . round($mins / 60, 1) . "h ago";
-        } else {
-            $hours = round($bas_age / 3600, 1);
-            $bas_session_status_label = 'Expired';
-            $bas_session_detail = "Expired ({$hours}h ago)";
+$candidate_session_paths = [
+    __DIR__ . '/.bas_session.json',
+    sys_get_temp_dir() . '/.bas_session.json',
+    '/var/www/html/.bas_session.json',
+    '/home/endri-pro/dev/App/project_manager/.bas_session.json',
+    '/opt/lampp/htdocs/project_manager/.bas_session.json'
+];
+if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+    $candidate_session_paths[] = 'C:/xampp/htdocs/project_manager/.bas_session.json';
+    $candidate_session_paths[] = 'D:/xampp/htdocs/project_manager/.bas_session.json';
+}
+
+foreach ($candidate_session_paths as $sp) {
+    if (file_exists($sp) && is_readable($sp)) {
+        $raw = @file_get_contents($sp);
+        $parsed = json_decode($raw, true);
+        if ($parsed && !empty($parsed['sid'])) {
+            $ts = $parsed['timestamp'] ?? 0;
+            if ($ts > $best_ts) {
+                $best_ts = $ts;
+                $bas_data = $parsed;
+            }
         }
+    }
+}
+
+// Check database system_settings table if file missing or expired
+if ((!$bas_data || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+    $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+    if ($res && $row = $res->fetch_assoc()) {
+        $db_data = json_decode($row['setting_value'], true);
+        if ($db_data && !empty($db_data['sid'])) {
+            $db_ts = $db_data['timestamp'] ?? 0;
+            if ($db_ts > $best_ts) {
+                $best_ts = $db_ts;
+                $bas_data = $db_data;
+            }
+        }
+    }
+}
+
+if ($bas_data && !empty($bas_data['sid'])) {
+    $bas_age = time() - $best_ts;
+    if ($bas_age < (8 * 3600)) {
+        $bas_session_active = true;
+        $mins = max(1, round($bas_age / 60));
+        $bas_session_status_label = 'Active';
+        $bas_session_detail = ($mins < 60) ? "Updated {$mins}m ago" : "Updated " . round($mins / 60, 1) . "h ago";
+    } else {
+        $hours = round($bas_age / 3600, 1);
+        $bas_session_status_label = 'Expired';
+        $bas_session_detail = "Expired ({$hours}h ago)";
     }
 }
 
