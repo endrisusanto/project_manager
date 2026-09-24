@@ -622,143 +622,163 @@ function get_pic_badge_class($name) {
         }
 
         .header-sapphire {
-            background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+            background-color: #0284c7;
             color: #ffffff;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+            font-weight: 700;
         }
+        html.dark .header-sapphire {
+            background-color: #0369a1;
+            color: #f8fafc;
+        }
+
         .header-amber-week {
-            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+            background-color: #d97706;
             color: #ffffff;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+            font-weight: 700;
         }
-        html.light .header-amber-week {
-            background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
-            color: #451a03;
-            text-shadow: none;
+        html.dark .header-amber-week {
+            background-color: #b45309;
+            color: #fef3c7;
         }
+
         .header-crimson-weekend {
-            background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+            background-color: #e11d48;
             color: #ffffff;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+            font-weight: 700;
+        }
+        html.dark .header-crimson-weekend {
+            background-color: #be123c;
+            color: #ffe4e6;
         }
 
         .sub-done {
-            background: rgba(16, 185, 129, 0.12);
-            color: #059669;
+            background-color: rgba(16, 185, 129, 0.08);
+            color: #047857;
+            font-weight: 700;
         }
         html.dark .sub-done {
-            background: rgba(16, 185, 129, 0.2);
+            background-color: rgba(16, 185, 129, 0.15);
             color: #34d399;
         }
+
         .sub-drop {
-            background: rgba(245, 158, 11, 0.12);
-            color: #d97706;
+            background-color: rgba(245, 158, 11, 0.08);
+            color: #b45309;
+            font-weight: 700;
         }
         html.dark .sub-drop {
-            background: rgba(245, 158, 11, 0.2);
+            background-color: rgba(245, 158, 11, 0.15);
             color: #fbbf24;
         }
+
         .sub-prog {
-            background: rgba(14, 165, 233, 0.12);
-            color: #0284c7;
+            background-color: rgba(14, 165, 233, 0.08);
+            color: #0369a1;
+            font-weight: 700;
         }
         html.dark .sub-prog {
-            background: rgba(14, 165, 233, 0.2);
+            background-color: rgba(14, 165, 233, 0.15);
             color: #38bdf8;
         }
 
         .total-foot {
-            background: linear-gradient(180deg, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0.26) 100%);
+            background-color: rgba(14, 165, 233, 0.1);
+            color: var(--text-primary);
             font-weight: 800;
+        }
+        html.dark .total-foot {
+            background-color: rgba(14, 165, 233, 0.18);
+            color: #e0f2fe;
         }
 
         .csc-badge {
             display: inline-flex;
             align-items: center;
-            padding: 2px 7px;
-            border-radius: 6px;
+            padding: 2px 6px;
+            border-radius: 4px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            background: rgba(245, 158, 11, 0.12);
-            border: 1px solid rgba(245, 158, 11, 0.25);
-            color: #d97706;
+            font-weight: 600;
+            background-color: #fef3c7;
+            border: 1px solid #fde68a;
+            color: #92400e;
         }
         html.dark .csc-badge {
-            background: rgba(245, 158, 11, 0.18);
-            border-color: rgba(245, 158, 11, 0.35);
-            color: #fcd34d;
+            background-color: rgba(245, 158, 11, 0.15);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #fde047;
         }
 
         .badge-test {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 2px 7px;
+            border-radius: 4px;
             font-size: 11px;
             font-weight: 700;
-            background: rgba(245, 158, 11, 0.14);
+            background-color: rgba(245, 158, 11, 0.12);
             border: 1px solid rgba(245, 158, 11, 0.3);
-            color: #d97706;
+            color: #b45309;
         }
         html.dark .badge-test {
-            color: #fbbf24;
-            background: rgba(245, 158, 11, 0.22);
-            border-color: rgba(245, 158, 11, 0.45);
+            color: #fcd34d;
+            background-color: rgba(245, 158, 11, 0.18);
+            border-color: rgba(245, 158, 11, 0.35);
         }
 
         .badge-submit {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 2px 7px;
+            border-radius: 4px;
             font-size: 11px;
             font-weight: 700;
-            background: rgba(14, 165, 233, 0.14);
+            background-color: rgba(14, 165, 233, 0.12);
             border: 1px solid rgba(14, 165, 233, 0.3);
-            color: #0284c7;
+            color: #0369a1;
         }
         html.dark .badge-submit {
             color: #38bdf8;
-            background: rgba(14, 165, 233, 0.22);
-            border-color: rgba(14, 165, 233, 0.45);
+            background-color: rgba(14, 165, 233, 0.18);
+            border-color: rgba(14, 165, 233, 0.35);
         }
 
         .badge-approve {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 2px 7px;
+            border-radius: 4px;
             font-size: 11px;
             font-weight: 700;
-            background: rgba(16, 185, 129, 0.14);
+            background-color: rgba(16, 185, 129, 0.12);
             border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #059669;
+            color: #047857;
         }
         html.dark .badge-approve {
             color: #34d399;
-            background: rgba(16, 185, 129, 0.22);
-            border-color: rgba(16, 185, 129, 0.45);
+            background-color: rgba(16, 185, 129, 0.18);
+            border-color: rgba(16, 185, 129, 0.35);
         }
 
         .badge-submit-approve {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 2px 8px;
-            border-radius: 6px;
+            padding: 2px 7px;
+            border-radius: 4px;
             font-size: 11px;
             font-weight: 700;
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%);
-            border: 1px solid rgba(16, 185, 129, 0.35);
+            background-color: rgba(20, 184, 166, 0.12);
+            border: 1px solid rgba(20, 184, 166, 0.35);
             color: #0f766e;
         }
         html.dark .badge-submit-approve {
             color: #2dd4bf;
-            background: linear-gradient(135deg, rgba(14, 165, 233, 0.22) 0%, rgba(16, 185, 129, 0.22) 100%);
-            border-color: rgba(45, 212, 191, 0.45);
+            background-color: rgba(20, 184, 166, 0.18);
+            border-color: rgba(20, 184, 166, 0.35);
         }
 
         .btn-action-tactile {
@@ -1172,14 +1192,14 @@ function get_pic_badge_class($name) {
             </div>
         </div>
 
-        <!-- TOP MULTI-WEEK PIC MATRIX SUMMARY (Emil Design Engineering & Better UI) -->
+        <!-- TOP MULTI-WEEK PIC MATRIX SUMMARY (Antislop UI) -->
         <div class="glass-card p-4 sm:p-5 space-y-3.5">
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-3 h-3 rounded-full bg-sky-500 shadow-sm shadow-sky-500/50 animate-pulse"></div>
+                    <div class="w-2.5 h-2.5 rounded-full bg-sky-500"></div>
                     <h3 class="text-sm font-bold uppercase tracking-wider text-adaptive-main">Summary Project GA per PIC & Mingguan</h3>
                 </div>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shadow-sm">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                     Tahun <?= $curr_year ?> • W-<?= $w_prev_num ?>, W-<?= $w_curr_num ?>, W-<?= $w_next_num ?>
                 </span>
             </div>
