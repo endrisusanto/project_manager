@@ -682,13 +682,17 @@ function get_pic_badge_class($name) {
         }
 
         .total-foot {
-            background-color: rgba(14, 165, 233, 0.1);
-            color: var(--text-primary);
+            background-color: #bae6fd;
+            color: #0369a1 !important;
             font-weight: 800;
         }
         html.dark .total-foot {
-            background-color: rgba(14, 165, 233, 0.18);
-            color: #e0f2fe;
+            background-color: #0c4a6e;
+            color: #f8fafc !important;
+        }
+        .total-foot td {
+            color: inherit !important;
+            border-top: 2px solid var(--card-border);
         }
 
         .csc-badge {
@@ -1259,7 +1263,7 @@ function get_pic_badge_class($name) {
                         <?php endif; ?>
                     </tbody>
                     <tfoot>
-                        <tr class="total-foot text-slate-900 dark:text-sky-100">
+                        <tr class="total-foot">
                             <td class="py-2.5 px-3.5 text-left font-black tracking-wide">Total</td>
                             <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['total_year']['done'] ?></td>
                             <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['total_year']['drop'] ?></td>
