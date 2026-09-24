@@ -1,15 +1,15 @@
 {
-  "version": "1.0.11",
-  "notes": "Release update v 1.0.11",
-  "pub_date": "2026-09-24T02:41:29.146Z",
+  "version": "1.0.12",
+  "notes": "Release update v 1.0.12",
+  "pub_date": "2026-09-24T03:24:38.319Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.11/GBA-Bridge-Sync_1.0.11_x64_en-US.msi"
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.12/GBA-Bridge-Sync_1.0.12_x64_en-US.msi"
     },
     "windows-x86_64-nsis": {
       "signature": "",
-      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.11/GBA-Bridge-Sync_1.0.11_x64-setup.exe"
+      "url": "https://github.com/endrisusanto/project_manager/releases/download/v1.0.12/GBA-Bridge-Sync_1.0.12_x64-setup.exe"
     }
   }
 }
