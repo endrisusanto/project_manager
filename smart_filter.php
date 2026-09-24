@@ -406,6 +406,7 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
             --badge-bg: #1e293b;
             --badge-text: #e2e8f0;
             --table-hover: #1e293b;
+            --table-stripe: #090f20;
             --table-header-bg: #0f172a;
             --table-header-text: #94a3b8;
             --table-header-border: #1e293b;
@@ -432,6 +433,7 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
             --badge-bg: #f1f5f9;
             --badge-text: #0f172a;
             --table-hover: #f1f5f9;
+            --table-stripe: #f8fafc;
             --table-header-bg: #f1f5f9;
             --table-header-text: #0f172a;
             --table-header-border: #cbd5e1;
@@ -713,17 +715,51 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
             padding: 0.75rem 0.875rem !important;
         }
 
-        table.dataTable tbody td {
+        table.dataTable tbody tr,
+        table.dataTable tbody tr td,
+        table.dataTable tbody tr th {
             border-bottom: 1px solid var(--table-cell-border) !important;
             padding: 0.65rem 0.875rem !important;
             color: var(--text-primary) !important;
-            background: transparent !important;
             vertical-align: middle;
             font-size: 0.8125rem !important;
         }
 
-        table.dataTable tbody tr:hover td {
-            background: var(--table-hover) !important;
+        table.dataTable tbody tr,
+        table.dataTable tbody tr.odd,
+        table.dataTable tbody tr:nth-child(odd),
+        table.dataTable tbody tr.odd > td,
+        table.dataTable tbody tr.odd > th,
+        table.dataTable tbody tr:nth-child(odd) > td,
+        table.dataTable tbody tr:nth-child(odd) > th,
+        table.dataTable.display > tbody > tr.odd > *,
+        table.dataTable.stripe > tbody > tr.odd > *,
+        table.dataTable.display > tbody > tr:nth-child(odd) > *,
+        table.dataTable.stripe > tbody > tr:nth-child(odd) > * {
+            background-color: transparent !important;
+            color: var(--text-primary) !important;
+        }
+
+        table.dataTable tbody tr.even,
+        table.dataTable tbody tr:nth-child(even),
+        table.dataTable tbody tr.even > td,
+        table.dataTable tbody tr.even > th,
+        table.dataTable tbody tr:nth-child(even) > td,
+        table.dataTable tbody tr:nth-child(even) > th,
+        table.dataTable.display > tbody > tr.even > *,
+        table.dataTable.stripe > tbody > tr.even > *,
+        table.dataTable.display > tbody > tr:nth-child(even) > *,
+        table.dataTable.stripe > tbody > tr:nth-child(even) > * {
+            background-color: var(--table-stripe) !important;
+            color: var(--text-primary) !important;
+        }
+
+        table.dataTable tbody tr:hover,
+        table.dataTable tbody tr:hover > td,
+        table.dataTable tbody tr:hover > th,
+        table.dataTable.display > tbody > tr:hover > *,
+        table.dataTable.stripe > tbody > tr:hover > * {
+            background-color: var(--table-hover) !important;
         }
 
         table.dataTable tbody td.dt-empty {
@@ -732,12 +768,27 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
             color: var(--text-secondary) !important;
             font-weight: 700 !important;
             font-style: normal !important;
+            background: transparent !important;
         }
 
-        tr.manual-row td {
-            background: rgba(16, 185, 129, 0.08) !important;
+        tr.manual-row,
+        tr.manual-row > td,
+        table.dataTable tbody tr.manual-row,
+        table.dataTable tbody tr.manual-row > td,
+        table.dataTable.display > tbody > tr.manual-row > *,
+        table.dataTable.stripe > tbody > tr.manual-row > * {
+            background-color: rgba(16, 185, 129, 0.08) !important;
         }
-        tr.manual-row td:first-child {
+        tr.manual-row:hover,
+        tr.manual-row:hover > td,
+        table.dataTable tbody tr.manual-row:hover,
+        table.dataTable tbody tr.manual-row:hover > td,
+        table.dataTable.display > tbody > tr.manual-row:hover > *,
+        table.dataTable.stripe > tbody > tr.manual-row:hover > * {
+            background-color: rgba(16, 185, 129, 0.16) !important;
+        }
+        tr.manual-row td:first-child,
+        table.dataTable tbody tr.manual-row td:first-child {
             border-left: 3px solid #10b981 !important;
         }
 
