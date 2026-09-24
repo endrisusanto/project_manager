@@ -63,16 +63,26 @@ foreach ($candidate_session_paths as $sp) {
 
 // Check database system_settings table if file missing or expired
 if ((!$session || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
-    $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
-    if ($res && $row = $res->fetch_assoc()) {
-        $db_data = json_decode($row['setting_value'], true);
-        if ($db_data && !empty($db_data['sid'])) {
-            $db_ts = $db_data['timestamp'] ?? 0;
-            if ($db_ts > $best_ts) {
-                $best_ts = $db_ts;
-                $session = $db_data;
+    try {
+        $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
+            `setting_key` VARCHAR(100) PRIMARY KEY,
+            `setting_value` LONGTEXT NOT NULL,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
+        $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+        if ($res && $row = $res->fetch_assoc()) {
+            $db_data = json_decode($row['setting_value'], true);
+            if ($db_data && !empty($db_data['sid'])) {
+                $db_ts = $db_data['timestamp'] ?? 0;
+                if ($db_ts > $best_ts) {
+                    $best_ts = $db_ts;
+                    $session = $db_data;
+                }
             }
         }
+    } catch (Throwable $e) {
+        // Safe graceful fallback
     }
 }
 

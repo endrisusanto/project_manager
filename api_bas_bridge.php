@@ -50,22 +50,26 @@ function load_bas_session_data() {
 
     // 2. Scan database system_settings table if local file missing or expired
     if ((!$best_data || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
-        $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
-            `setting_key` VARCHAR(100) PRIMARY KEY,
-            `setting_value` LONGTEXT NOT NULL,
-            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        try {
+            $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
+                `setting_key` VARCHAR(100) PRIMARY KEY,
+                `setting_value` LONGTEXT NOT NULL,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
-        $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
-        if ($res && $row = $res->fetch_assoc()) {
-            $db_data = json_decode($row['setting_value'], true);
-            if ($db_data && !empty($db_data['sid'])) {
-                $db_ts = $db_data['timestamp'] ?? 0;
-                if ($db_ts > $best_ts) {
-                    $best_ts = $db_ts;
-                    $best_data = $db_data;
+            $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+            if ($res && $row = $res->fetch_assoc()) {
+                $db_data = json_decode($row['setting_value'], true);
+                if ($db_data && !empty($db_data['sid'])) {
+                    $db_ts = $db_data['timestamp'] ?? 0;
+                    if ($db_ts > $best_ts) {
+                        $best_ts = $db_ts;
+                        $best_data = $db_data;
+                    }
                 }
             }
+        } catch (Throwable $e) {
+            // Safe fallback
         }
     }
 
@@ -95,17 +99,21 @@ function save_bas_session_data($session_data) {
 
     // 2. Write to Database system_settings table
     if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
-        $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
-            `setting_key` VARCHAR(100) PRIMARY KEY,
-            `setting_value` LONGTEXT NOT NULL,
-            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        try {
+            $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
+                `setting_key` VARCHAR(100) PRIMARY KEY,
+                `setting_value` LONGTEXT NOT NULL,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
-        $stmt = $conn->prepare("INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES ('bas_session', ?) ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`)");
-        if ($stmt) {
-            $stmt->bind_param('s', $json);
-            $stmt->execute();
-            $stmt->close();
+            $stmt = $conn->prepare("INSERT INTO `system_settings` (`setting_key`, `setting_value`) VALUES ('bas_session', ?) ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`)");
+            if ($stmt) {
+                $stmt->bind_param('s', $json);
+                $stmt->execute();
+                $stmt->close();
+            }
+        } catch (Throwable $e) {
+            // Safe fallback
         }
     }
 }

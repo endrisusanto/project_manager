@@ -133,4 +133,14 @@ CREATE TABLE IF NOT EXISTS `new_tasks` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+-- Struktur dari tabel `system_settings`
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `system_settings` (
+  `setting_key` varchar(100) NOT NULL,
+  `setting_value` longtext NOT NULL,
+  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 COMMIT;
