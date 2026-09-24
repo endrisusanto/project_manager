@@ -989,45 +989,7 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // --- 1. CONFIG & LIGHT/DARK THEME IMPLEMENTATION ---
         const root = document.documentElement;
-
-        function updateThemeIcons() {
-            const isLight = root.classList.contains('light');
-            const lightIcon = document.querySelector('#theme-toggle-light-icon');
-            const darkIcon = document.querySelector('#theme-toggle-dark-icon');
-            if (lightIcon && darkIcon) {
-                if (isLight) {
-                    lightIcon.classList.remove('hidden');
-                    darkIcon.classList.add('hidden');
-                } else {
-                    lightIcon.classList.add('hidden');
-                    darkIcon.classList.remove('hidden');
-                }
-            }
-        }
-
-        function applyTheme(isLight) {
-            root.classList.toggle('light', isLight);
-            root.classList.toggle('dark', !isLight);
-            updateThemeIcons();
-        }
-
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            applyTheme(savedTheme === 'light');
-        } else {
-            applyTheme(false); // Default ke dark
-        }
-
-        const themeBtn = document.getElementById('theme-toggle');
-        if (themeBtn) {
-            themeBtn.addEventListener('click', () => {
-                const isLight = !root.classList.contains('light');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                applyTheme(isLight);
-            });
-        }
 
         // --- 2. BACKGROUND ANIMATION (NEURAL NETWORK) ---
         const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');

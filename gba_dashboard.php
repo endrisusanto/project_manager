@@ -1005,24 +1005,10 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
         createYearlyTaskChart();
     }
 
-    function applyTheme(isLight) {
-        currentTheme = isLight ? 'light' : 'dark';
-        document.documentElement.classList.toggle('light', isLight);
-        const lightIcon = document.getElementById('theme-toggle-light-icon');
-        const darkIcon = document.getElementById('theme-toggle-dark-icon');
-        if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
-        if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
+    window.addEventListener('themechanged', (e) => {
+        currentTheme = (e.detail && e.detail.isLight) ? 'light' : 'dark';
         renderCharts();
-    }
-
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            const isCurrentlyLight = document.documentElement.classList.contains('light');
-            const newIsLight = !isCurrentlyLight;
-            localStorage.setItem('theme', newIsLight ? 'light' : 'dark');
-            applyTheme(newIsLight);
-        });
-    }
+    });
 
     // Modal helpers
     function openAddModal() {
@@ -1168,8 +1154,6 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const savedTheme = localStorage.getItem('theme');
-        applyTheme(savedTheme === 'light');
         updateClocks();
         setInterval(updateClocks, 1000);
     });

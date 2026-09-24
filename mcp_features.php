@@ -532,29 +532,6 @@ $active_page = 'mcp_features';
             }
         }
 
-        // Theme sync logic
-        function applyTheme(isLight) {
-            document.documentElement.classList.toggle('light', isLight);
-            const lightIcon = document.getElementById('theme-toggle-light-icon');
-            const darkIcon = document.getElementById('theme-toggle-dark-icon');
-            if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
-            if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedTheme = localStorage.getItem('theme');
-            applyTheme(savedTheme === 'light');
-
-            const themeToggleBtn = document.getElementById('theme-toggle');
-            if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', () => {
-                    const isCurrentlyLight = document.documentElement.classList.contains('light');
-                    const newIsLight = !isCurrentlyLight;
-                    localStorage.setItem('theme', newIsLight ? 'light' : 'dark');
-                    applyTheme(newIsLight);
-                });
-            }
-        });
     </script>
 
 </body>

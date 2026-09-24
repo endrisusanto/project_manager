@@ -1267,32 +1267,8 @@ function getPicInitials($email) {
         });
     }
 
-    // --- THEME TOGGLE LOGIC ---
-    let currentTheme = document.documentElement.classList.contains('light') ? 'light' : 'dark';
-    const themeToggleBtn = document.getElementById('theme-toggle');
-
-    function applyTheme(isLight) {
-        currentTheme = isLight ? 'light' : 'dark';
-        document.documentElement.classList.toggle('light', isLight);
-        const lightIcon = document.getElementById('theme-toggle-light-icon');
-        const darkIcon = document.getElementById('theme-toggle-dark-icon');
-        if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
-        if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
-    }
-
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => {
-            const isCurrentlyLight = document.documentElement.classList.contains('light');
-            const newIsLight = !isCurrentlyLight;
-            localStorage.setItem('theme', newIsLight ? 'light' : 'dark');
-            applyTheme(newIsLight);
-        });
-    }
-
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
-        const savedTheme = localStorage.getItem('theme');
-        applyTheme(savedTheme === 'light');
 
         setupQuill('');
         setupTodoQuill('');

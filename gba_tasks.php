@@ -1529,8 +1529,7 @@ function getTestPlanBadgeClass($plan) {
         init(particleCount);
         animate();
 
-        const themeToggleBtn = document.getElementById('theme-toggle'); let quill;
-        function applyTheme(isLight) { document.documentElement.classList.toggle('light', isLight); document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isLight); document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isLight) } const savedTheme = localStorage.getItem('theme'); applyTheme(savedTheme === 'light'); themeToggleBtn.addEventListener('click', () => { const isLight = !document.documentElement.classList.contains('light'); localStorage.setItem('theme', isLight ? 'light' : 'dark'); applyTheme(isLight) });
+        let quill;
 
         const modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), taskForm = document.getElementById('task-form'), formAction = document.getElementById('form-action'), taskId = document.getElementById('task-id');
 

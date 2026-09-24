@@ -1417,27 +1417,25 @@ function get_pic_badge_class($pic_name) {
                 });
             }
 
-            // Re-render chart colors dynamically on theme toggle click
-            if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', () => {
-                    const isLightNow = document.documentElement.classList.contains('light');
-                    const newTextColor = isLightNow ? '#475569' : '#94a3b8';
-                    const newGridColor = isLightNow ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)';
-                    const newBorderColor = isLightNow ? '#ffffff' : '#0f172a';
+            // Re-render chart colors dynamically on theme change
+            window.addEventListener('themechanged', (e) => {
+                const isLightNow = (e.detail && e.detail.isLight !== undefined) ? e.detail.isLight : document.documentElement.classList.contains('light');
+                const newTextColor = isLightNow ? '#475569' : '#94a3b8';
+                const newGridColor = isLightNow ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+                const newBorderColor = isLightNow ? '#ffffff' : '#0f172a';
 
-                    if (statusChart) {
-                        statusChart.data.datasets[0].borderColor = newBorderColor;
-                        statusChart.options.plugins.legend.labels.color = newTextColor;
-                        statusChart.update();
-                    }
-                    if (testPlanChart) {
-                        testPlanChart.options.scales.x.ticks.color = newTextColor;
-                        testPlanChart.options.scales.y.ticks.color = newTextColor;
-                        testPlanChart.options.scales.y.grid.color = newGridColor;
-                        testPlanChart.update();
-                    }
-                });
-            }
+                if (statusChart) {
+                    statusChart.data.datasets[0].borderColor = newBorderColor;
+                    statusChart.options.plugins.legend.labels.color = newTextColor;
+                    statusChart.update();
+                }
+                if (testPlanChart) {
+                    testPlanChart.options.scales.x.ticks.color = newTextColor;
+                    testPlanChart.options.scales.y.ticks.color = newTextColor;
+                    testPlanChart.options.scales.y.grid.color = newGridColor;
+                    testPlanChart.update();
+                }
+            });
         });
     </script>
 

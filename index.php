@@ -688,8 +688,7 @@ function render_kinerja_status($task) {
     animate();
     
     // --- PAGE SPECIFIC LOGIC ---
-    const themeToggleBtn = document.getElementById('theme-toggle'), 
-          modal = document.getElementById('task-modal'), 
+    const modal = document.getElementById('task-modal'), 
           modalTitle = document.getElementById('modal-title'), 
           taskForm = document.getElementById('task-form'), 
           searchInput = document.getElementById('search-input'), 
@@ -698,23 +697,6 @@ function render_kinerja_status($task) {
     let quill;
     
     window.addEventListener('resize', () => { setCanvasSize(); init(particleCount); });
-    
-    function applyTheme(isLight) { 
-        document.documentElement.classList.toggle('light', isLight); 
-        const lightIcon = document.getElementById('theme-toggle-light-icon');
-        const darkIcon = document.getElementById('theme-toggle-dark-icon');
-        if (lightIcon) lightIcon.classList.toggle('hidden', !isLight); 
-        if (darkIcon) darkIcon.classList.toggle('hidden', isLight); 
-    } 
-    const savedTheme = localStorage.getItem('theme'); 
-    applyTheme(savedTheme === 'light'); 
-    if (themeToggleBtn) {
-        themeToggleBtn.addEventListener('click', () => { 
-            const isLight = !document.documentElement.classList.contains('light'); 
-            localStorage.setItem('theme', isLight ? 'light' : 'dark'); 
-            applyTheme(isLight); 
-        });
-    }
 
     function showToast(message, isSuccess = true) { 
         const toast = document.getElementById('toast'); 

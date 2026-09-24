@@ -588,25 +588,6 @@ function getPicInitials($email) {
                     filterLogs();
                 });
             });
-
-            // --- THEME TOGGLE CONTROLLER ---
-            const themeToggleBtn = document.getElementById('theme-toggle');
-            function applyTheme(isLight) {
-                document.documentElement.classList.toggle('light', isLight);
-                const lightIcon = document.getElementById('theme-toggle-light-icon');
-                const darkIcon = document.getElementById('theme-toggle-dark-icon');
-                if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
-                if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
-            }
-            const savedTheme = localStorage.getItem('theme');
-            applyTheme(savedTheme === 'light');
-            if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', () => {
-                    const isLight = !document.documentElement.classList.contains('light');
-                    localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                    applyTheme(isLight);
-                });
-            }
         });
     </script>
 </body>

@@ -1225,26 +1225,7 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
     <script src="https://cdn.datatables.net/2.0.7/js/dataTables.tailwindcss.min.js"></script>
 
     <script>
-        // --- Theme Synchronization & Toggle Logic ---
-        function applyTheme(isLight) {
-            document.documentElement.classList.toggle('light', isLight);
-            const lightIcon = document.getElementById('theme-toggle-light-icon');
-            const darkIcon = document.getElementById('theme-toggle-dark-icon');
-            if (lightIcon) lightIcon.classList.toggle('hidden', !isLight);
-            if (darkIcon) darkIcon.classList.toggle('hidden', isLight);
-        }
 
-        const savedTheme = localStorage.getItem('theme');
-        applyTheme(savedTheme === 'light');
-
-        const themeToggleBtn = document.getElementById('theme-toggle');
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                const isLight = !document.documentElement.classList.contains('light');
-                localStorage.setItem('theme', isLight ? 'light' : 'dark');
-                applyTheme(isLight);
-            });
-        }
 
         $(document).ready(function () {
             // --- Tab Switching for Request List ---
