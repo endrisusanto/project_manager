@@ -219,21 +219,21 @@ if ($due_soon_count > 0) {
 
 function get_pic_badge_class($pic_name) {
     $clean = trim((string)$pic_name);
-    if (empty($clean) || $clean === '-') return 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
+    if (empty($clean) || $clean === '-') return 'badge-pill badge-slate';
     
-    // Curated vibrant high-contrast non-grey Tailwind color sets for both light and dark mode
+    // Curated vibrant high-contrast semantic badge classes for dark and light themes
     $classes = [
-        'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
-        'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30',
-        'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
-        'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30',
-        'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
-        'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30',
-        'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30',
-        'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
-        'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30',
-        'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30',
-        'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30',
+        'badge-pill badge-indigo',
+        'badge-pill badge-teal',
+        'badge-pill badge-emerald',
+        'badge-pill badge-sky',
+        'badge-pill badge-purple',
+        'badge-pill badge-amber',
+        'badge-pill badge-rose',
+        'badge-pill badge-cyan',
+        'badge-pill badge-fuchsia',
+        'badge-pill badge-violet',
+        'badge-pill badge-orange',
     ];
     $hash = crc32(strtolower($clean));
     return $classes[abs($hash) % count($classes)];
@@ -252,6 +252,7 @@ function get_pic_badge_class($pic_name) {
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: ['class', '.never-match-dark'],
             theme: {
                 extend: {
                     colors: {
@@ -387,6 +388,77 @@ function get_pic_badge_class($pic_name) {
             white-space: nowrap;
         }
 
+        /* Unified High-Contrast Badge & Pill System */
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 9999px;
+            padding: 2.5px 10px;
+            font-size: 10.5px;
+            font-weight: 700;
+            border-width: 1px;
+            letter-spacing: 0.015em;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .badge-marketing {
+            display: inline-flex;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: rgba(99, 102, 241, 0.18);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+        }
+        html.light .badge-marketing {
+            background: #e0e7ff;
+            color: #3730a3;
+            border-color: #c7d2fe;
+        }
+
+        /* Color theme definitions for default dark and light mode */
+        .badge-sky { background: rgba(14, 165, 233, 0.16); color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+        html.light .badge-sky { background: #e0f2fe; color: #0369a1; border-color: #7dd3fc; font-weight: 800; }
+
+        .badge-blue { background: rgba(59, 130, 246, 0.16); color: #60a5fa; border-color: rgba(96, 165, 250, 0.35); }
+        html.light .badge-blue { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; font-weight: 800; }
+
+        .badge-indigo { background: rgba(99, 102, 241, 0.16); color: #a5b4fc; border-color: rgba(129, 140, 248, 0.35); }
+        html.light .badge-indigo { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; font-weight: 800; }
+
+        .badge-amber { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(251, 191, 36, 0.35); }
+        html.light .badge-amber { background: #fef3c7; color: #92400e; border-color: #fcd34d; font-weight: 800; }
+
+        .badge-orange { background: rgba(249, 115, 22, 0.16); color: #fb923c; border-color: rgba(251, 146, 60, 0.35); }
+        html.light .badge-orange { background: #ffedd5; color: #9a3412; border-color: #fdba74; font-weight: 800; }
+
+        .badge-emerald { background: rgba(16, 185, 129, 0.16); color: #34d399; border-color: rgba(52, 211, 153, 0.35); }
+        html.light .badge-emerald { background: #d1fae5; color: #065f46; border-color: #6ee7b7; font-weight: 800; }
+
+        .badge-purple { background: rgba(168, 85, 247, 0.16); color: #c084fc; border-color: rgba(192, 132, 252, 0.35); }
+        html.light .badge-purple { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; font-weight: 800; }
+
+        .badge-fuchsia { background: rgba(217, 70, 239, 0.16); color: #e879f9; border-color: rgba(232, 121, 249, 0.35); }
+        html.light .badge-fuchsia { background: #fae8ff; color: #86198f; border-color: #f0abfc; font-weight: 800; }
+
+        .badge-rose { background: rgba(244, 63, 94, 0.16); color: #fb7185; border-color: rgba(251, 113, 133, 0.35); }
+        html.light .badge-rose { background: #ffe4e6; color: #9f1239; border-color: #fda4af; font-weight: 800; }
+
+        .badge-teal { background: rgba(20, 184, 166, 0.16); color: #2dd4bf; border-color: rgba(45, 212, 191, 0.35); }
+        html.light .badge-teal { background: #ccfbf1; color: #115e59; border-color: #5eead4; font-weight: 800; }
+
+        .badge-cyan { background: rgba(6, 182, 212, 0.16); color: #22d3ee; border-color: rgba(34, 211, 238, 0.35); }
+        html.light .badge-cyan { background: #cffafe; color: #155e75; border-color: #67e8f9; font-weight: 800; }
+
+        .badge-violet { background: rgba(139, 92, 246, 0.16); color: #a78bfa; border-color: rgba(167, 139, 250, 0.35); }
+        html.light .badge-violet { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; font-weight: 800; }
+
+        .badge-slate { background: rgba(100, 116, 139, 0.16); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.35); }
+        html.light .badge-slate { background: #f1f5f9; color: #334155; border-color: #cbd5e1; font-weight: 800; }
+
         .badge-countdown {
             display: inline-flex;
             align-items: center;
@@ -397,7 +469,19 @@ function get_pic_badge_class($pic_name) {
             font-weight: 700;
             letter-spacing: 0.02em;
             white-space: nowrap;
+            border-width: 1px;
         }
+        .badge-countdown.late { background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
+        html.light .badge-countdown.late { background: #fee2e2; color: #991b1b; border-color: #fca5a5; font-weight: 800; }
+
+        .badge-countdown.urgent { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+        html.light .badge-countdown.urgent { background: #fef3c7; color: #92400e; border-color: #fde68a; font-weight: 800; }
+
+        .badge-countdown.safe { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+        html.light .badge-countdown.safe { background: #d1fae5; color: #065f46; border-color: #a7f3d0; font-weight: 700; }
+
+        .badge-countdown.default { background: rgba(100, 116, 139, 0.15); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.3); }
+        html.light .badge-countdown.default { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 
         .btn-action-tactile {
             display: inline-flex;
@@ -822,19 +906,19 @@ function get_pic_badge_class($pic_name) {
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold text-primary truncate"><?php echo htmlspecialchars($lt['model_name']); ?></span>
                                         <?php if (!empty($lt['marketing_name'])): ?>
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--metric-bg)] text-secondary"><?php echo htmlspecialchars($lt['marketing_name']); ?></span>
+                                            <span class="badge-marketing"><?php echo htmlspecialchars($lt['marketing_name']); ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="text-[11px] text-secondary flex items-center gap-2 mt-1 flex-wrap">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border shadow-sm <?php echo get_pic_badge_class(!empty($lt['username']) ? $lt['username'] : $lt['pic_email']); ?>">
+                                        <span class="<?php echo get_pic_badge_class(!empty($lt['username']) ? $lt['username'] : $lt['pic_email']); ?>">
                                             PIC: <?php echo htmlspecialchars(!empty($lt['username']) ? $lt['username'] : (!empty($lt['pic_email']) ? explode('@', $lt['pic_email'])[0] : '-')); ?>
                                         </span>
                                         <span>•</span>
-                                        <span><?php echo htmlspecialchars($lt['test_plan_type']); ?></span>
+                                        <span class="font-medium text-primary"><?php echo htmlspecialchars($lt['test_plan_type']); ?></span>
                                     </div>
                                 </div>
                                 <div class="text-right flex-shrink-0">
-                                    <span class="badge-countdown bg-red-500/20 text-red-500 border border-red-500/30">
+                                    <span class="badge-countdown late">
                                         Late <?php echo abs($lt['days_left']); ?> hari
                                     </span>
                                     <div class="text-[10px] text-secondary mt-0.5">DL: <?php echo date('d M Y', strtotime($lt['deadline'])); ?></div>
@@ -875,19 +959,19 @@ function get_pic_badge_class($pic_name) {
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-bold text-primary truncate"><?php echo htmlspecialchars($dt['model_name']); ?></span>
                                         <?php if (!empty($dt['marketing_name'])): ?>
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--metric-bg)] text-secondary"><?php echo htmlspecialchars($dt['marketing_name']); ?></span>
+                                            <span class="badge-marketing"><?php echo htmlspecialchars($dt['marketing_name']); ?></span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="text-[11px] text-secondary flex items-center gap-2 mt-1 flex-wrap">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border shadow-sm <?php echo get_pic_badge_class(!empty($dt['username']) ? $dt['username'] : $dt['pic_email']); ?>">
+                                        <span class="<?php echo get_pic_badge_class(!empty($dt['username']) ? $dt['username'] : $dt['pic_email']); ?>">
                                             PIC: <?php echo htmlspecialchars(!empty($dt['username']) ? $dt['username'] : (!empty($dt['pic_email']) ? explode('@', $dt['pic_email'])[0] : '-')); ?>
                                         </span>
                                         <span>•</span>
-                                        <span><?php echo htmlspecialchars($dt['test_plan_type']); ?></span>
+                                        <span class="font-medium text-primary"><?php echo htmlspecialchars($dt['test_plan_type']); ?></span>
                                     </div>
                                 </div>
                                 <div class="text-right flex-shrink-0">
-                                    <span class="badge-countdown <?php echo $dt['days_left'] === 0 ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-amber-500/20 text-amber-500 border border-amber-500/30'; ?>">
+                                    <span class="badge-countdown <?php echo $dt['days_left'] === 0 ? 'late' : 'urgent'; ?>">
                                         <?php echo $dt['deadline_badge_text']; ?>
                                     </span>
                                     <div class="text-[10px] text-secondary mt-0.5">DL: <?php echo date('d M Y', strtotime($dt['deadline'])); ?></div>
@@ -950,34 +1034,34 @@ function get_pic_badge_class($pic_name) {
                                 
                                 // Status badge color (Pill shape) - High contrast & WCAG AA compliant
                                 $st_clean = trim((string)$at['progress_status']);
-                                $status_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
-                                if ($st_clean === 'Task Baru') $status_class = 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30';
-                                elseif ($st_clean === 'Downloaded') $status_class = 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30';
-                                elseif ($st_clean === 'Test Ongoing') $status_class = 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30';
-                                elseif ($st_clean === 'Submitted') $status_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
-                                elseif ($st_clean === 'Pending Feedback') $status_class = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
-                                elseif ($st_clean === 'Feedback Sent') $status_class = 'bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-500/30';
-                                elseif (in_array($st_clean, ['Approved', 'Passed'])) $status_class = 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40';
-                                elseif ($st_clean === 'Batal') $status_class = 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30';
+                                $status_class = 'badge-pill badge-slate';
+                                if ($st_clean === 'Task Baru') $status_class = 'badge-pill badge-sky';
+                                elseif ($st_clean === 'Downloaded') $status_class = 'badge-pill badge-cyan';
+                                elseif ($st_clean === 'Test Ongoing') $status_class = 'badge-pill badge-blue';
+                                elseif ($st_clean === 'Submitted') $status_class = 'badge-pill badge-emerald';
+                                elseif ($st_clean === 'Pending Feedback') $status_class = 'badge-pill badge-purple';
+                                elseif ($st_clean === 'Feedback Sent') $status_class = 'badge-pill badge-fuchsia';
+                                elseif (in_array($st_clean, ['Approved', 'Passed'])) $status_class = 'badge-pill badge-emerald';
+                                elseif ($st_clean === 'Batal') $status_class = 'badge-pill badge-rose';
 
                                 // Test Plan pill badge color - High contrast & WCAG AA compliant
                                 $tp_clean = strtoupper(trim((string)$at['test_plan_type']));
-                                $tp_badge_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
-                                if ($tp_clean === 'SKU') $tp_badge_class = 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30';
-                                elseif ($tp_clean === 'NORMAL MR' || $tp_clean === 'MR') $tp_badge_class = 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30';
-                                elseif ($tp_clean === 'SMR') $tp_badge_class = 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30';
-                                elseif ($tp_clean === 'FULL TEST' || $tp_clean === 'FULLTEST') $tp_badge_class = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30';
-                                elseif ($tp_clean === 'SANITY') $tp_badge_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30';
-                                elseif ($tp_clean === 'DELTA' || $tp_clean === 'DELTA TEST') $tp_badge_class = 'bg-orange-500/15 text-orange-800 dark:text-orange-300 border-orange-500/30';
-                                elseif ($tp_clean === 'PL' || $tp_clean === 'PRE') $tp_badge_class = 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30';
-                                elseif ($tp_clean === 'REGRESSION') $tp_badge_class = 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30';
+                                $tp_badge_class = 'badge-pill badge-slate';
+                                if ($tp_clean === 'SKU') $tp_badge_class = 'badge-pill badge-amber';
+                                elseif ($tp_clean === 'NORMAL MR' || $tp_clean === 'MR') $tp_badge_class = 'badge-pill badge-sky';
+                                elseif ($tp_clean === 'SMR') $tp_badge_class = 'badge-pill badge-indigo';
+                                elseif ($tp_clean === 'FULL TEST' || $tp_clean === 'FULLTEST') $tp_badge_class = 'badge-pill badge-purple';
+                                elseif ($tp_clean === 'SANITY') $tp_badge_class = 'badge-pill badge-emerald';
+                                elseif ($tp_clean === 'DELTA' || $tp_clean === 'DELTA TEST') $tp_badge_class = 'badge-pill badge-orange';
+                                elseif ($tp_clean === 'PL' || $tp_clean === 'PRE') $tp_badge_class = 'badge-pill badge-teal';
+                                elseif ($tp_clean === 'REGRESSION') $tp_badge_class = 'badge-pill badge-rose';
 
                                 // Countdown badge color
-                                $cd_class = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/20';
-                                if ($at['deadline_badge_type'] === 'late') $cd_class = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/40 animate-pulse';
-                                elseif ($at['deadline_badge_type'] === 'today') $cd_class = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30';
-                                elseif ($at['deadline_badge_type'] === 'urgent') $cd_class = 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30';
-                                elseif ($at['deadline_badge_type'] === 'safe') $cd_class = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/20';
+                                $cd_class = 'badge-countdown default';
+                                if ($at['deadline_badge_type'] === 'late') $cd_class = 'badge-countdown late animate-pulse';
+                                elseif ($at['deadline_badge_type'] === 'today') $cd_class = 'badge-countdown late';
+                                elseif ($at['deadline_badge_type'] === 'urgent') $cd_class = 'badge-countdown urgent';
+                                elseif ($at['deadline_badge_type'] === 'safe') $cd_class = 'badge-countdown safe';
                             ?>
                                 <tr class="hover:bg-[var(--table-row-hover)] transition-colors task-row" data-search="<?php echo htmlspecialchars(strtolower($at['model_name'] . ' ' . $at['marketing_name'] . ' ' . $pic_display . ' ' . $at['test_plan_type'] . ' ' . $at['progress_status'])); ?>" data-status="<?php echo htmlspecialchars($at['progress_status']); ?>">
                                     <!-- Model & Specs -->
@@ -985,7 +1069,7 @@ function get_pic_badge_class($pic_name) {
                                         <div class="flex items-center gap-2">
                                             <span class="font-bold text-primary text-xs"><?php echo htmlspecialchars($at['model_name']); ?></span>
                                             <?php if (!empty($at['marketing_name'])): ?>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 font-medium"><?php echo htmlspecialchars($at['marketing_name']); ?></span>
+                                                <span class="badge-marketing"><?php echo htmlspecialchars($at['marketing_name']); ?></span>
                                             <?php endif; ?>
                                             <?php if (!empty($at['is_urgent']) && $at['is_urgent'] == 1): ?>
                                                 <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-red-500/20 text-red-500 border border-red-500/30">URGENT</span>
@@ -1008,21 +1092,21 @@ function get_pic_badge_class($pic_name) {
 
                                     <!-- Test Plan (Pill Shape) -->
                                     <td class="py-3 px-3">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border shadow-sm <?php echo $tp_badge_class; ?>">
+                                        <span class="<?php echo $tp_badge_class; ?>">
                                             <?php echo htmlspecialchars($at['test_plan_type'] ?: 'Unassigned'); ?>
                                         </span>
                                     </td>
 
                                     <!-- Status (Pill Shape) -->
                                     <td class="py-3 px-3">
-                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border shadow-sm <?php echo $status_class; ?>">
+                                        <span class="<?php echo $status_class; ?>">
                                             <?php echo htmlspecialchars($at['progress_status']); ?>
                                         </span>
                                     </td>
 
                                     <!-- PIC (Pill Shape with Avatar/Initials) -->
                                     <td class="py-3 px-3">
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border shadow-sm <?php echo get_pic_badge_class($pic_display); ?>">
+                                        <span class="inline-flex items-center gap-1.5 <?php echo get_pic_badge_class($pic_display); ?>">
                                             <?php if (!empty($at['profile_picture']) && $at['profile_picture'] !== 'default.png' && file_exists('uploads/' . $at['profile_picture'])): ?>
                                                 <img src="uploads/<?php echo htmlspecialchars($at['profile_picture']); ?>" alt="PIC" class="w-4 h-4 rounded-full object-cover -ml-1 flex-shrink-0" title="<?php echo htmlspecialchars($at['pic_email']); ?>">
                                             <?php else: ?>
@@ -1036,7 +1120,7 @@ function get_pic_badge_class($pic_name) {
 
                                     <!-- Deadline & Days Left -->
                                     <td class="py-3 px-3 text-right">
-                                        <span class="badge-countdown <?php echo $cd_class; ?> border">
+                                        <span class="<?php echo $cd_class; ?>">
                                             <?php echo $at['deadline_badge_text']; ?>
                                         </span>
                                         <div class="text-[10px] text-secondary mt-0.5">
