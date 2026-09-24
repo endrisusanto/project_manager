@@ -53,6 +53,168 @@ function format_indo_date($dt_str) {
 
 $range_label = format_indo_date($start_date_str) . " - " . format_indo_date($end_date_str);
 
+// --- 1B. MULTI-WEEK MATRIX CALCULATION (Total Year + W-prev, W-curr, W-next) ---
+$curr_year = $start_dt->format('Y');
+$w_curr_num = (int)$start_dt->format('W');
+
+$prev_start_dt = (clone $start_dt)->modify('-7 days');
+$prev_end_dt = (clone $prev_start_dt)->modify('+6 days');
+$prev_start_str = $prev_start_dt->format('Y-m-d');
+$prev_end_str = $prev_end_dt->format('Y-m-d');
+$w_prev_num = (int)$prev_start_dt->format('W');
+
+$next_start_dt = (clone $start_dt)->modify('+7 days');
+$next_end_dt = (clone $next_start_dt)->modify('+6 days');
+$next_start_str = $next_start_dt->format('Y-m-d');
+$next_end_str = $next_end_dt->format('Y-m-d');
+$w_next_num = (int)$next_start_dt->format('W');
+
+// 8-Day Schedule Column Generation (Wednesday to next Wednesday)
+$schedule_days = [];
+for ($i = 0; $i < 8; $i++) {
+    $d = (clone $start_dt)->modify("+{$i} days");
+    $schedule_days[] = [
+        'date_str' => $d->format('Y-m-d'),
+        'day_label' => $d->format('j M'),
+        'is_weekend' => in_array((int)$d->format('w'), [0, 6]), // 0: Sun, 6: Sat
+        'day_name' => $d->format('D')
+    ];
+}
+
+// Helper to check if task falls within date range
+function is_task_in_week_range($task, $start, $end) {
+    $dates = [
+        $task['request_date'] ?? null,
+        $task['submission_date'] ?? null,
+        $task['approved_date'] ?? null,
+        $task['deadline'] ?? null
+    ];
+    if (!empty($task['created_at'])) {
+        $dates[] = substr($task['created_at'], 0, 10);
+    }
+    foreach ($dates as $d) {
+        if (!empty($d) && $d >= $start && $d <= $end) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Fetch all tasks for the current year to build the multi-week matrix
+$matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.submission_date, t.approved_date, t.deadline, t.created_at, u.username 
+               FROM gba_tasks t 
+               LEFT JOIN users u ON t.pic_email = u.email 
+               WHERE (
+                   YEAR(t.request_date) = ? OR 
+                   YEAR(t.submission_date) = ? OR 
+                   YEAR(t.approved_date) = ? OR 
+                   YEAR(t.deadline) = ? OR 
+                   YEAR(t.created_at) = ?
+               )";
+$stmt_m = $conn->prepare($matrix_sql);
+$stmt_m->bind_param("sssss", $curr_year, $curr_year, $curr_year, $curr_year, $curr_year);
+$stmt_m->execute();
+$res_m = $stmt_m->get_result();
+$matrix_tasks = [];
+if ($res_m && $res_m->num_rows > 0) {
+    while ($r = $res_m->fetch_assoc()) {
+        $matrix_tasks[] = $r;
+    }
+}
+$stmt_m->close();
+
+// Initialize PIC Matrix
+$pic_matrix = [];
+
+// Seed from users table for consistent ordering
+$res_users = $conn->query("SELECT email, username FROM users WHERE email IS NOT NULL AND email != '' ORDER BY id ASC");
+if ($res_users) {
+    while ($u = $res_users->fetch_assoc()) {
+        $em = strtolower(trim($u['email']));
+        $name = !empty($u['username']) ? explode(' ', trim($u['username']))[0] : ucfirst(explode('.', explode('@', $em)[0])[0]);
+        $pic_matrix[$em] = [
+            'display_name' => $name,
+            'email' => $em,
+            'total_year' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_prev' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_curr' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_next' => ['done' => 0, 'drop' => 0, 'prog' => 0]
+        ];
+    }
+}
+
+// Populate Matrix Data
+foreach ($matrix_tasks as $mt) {
+    $em = strtolower(trim($mt['pic_email'] ?? ''));
+    if (empty($em)) continue;
+
+    if (!isset($pic_matrix[$em])) {
+        $name = !empty($mt['username']) ? explode(' ', trim($mt['username']))[0] : ucfirst(explode('.', explode('@', $em)[0])[0]);
+        $pic_matrix[$em] = [
+            'display_name' => $name,
+            'email' => $em,
+            'total_year' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_prev' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_curr' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+            'w_next' => ['done' => 0, 'drop' => 0, 'prog' => 0]
+        ];
+    }
+
+    $st = trim($mt['progress_status'] ?? '');
+    if (in_array($st, ['Approved', 'Passed'])) {
+        $cat = 'done';
+    } elseif (in_array($st, ['Batal', 'Rejected', 'Drop'])) {
+        $cat = 'drop';
+    } else {
+        $cat = 'prog';
+    }
+
+    // Add to Total Year
+    $pic_matrix[$em]['total_year'][$cat]++;
+
+    // Add to W-prev
+    if (is_task_in_week_range($mt, $prev_start_str, $prev_end_str)) {
+        $pic_matrix[$em]['w_prev'][$cat]++;
+    }
+
+    // Add to W-curr
+    if (is_task_in_week_range($mt, $start_date_str, $end_date_str)) {
+        $pic_matrix[$em]['w_curr'][$cat]++;
+    }
+
+    // Add to W-next
+    if (is_task_in_week_range($mt, $next_start_str, $next_end_str)) {
+        $pic_matrix[$em]['w_next'][$cat]++;
+    }
+}
+
+// Filter out PICs that have 0 in all columns if they have no tasks
+$active_pic_matrix = [];
+foreach ($pic_matrix as $em => $data) {
+    $sum = $data['total_year']['done'] + $data['total_year']['drop'] + $data['total_year']['prog'] +
+           $data['w_prev']['done'] + $data['w_prev']['drop'] + $data['w_prev']['prog'] +
+           $data['w_curr']['done'] + $data['w_curr']['drop'] + $data['w_curr']['prog'] +
+           $data['w_next']['done'] + $data['w_next']['drop'] + $data['w_next']['prog'];
+    if ($sum > 0 || in_array(strtolower($data['display_name']), ['endri', 'lutfi', 'apta'])) {
+        $active_pic_matrix[$em] = $data;
+    }
+}
+
+// Calculate Matrix Totals
+$matrix_totals = [
+    'total_year' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+    'w_prev' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+    'w_curr' => ['done' => 0, 'drop' => 0, 'prog' => 0],
+    'w_next' => ['done' => 0, 'drop' => 0, 'prog' => 0]
+];
+foreach ($active_pic_matrix as $p) {
+    foreach (['total_year', 'w_prev', 'w_curr', 'w_next'] as $period) {
+        $matrix_totals[$period]['done'] += $p[$period]['done'];
+        $matrix_totals[$period]['drop'] += $p[$period]['drop'];
+        $matrix_totals[$period]['prog'] += $p[$period]['prog'];
+    }
+}
+
 // --- 2. DATA RETRIEVAL (ALL STATUSES IN WEEKLY RANGE) ---
 $sql = "SELECT t.*, u.username, u.profile_picture 
         FROM gba_tasks t 
@@ -839,11 +1001,96 @@ function get_pic_badge_class($name) {
             </div>
         </div>
 
-        <!-- FULL TASK DATA TABLE (ALL STATUSES) -->
+        <!-- TOP MULTI-WEEK PIC MATRIX SUMMARY (Card Summary per Week) -->
+        <div class="glass-card p-4 sm:p-5 overflow-x-auto space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-3 rounded-full bg-[#00aae4]"></div>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-adaptive-main">Summary Project GA per PIC & Mingguan</h3>
+                </div>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                    Tahun <?= $curr_year ?> • W-<?= $w_prev_num ?>, W-<?= $w_curr_num ?>, W-<?= $w_next_num ?>
+                </span>
+            </div>
+
+            <table class="w-full text-xs border border-slate-300 dark:border-slate-700 border-collapse select-none">
+                <thead>
+                    <tr>
+                        <th rowspan="2" class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-4 font-bold text-center whitespace-nowrap">GBA PIC</th>
+                        <th colspan="3" class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">Total GA Project Y<?= $curr_year ?></th>
+                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_prev_num ?></th>
+                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_curr_num ?></th>
+                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_next_num ?></th>
+                    </tr>
+                    <tr>
+                        <!-- Total GA Project Y... subheaders -->
+                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
+                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
+                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
+                        <!-- W-prev subheaders -->
+                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
+                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
+                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
+                        <!-- W-curr subheaders -->
+                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
+                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
+                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
+                        <!-- W-next subheaders -->
+                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
+                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
+                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-300 dark:divide-slate-700">
+                    <?php if (empty($active_pic_matrix)): ?>
+                    <tr>
+                        <td colspan="13" class="py-4 text-center text-adaptive-sub font-medium">Belum ada data task per PIC.</td>
+                    </tr>
+                    <?php else: ?>
+                        <?php foreach ($active_pic_matrix as $p_em => $p_data): ?>
+                        <tr class="hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors">
+                            <td class="py-2 px-3.5 border border-slate-300 dark:border-slate-700 font-bold text-adaptive-main text-left"><?= htmlspecialchars($p_data['display_name']) ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['done'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['drop'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['prog'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['done'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['drop'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['prog'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['done'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['drop'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['prog'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['done'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['drop'] ?: '' ?></td>
+                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['prog'] ?: '' ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+                <tfoot>
+                    <tr class="bg-[#bae6fd] dark:bg-sky-950 font-black text-slate-900 dark:text-sky-100">
+                        <td class="py-2 px-3.5 border border-slate-300 dark:border-slate-700 text-left font-black">Total</td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['done'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['drop'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['prog'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['done'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['drop'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['prog'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['done'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['drop'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['prog'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['done'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['drop'] ?></td>
+                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['prog'] ?></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- FULL TASK DATA TABLE (SCHEDULE FORMAT SESUAI GAMBAR) -->
         <div class="glass-card p-5 flex flex-col space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4" style="border-color: var(--card-border);">
                 <div>
-                    <h3 class="text-base font-bold text-adaptive-main">Daftar Lengkap Task Mingguan</h3>
+                    <h3 class="text-base font-bold text-adaptive-main">Jadwal & Task Pengujian Mingguan</h3>
                     <p class="text-xs text-adaptive-sub">Total <?= $total_week_tasks ?> task terdata dalam siklus Rabu - Selasa</p>
                 </div>
                 
@@ -867,85 +1114,104 @@ function get_pic_badge_class($name) {
                 </div>
             </div>
 
-            <!-- Table responsive -->
+            <!-- Table responsive (Grid Layout Sesuai Gambar) -->
             <div class="overflow-x-auto">
-                <table id="weekly-table" class="w-full text-left text-xs border-collapse">
+                <table id="weekly-table" class="w-full text-left text-xs border border-slate-300 dark:border-slate-700 border-collapse">
                     <thead>
-                        <tr class="border-b text-adaptive-sub font-semibold" style="border-color: var(--card-border);">
-                            <th class="py-2.5 px-3">#</th>
-                            <th class="py-2.5 px-3">Model & Marketing</th>
-                            <th class="py-2.5 px-3">AP Version</th>
-                            <th class="py-2.5 px-3">PIC</th>
-                            <th class="py-2.5 px-3">Test Plan</th>
-                            <th class="py-2.5 px-3">Status</th>
-                            <th class="py-2.5 px-3">Deadline</th>
-                            <th class="py-2.5 px-3">Approved Date</th>
+                        <tr class="font-bold select-none">
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-2.5 text-center whitespace-nowrap w-10">No</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">Model Name</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">AP(Code) ver.</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">CP(BB) ver.</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">CSC</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-center whitespace-nowrap">GA Date Line</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">GA PIC</th>
+                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">GA Type</th>
+                            <?php foreach ($schedule_days as $s_day): ?>
+                                <th class="<?= $s_day['is_weekend'] ? 'bg-[#dc2626]' : 'bg-[#00aae4]' ?> text-white border border-slate-300 dark:border-slate-700 py-2.5 px-2.5 text-center whitespace-nowrap min-w-[70px]">
+                                    <?= htmlspecialchars($s_day['day_label']) ?>
+                                </th>
+                            <?php endforeach; ?>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/40">
+                    <tbody class="divide-y divide-slate-300 dark:divide-slate-700">
                         <?php if (empty($all_tasks)): ?>
                             <tr>
-                                <td colspan="8" class="py-8 text-center text-adaptive-sub">
+                                <td colspan="<?= 8 + count($schedule_days) ?>" class="py-8 text-center text-adaptive-sub font-medium">
                                     Tidak ada task yang terdata pada siklus mingguan ini.
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($all_tasks as $idx => $t): 
-                                $pic_display = !empty($t['username']) ? $t['username'] : (!empty($t['pic_email']) ? explode('@', $t['pic_email'])[0] : '-');
-                                $badge_cls = get_status_badge_class($t['progress_status']);
-                                $pic_badge_cls = get_pic_badge_class($pic_display);
-                                $tp_badge_cls = get_testplan_badge_class($t['test_plan_type']);
+                                $pic_email = $t['pic_email'] ?? '';
+                                $date_line = !empty($t['deadline']) ? date('n/j/Y', strtotime($t['deadline'])) : (!empty($t['request_date']) ? date('n/j/Y', strtotime($t['request_date'])) : '-');
+                                $ga_type = !empty($t['test_plan_type']) ? $t['test_plan_type'] : '-';
+                                $has_csc = !empty($t['csc']) && trim($t['csc']) !== '-';
                             ?>
-                            <tr class="task-table-row task-row border-b border-slate-200/30 dark:border-slate-800/30" 
+                            <tr class="task-table-row task-row hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors" 
                                 data-status="<?= htmlspecialchars($t['progress_status']) ?>"
                                 data-urgent="<?= !empty($t['is_urgent']) ? '1' : '0' ?>"
-                                data-search="<?= strtolower(htmlspecialchars(($t['model_name'] ?? '') . ' ' . ($t['marketing_name'] ?? '') . ' ' . ($t['ap'] ?? '') . ' ' . $pic_display . ' ' . ($t['test_plan_type'] ?? ''))) ?>">
-                                <td class="py-3 px-3 text-adaptive-sub font-medium"><?= $idx + 1 ?></td>
-                                <td class="py-3 px-3">
-                                    <div class="font-bold text-adaptive-main flex items-center gap-1.5">
-                                        <span><?= htmlspecialchars($t['model_name']) ?></span>
-                                        <?php if (!empty($t['is_urgent'])): ?>
-                                            <span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">URGENT</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if (!empty($t['marketing_name'])): ?>
-                                        <div class="text-[11px] text-adaptive-sub"><?= htmlspecialchars($t['marketing_name']) ?></div>
+                                data-search="<?= strtolower(htmlspecialchars(($t['model_name'] ?? '') . ' ' . ($t['marketing_name'] ?? '') . ' ' . ($t['ap'] ?? '') . ' ' . ($t['cp'] ?? '') . ' ' . ($t['csc'] ?? '') . ' ' . $pic_email . ' ' . $ga_type)) ?>">
+                                
+                                <td class="py-2 px-2.5 border border-slate-300 dark:border-slate-700 text-center font-medium text-adaptive-sub"><?= $idx + 1 ?></td>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-semibold text-adaptive-main whitespace-nowrap">
+                                    <span><?= htmlspecialchars($t['model_name']) ?></span>
+                                    <?php if (!empty($t['is_urgent'])): ?>
+                                        <span class="ml-1 px-1 py-0.2 text-[9px] font-bold rounded bg-rose-500/15 text-rose-500 border border-rose-500/30">URGENT</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="py-3 px-3 font-mono text-xs font-semibold text-adaptive-main"><?= htmlspecialchars($t['ap'] ?: '-') ?></td>
-                                <td class="py-3 px-3">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border <?= $pic_badge_cls ?>">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-current opacity-70"></span>
-                                        <span><?= htmlspecialchars($pic_display) ?></span>
-                                    </span>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
+                                    <?= htmlspecialchars($t['ap'] ?: '-') ?>
                                 </td>
-                                <td class="py-3 px-3">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border <?= $tp_badge_cls ?>">
-                                        <?= htmlspecialchars($t['test_plan_type'] ?: '-') ?>
-                                    </span>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
+                                    <?= htmlspecialchars($t['cp'] ?: '-') ?>
                                 </td>
-                                <td class="py-3 px-3">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border <?= $badge_cls ?>">
-                                        <?= htmlspecialchars($t['progress_status']) ?>
-                                    </span>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] whitespace-nowrap <?= $has_csc ? 'bg-[#fef9c3] dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 font-medium' : 'text-adaptive-main' ?>">
+                                    <?= htmlspecialchars($t['csc'] ?: '-') ?>
                                 </td>
-                                <td class="py-3 px-3">
-                                    <?php if (!empty($t['deadline'])): ?>
-                                        <div class="font-medium text-adaptive-main"><?= date('d/m/Y', strtotime($t['deadline'])) ?></div>
-                                        <div class="text-[10px] <?= $t['deadline_badge_type'] === 'late' ? 'text-rose-500 dark:text-rose-400 font-bold' : 'text-adaptive-sub' ?>">
-                                            <?= $t['deadline_badge_text'] ?>
-                                        </div>
-                                    <?php else: ?>
-                                        <span class="text-adaptive-sub">-</span>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center whitespace-nowrap font-medium text-adaptive-main">
+                                    <?= htmlspecialchars($date_line) ?>
+                                </td>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-left whitespace-nowrap text-adaptive-main">
+                                    <?= htmlspecialchars($pic_email) ?>
+                                </td>
+                                
+                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-left whitespace-nowrap font-medium text-adaptive-main">
+                                    <?= htmlspecialchars($ga_type) ?>
+                                </td>
+
+                                <!-- 8 Daily Columns -->
+                                <?php foreach ($schedule_days as $s_day): 
+                                    $d_str = $s_day['date_str'];
+                                    $markers = [];
+                                    if (!empty($t['request_date']) && $t['request_date'] === $d_str) {
+                                        $markers[] = 'Test';
+                                    }
+                                    if (!empty($t['submission_date']) && $t['submission_date'] === $d_str) {
+                                        $markers[] = 'Submit';
+                                    }
+                                    if (!empty($t['approved_date']) && $t['approved_date'] === $d_str) {
+                                        $markers[] = 'Approve';
+                                    }
+                                    // Fallback: created_at match for testing
+                                    if (empty($markers) && !empty($t['created_at']) && substr($t['created_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru'])) {
+                                        $markers[] = 'Test';
+                                    }
+                                    $marker_text = implode(' / ', $markers);
+                                ?>
+                                <td class="py-2 px-2 border border-slate-300 dark:border-slate-700 text-center whitespace-nowrap text-xs font-semibold <?= $s_day['is_weekend'] ? 'bg-slate-50/40 dark:bg-slate-900/30' : '' ?>">
+                                    <?php if (!empty($marker_text)): ?>
+                                        <span class="text-adaptive-main font-bold"><?= htmlspecialchars($marker_text) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="py-3 px-3">
-                                    <?php if (!empty($t['approved_date'])): ?>
-                                        <span class="text-emerald-600 dark:text-emerald-400 font-medium"><?= date('d/m/Y', strtotime($t['approved_date'])) ?></span>
-                                    <?php else: ?>
-                                        <span class="text-adaptive-sub">-</span>
-                                    <?php endif; ?>
-                                </td>
+                                <?php endforeach; ?>
+
                             </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
