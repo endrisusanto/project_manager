@@ -187,15 +187,22 @@ async function main() {
     fs.writeFileSync(LATEST_JSON, JSON.stringify(manifest, null, 2) + '\n');
     console.log('✅ updater/latest.json berhasil diperbarui.');
 
-    // 6. Git Commit and Tag
+    // 6. Git Commit, Tag, and Push
     console.log('\n📦 Melakukan Git Commit & Tag...');
     try {
         run(`git add "${PKG_JSON}" "${CARGO_TOML}" "${TAURI_CONF}" "${HTML_FILE}" "${LATEST_JSON}"`, {}, { cwd: REPO_ROOT });
         run(`git commit -m "chore(release): v${newVersion} [auto-release]"`, {}, { cwd: REPO_ROOT });
         run(`git tag -a "v${newVersion}" -m "Release v${newVersion}"`, {}, { cwd: REPO_ROOT });
         console.log(`\x1b[32m🎉 Sukses! Tag v${newVersion} telah dibuat.\x1b[0m`);
-        console.log(`\nSilakan push commit dan tag ke remote repository:`);
-        console.log(`  \x1b[36mgit push origin master --tags\x1b[0m\n`);
+
+        if (!process.argv.includes('--no-push')) {
+            console.log('\n🚀 Mendorong commit & tag ke origin master (--tags)...');
+            run(`git push origin master --tags`, {}, { cwd: REPO_ROOT });
+            console.log(`\x1b[32m✅ Sukses! Release v${newVersion} berhasil dipush ke GitHub & trigger auto-build CI.\x1b[0m\n`);
+        } else {
+            console.log(`\nSilakan push commit dan tag ke remote repository:`);
+            console.log(`  \x1b[36mgit push origin master --tags\x1b[0m\n`);
+        }
     } catch (gitErr) {
         console.error('Git error: ' + gitErr.message);
     }
