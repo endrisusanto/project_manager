@@ -584,10 +584,163 @@ function get_pic_badge_class($name) {
             transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
         }
         .glass-card:hover {
-            border-color: rgba(16, 185, 129, 0.4);
+            border-color: rgba(56, 189, 248, 0.35);
         }
         html.light .glass-card {
             box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Emil Kowalski Design Engineering & Better UI Tables */
+        .better-table-wrap {
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            overflow: hidden;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+        }
+        .better-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-feature-settings: "tnum" 1, "ss01" 1, "cv01" 1;
+        }
+        .better-table th, .better-table td {
+            border-right: 1px solid var(--card-border);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .better-table tr th:last-child, .better-table tr td:last-child {
+            border-right: none;
+        }
+        .better-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .better-table-row {
+            transition: background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .better-table-row:hover {
+            background-color: var(--table-row-hover) !important;
+        }
+
+        .header-sapphire {
+            background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
+        .header-amber-week {
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
+        html.light .header-amber-week {
+            background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+            color: #451a03;
+            text-shadow: none;
+        }
+        .header-crimson-weekend {
+            background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+        }
+
+        .sub-done {
+            background: rgba(16, 185, 129, 0.12);
+            color: #059669;
+        }
+        html.dark .sub-done {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+        .sub-drop {
+            background: rgba(245, 158, 11, 0.12);
+            color: #d97706;
+        }
+        html.dark .sub-drop {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+        .sub-prog {
+            background: rgba(14, 165, 233, 0.12);
+            color: #0284c7;
+        }
+        html.dark .sub-prog {
+            background: rgba(14, 165, 233, 0.2);
+            color: #38bdf8;
+        }
+
+        .total-foot {
+            background: linear-gradient(180deg, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0.26) 100%);
+            font-weight: 800;
+        }
+
+        .csc-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #d97706;
+        }
+        html.dark .csc-badge {
+            background: rgba(245, 158, 11, 0.18);
+            border-color: rgba(245, 158, 11, 0.35);
+            color: #fcd34d;
+        }
+
+        .badge-test {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(245, 158, 11, 0.14);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #d97706;
+        }
+        html.dark .badge-test {
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.22);
+            border-color: rgba(245, 158, 11, 0.45);
+        }
+
+        .badge-submit {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(14, 165, 233, 0.14);
+            border: 1px solid rgba(14, 165, 233, 0.3);
+            color: #0284c7;
+        }
+        html.dark .badge-submit {
+            color: #38bdf8;
+            background: rgba(14, 165, 233, 0.22);
+            border-color: rgba(14, 165, 233, 0.45);
+        }
+
+        .badge-approve {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(16, 185, 129, 0.14);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #059669;
+        }
+        html.dark .badge-approve {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.22);
+            border-color: rgba(16, 185, 129, 0.45);
         }
 
         .btn-action-tactile {
@@ -1001,92 +1154,94 @@ function get_pic_badge_class($name) {
             </div>
         </div>
 
-        <!-- TOP MULTI-WEEK PIC MATRIX SUMMARY (Card Summary per Week) -->
-        <div class="glass-card p-4 sm:p-5 overflow-x-auto space-y-3">
+        <!-- TOP MULTI-WEEK PIC MATRIX SUMMARY (Emil Design Engineering & Better UI) -->
+        <div class="glass-card p-4 sm:p-5 space-y-3.5">
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-3 h-3 rounded-full bg-[#00aae4]"></div>
+                    <div class="w-3 h-3 rounded-full bg-sky-500 shadow-sm shadow-sky-500/50 animate-pulse"></div>
                     <h3 class="text-sm font-bold uppercase tracking-wider text-adaptive-main">Summary Project GA per PIC & Mingguan</h3>
                 </div>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shadow-sm">
                     Tahun <?= $curr_year ?> • W-<?= $w_prev_num ?>, W-<?= $w_curr_num ?>, W-<?= $w_next_num ?>
                 </span>
             </div>
 
-            <table class="w-full text-xs border border-slate-300 dark:border-slate-700 border-collapse select-none">
-                <thead>
-                    <tr>
-                        <th rowspan="2" class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-4 font-bold text-center whitespace-nowrap">GBA PIC</th>
-                        <th colspan="3" class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">Total GA Project Y<?= $curr_year ?></th>
-                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_prev_num ?></th>
-                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_curr_num ?></th>
-                        <th colspan="3" class="bg-[#facc15] text-slate-900 border border-slate-300 dark:border-slate-700 py-2 px-4 font-bold text-center whitespace-nowrap">W-<?= $w_next_num ?></th>
-                    </tr>
-                    <tr>
-                        <!-- Total GA Project Y... subheaders -->
-                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
-                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
-                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
-                        <!-- W-prev subheaders -->
-                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
-                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
-                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
-                        <!-- W-curr subheaders -->
-                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
-                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
-                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
-                        <!-- W-next subheaders -->
-                        <th class="bg-[#bae6fd] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Done</th>
-                        <th class="bg-[#fef08a] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Drop</th>
-                        <th class="bg-[#e0f2fe] text-slate-800 border border-slate-300 dark:border-slate-700 py-1 px-3 font-bold text-center text-[11px]">Prog.</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-300 dark:divide-slate-700">
-                    <?php if (empty($active_pic_matrix)): ?>
-                    <tr>
-                        <td colspan="13" class="py-4 text-center text-adaptive-sub font-medium">Belum ada data task per PIC.</td>
-                    </tr>
-                    <?php else: ?>
-                        <?php foreach ($active_pic_matrix as $p_em => $p_data): ?>
-                        <tr class="hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors">
-                            <td class="py-2 px-3.5 border border-slate-300 dark:border-slate-700 font-bold text-adaptive-main text-left"><?= htmlspecialchars($p_data['display_name']) ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['done'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['drop'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['total_year']['prog'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['done'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['drop'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_prev']['prog'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['done'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['drop'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_curr']['prog'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['done'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['drop'] ?: '' ?></td>
-                            <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center font-semibold text-adaptive-main"><?= $p_data['w_next']['prog'] ?: '' ?></td>
+            <div class="better-table-wrap overflow-x-auto">
+                <table class="better-table text-xs select-none">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="header-sapphire py-2.5 px-4 font-bold text-center whitespace-nowrap text-xs">GBA PIC</th>
+                            <th colspan="3" class="header-sapphire py-2 px-4 font-bold text-center whitespace-nowrap text-xs">Total GA Project Y<?= $curr_year ?></th>
+                            <th colspan="3" class="header-amber-week py-2 px-4 font-bold text-center whitespace-nowrap text-xs">W-<?= $w_prev_num ?></th>
+                            <th colspan="3" class="header-amber-week py-2 px-4 font-bold text-center whitespace-nowrap text-xs">W-<?= $w_curr_num ?></th>
+                            <th colspan="3" class="header-amber-week py-2 px-4 font-bold text-center whitespace-nowrap text-xs">W-<?= $w_next_num ?></th>
                         </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-                <tfoot>
-                    <tr class="bg-[#bae6fd] dark:bg-sky-950 font-black text-slate-900 dark:text-sky-100">
-                        <td class="py-2 px-3.5 border border-slate-300 dark:border-slate-700 text-left font-black">Total</td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['done'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['drop'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['total_year']['prog'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['done'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['drop'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_prev']['prog'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['done'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['drop'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_curr']['prog'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['done'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['drop'] ?></td>
-                        <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center"><?= $matrix_totals['w_next']['prog'] ?></td>
-                    </tr>
-                </tfoot>
-            </table>
+                        <tr>
+                            <!-- Total GA Project Y... subheaders -->
+                            <th class="sub-done py-1.5 px-3 font-bold text-center text-[11px]">Done</th>
+                            <th class="sub-drop py-1.5 px-3 font-bold text-center text-[11px]">Drop</th>
+                            <th class="sub-prog py-1.5 px-3 font-bold text-center text-[11px]">Prog.</th>
+                            <!-- W-prev subheaders -->
+                            <th class="sub-done py-1.5 px-3 font-bold text-center text-[11px]">Done</th>
+                            <th class="sub-drop py-1.5 px-3 font-bold text-center text-[11px]">Drop</th>
+                            <th class="sub-prog py-1.5 px-3 font-bold text-center text-[11px]">Prog.</th>
+                            <!-- W-curr subheaders -->
+                            <th class="sub-done py-1.5 px-3 font-bold text-center text-[11px]">Done</th>
+                            <th class="sub-drop py-1.5 px-3 font-bold text-center text-[11px]">Drop</th>
+                            <th class="sub-prog py-1.5 px-3 font-bold text-center text-[11px]">Prog.</th>
+                            <!-- W-next subheaders -->
+                            <th class="sub-done py-1.5 px-3 font-bold text-center text-[11px]">Done</th>
+                            <th class="sub-drop py-1.5 px-3 font-bold text-center text-[11px]">Drop</th>
+                            <th class="sub-prog py-1.5 px-3 font-bold text-center text-[11px]">Prog.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($active_pic_matrix)): ?>
+                        <tr>
+                            <td colspan="13" class="py-6 text-center text-adaptive-sub font-medium">Belum ada data task per PIC pada periode ini.</td>
+                        </tr>
+                        <?php else: ?>
+                            <?php foreach ($active_pic_matrix as $p_em => $p_data): ?>
+                            <tr class="better-table-row">
+                                <td class="py-2.5 px-3.5 font-bold text-adaptive-main text-left"><?= htmlspecialchars($p_data['display_name']) ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['total_year']['done'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['total_year']['drop'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['total_year']['prog'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_prev']['done'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_prev']['drop'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_prev']['prog'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_curr']['done'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_curr']['drop'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_curr']['prog'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_next']['done'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_next']['drop'] ?: '-' ?></td>
+                                <td class="py-2.5 px-3 text-center font-semibold text-adaptive-main tabular-nums"><?= $p_data['w_next']['prog'] ?: '-' ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr class="total-foot text-slate-900 dark:text-sky-100">
+                            <td class="py-2.5 px-3.5 text-left font-black tracking-wide">Total</td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['total_year']['done'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['total_year']['drop'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['total_year']['prog'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_prev']['done'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_prev']['drop'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_prev']['prog'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_curr']['done'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_curr']['drop'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_curr']['prog'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_next']['done'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_next']['drop'] ?></td>
+                            <td class="py-2.5 px-3 text-center font-black tabular-nums"><?= $matrix_totals['w_next']['prog'] ?></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
 
-        <!-- FULL TASK DATA TABLE (SCHEDULE FORMAT SESUAI GAMBAR) -->
+        <!-- FULL TASK DATA TABLE (Emil Design Engineering & Better UI) -->
         <div class="glass-card p-5 flex flex-col space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4" style="border-color: var(--card-border);">
                 <div>
@@ -1097,12 +1252,12 @@ function get_pic_badge_class($name) {
                 <div class="flex items-center gap-2 flex-wrap">
                     <!-- Search Input -->
                     <div class="relative">
-                        <input type="text" id="table-search" placeholder="Cari model, AP, PIC..." onkeyup="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-emerald-500 pl-8 w-48 sm:w-60">
+                        <input type="text" id="table-search" placeholder="Cari model, AP, PIC..." onkeyup="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-sky-500 pl-8 w-48 sm:w-60 transition-all shadow-sm">
                         <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
 
                     <!-- Status Filter Dropdown -->
-                    <select id="status-filter" onchange="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500">
+                    <select id="status-filter" onchange="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-sky-500 transition-all shadow-sm">
                         <option value="ALL">Semua Status (<?= $total_week_tasks ?>)</option>
                         <option value="Approved">Approved (<?= $approved_count ?>)</option>
                         <option value="Submitted">Submitted (<?= $submitted_count ?>)</option>
@@ -1115,26 +1270,26 @@ function get_pic_badge_class($name) {
             </div>
 
             <!-- Table responsive (Grid Layout Sesuai Gambar) -->
-            <div class="overflow-x-auto">
-                <table id="weekly-table" class="w-full text-left text-xs border border-slate-300 dark:border-slate-700 border-collapse">
+            <div class="better-table-wrap overflow-x-auto">
+                <table id="weekly-table" class="better-table text-left text-xs">
                     <thead>
-                        <tr class="font-bold select-none">
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-2.5 text-center whitespace-nowrap w-10">No</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">Model Name</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">AP(Code) ver.</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">CP(BB) ver.</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">CSC</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-center whitespace-nowrap">GA Date Line</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">GA PIC</th>
-                            <th class="bg-[#00aae4] text-white border border-slate-300 dark:border-slate-700 py-2.5 px-3 text-left whitespace-nowrap">GA Type</th>
+                        <tr class="select-none font-bold">
+                            <th class="header-sapphire py-3 px-2.5 text-center whitespace-nowrap w-10">No</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">Model Name</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">AP(Code) ver.</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">CP(BB) ver.</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">CSC</th>
+                            <th class="header-sapphire py-3 px-3 text-center whitespace-nowrap">GA Date Line</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">GA PIC</th>
+                            <th class="header-sapphire py-3 px-3 text-left whitespace-nowrap">GA Type</th>
                             <?php foreach ($schedule_days as $s_day): ?>
-                                <th class="<?= $s_day['is_weekend'] ? 'bg-[#dc2626]' : 'bg-[#00aae4]' ?> text-white border border-slate-300 dark:border-slate-700 py-2.5 px-2.5 text-center whitespace-nowrap min-w-[70px]">
+                                <th class="<?= $s_day['is_weekend'] ? 'header-crimson-weekend' : 'header-sapphire' ?> py-3 px-2.5 text-center whitespace-nowrap min-w-[76px]">
                                     <?= htmlspecialchars($s_day['day_label']) ?>
                                 </th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-300 dark:divide-slate-700">
+                    <tbody>
                         <?php if (empty($all_tasks)): ?>
                             <tr>
                                 <td colspan="<?= 8 + count($schedule_days) ?>" class="py-8 text-center text-adaptive-sub font-medium">
@@ -1148,41 +1303,45 @@ function get_pic_badge_class($name) {
                                 $ga_type = !empty($t['test_plan_type']) ? $t['test_plan_type'] : '-';
                                 $has_csc = !empty($t['csc']) && trim($t['csc']) !== '-';
                             ?>
-                            <tr class="task-table-row task-row hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors" 
+                            <tr class="better-table-row task-row" 
                                 data-status="<?= htmlspecialchars($t['progress_status']) ?>"
                                 data-urgent="<?= !empty($t['is_urgent']) ? '1' : '0' ?>"
                                 data-search="<?= strtolower(htmlspecialchars(($t['model_name'] ?? '') . ' ' . ($t['marketing_name'] ?? '') . ' ' . ($t['ap'] ?? '') . ' ' . ($t['cp'] ?? '') . ' ' . ($t['csc'] ?? '') . ' ' . $pic_email . ' ' . $ga_type)) ?>">
                                 
-                                <td class="py-2 px-2.5 border border-slate-300 dark:border-slate-700 text-center font-medium text-adaptive-sub"><?= $idx + 1 ?></td>
+                                <td class="py-2.5 px-2.5 text-center font-medium text-adaptive-sub tabular-nums"><?= $idx + 1 ?></td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-semibold text-adaptive-main whitespace-nowrap">
+                                <td class="py-2.5 px-3 font-semibold text-adaptive-main whitespace-nowrap">
                                     <span><?= htmlspecialchars($t['model_name']) ?></span>
                                     <?php if (!empty($t['is_urgent'])): ?>
-                                        <span class="ml-1 px-1 py-0.2 text-[9px] font-bold rounded bg-rose-500/15 text-rose-500 border border-rose-500/30">URGENT</span>
+                                        <span class="ml-1 px-1.5 py-0.2 text-[9px] font-black tracking-wider rounded bg-rose-500/15 text-rose-500 border border-rose-500/30">URGENT</span>
                                     <?php endif; ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
+                                <td class="py-2.5 px-3 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
                                     <?= htmlspecialchars($t['ap'] ?: '-') ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
+                                <td class="py-2.5 px-3 font-mono text-[11px] text-adaptive-main whitespace-nowrap">
                                     <?= htmlspecialchars($t['cp'] ?: '-') ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 font-mono text-[11px] whitespace-nowrap <?= $has_csc ? 'bg-[#fef9c3] dark:bg-amber-950/40 text-amber-950 dark:text-amber-200 font-medium' : 'text-adaptive-main' ?>">
-                                    <?= htmlspecialchars($t['csc'] ?: '-') ?>
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <?php if ($has_csc): ?>
+                                        <span class="csc-badge"><?= htmlspecialchars($t['csc']) ?></span>
+                                    <?php else: ?>
+                                        <span class="text-adaptive-sub font-mono text-[11px]">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-center whitespace-nowrap font-medium text-adaptive-main">
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap font-medium text-adaptive-main tabular-nums">
                                     <?= htmlspecialchars($date_line) ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-left whitespace-nowrap text-adaptive-main">
+                                <td class="py-2.5 px-3 text-left whitespace-nowrap text-adaptive-main">
                                     <?= htmlspecialchars($pic_email) ?>
                                 </td>
                                 
-                                <td class="py-2 px-3 border border-slate-300 dark:border-slate-700 text-left whitespace-nowrap font-medium text-adaptive-main">
+                                <td class="py-2.5 px-3 text-left whitespace-nowrap font-medium text-adaptive-main">
                                     <?= htmlspecialchars($ga_type) ?>
                                 </td>
 
@@ -1203,12 +1362,19 @@ function get_pic_badge_class($name) {
                                     if (empty($markers) && !empty($t['updated_at']) && substr($t['updated_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru'])) {
                                         $markers[] = 'Test';
                                     }
-                                    $marker_text = implode(' / ', $markers);
                                 ?>
-                                <td class="py-2 px-2 border border-slate-300 dark:border-slate-700 text-center whitespace-nowrap text-xs font-semibold <?= $s_day['is_weekend'] ? 'bg-slate-50/40 dark:bg-slate-900/30' : '' ?>">
-                                    <?php if (!empty($marker_text)): ?>
-                                        <span class="text-adaptive-main font-bold"><?= htmlspecialchars($marker_text) ?></span>
-                                    <?php endif; ?>
+                                <td class="py-2 px-1.5 text-center whitespace-nowrap text-xs <?= $s_day['is_weekend'] ? 'bg-slate-500/[0.03] dark:bg-slate-900/40' : '' ?>">
+                                    <div class="flex items-center justify-center gap-1 flex-wrap">
+                                        <?php foreach ($markers as $m): ?>
+                                            <?php if ($m === 'Test'): ?>
+                                                <span class="badge-test">Test</span>
+                                            <?php elseif ($m === 'Submit'): ?>
+                                                <span class="badge-submit">Submit</span>
+                                            <?php elseif ($m === 'Approve'): ?>
+                                                <span class="badge-approve">Approve</span>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </td>
                                 <?php endforeach; ?>
 
