@@ -307,6 +307,37 @@ function get_status_badge_class($st) {
             return 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30';
     }
 }
+
+function get_testplan_badge_class($tp) {
+    $tp_clean = strtoupper(trim($tp ?? ''));
+    if (strpos($tp_clean, 'SMR') !== false) {
+        return 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30';
+    } elseif (strpos($tp_clean, 'SKU') !== false) {
+        return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30';
+    } elseif (strpos($tp_clean, 'MR') !== false) {
+        return 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30';
+    } elseif (strpos($tp_clean, 'PL') !== false || strpos($tp_clean, 'PRE') !== false) {
+        return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+    } elseif (strpos($tp_clean, 'GBA') !== false || strpos($tp_clean, 'GLOBAL') !== false) {
+        return 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30';
+    }
+    return 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30';
+}
+
+function get_pic_badge_class($name) {
+    $palette = [
+        'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+        'bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/30',
+        'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30',
+        'bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30',
+        'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
+        'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+        'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+        'bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400 border-fuchsia-500/30'
+    ];
+    $idx = abs(crc32(strtolower(trim($name ?? '')))) % count($palette);
+    return $palette[$idx];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -336,7 +367,7 @@ function get_status_badge_class($st) {
             --input-bg: rgba(30, 41, 59, 0.75); 
             --input-border: #475569;
             --table-header-bg: rgba(15, 23, 42, 0.9);
-            --table-row-hover: rgba(255, 255, 255, 0.04);
+            --table-row-hover: rgba(255, 255, 255, 0.05);
             --btn-nav-bg: #1e293b;
             --btn-nav-text: #e2e8f0;
             --btn-nav-border: #334155;
@@ -353,7 +384,7 @@ function get_status_badge_class($st) {
             --input-bg: #ffffff; 
             --input-border: #cbd5e1;
             --table-header-bg: #f1f5f9;
-            --table-row-hover: rgba(0, 0, 0, 0.025);
+            --table-row-hover: #f1f5f9;
             --btn-nav-bg: #f1f5f9;
             --btn-nav-text: #1e293b;
             --btn-nav-border: #cbd5e1;
@@ -419,6 +450,16 @@ function get_status_badge_class($st) {
         }
         .nav-week-btn:hover {
             opacity: 0.9;
+        }
+
+        .task-table-row {
+            transition: background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .task-table-row:hover {
+            background-color: var(--table-row-hover) !important;
+        }
+        html.light .task-table-row:hover {
+            background-color: #f1f5f9 !important;
         }
 
         /* Custom Scrollbar */
@@ -566,48 +607,48 @@ function get_status_badge_class($st) {
 
     <?php include 'header.php'; ?>
 
-    <main class="w-full flex-grow p-4 sm:p-6 sm:py-8 flex flex-col max-w-7xl mx-auto space-y-6">
+    <main class="w-full flex-grow max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
         <!-- HEADER HUD & WEEK CYCLE SELECTOR -->
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 flex-shrink-0">
-            <div class="flex items-center gap-3.5">
+        <div class="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3.5 min-w-0">
                 <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 flex-shrink-0 shadow-sm">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zM9 14l2 2 4-4" />
                     </svg>
                 </div>
-                <div>
+                <div class="min-w-0">
                     <div class="flex items-center gap-2.5 flex-wrap">
-                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-adaptive-main">Weekly Insight Report</h1>
-                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-adaptive-main truncate">Weekly Insight Report</h1>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
                             Siklus Rabu - Selasa
                         </span>
                         <?php if ($is_current_week): ?>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 whitespace-nowrap">
                                 Current Week
                             </span>
                         <?php endif; ?>
                     </div>
-                    <p class="text-xs sm:text-sm font-medium text-adaptive-sub">
+                    <p class="text-xs sm:text-sm font-medium text-adaptive-sub truncate">
                         Executive Summary & Analitik Menyeluruh (Semua Status) Periode: <span class="font-bold text-emerald-500 dark:text-emerald-400"><?= $range_label ?></span>
                     </p>
                 </div>
             </div>
 
-            <!-- WEEK SELECTOR CONTROLLER -->
-            <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                <a href="weekly_report_summary.php?date=<?= $prev_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm">
+            <!-- WEEK SELECTOR CONTROLLER & ACTION BUTTONS (NO WRAP ON DESKTOP) -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 2xl:pb-0 flex-nowrap flex-shrink-0">
+                <a href="weekly_report_summary.php?date=<?= $prev_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-shrink-0 whitespace-nowrap">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                     <span>Prev Week</span>
                 </a>
 
                 <?php if (!$is_current_week): ?>
-                <a href="weekly_report_summary.php" class="btn-action-tactile bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+                <a href="weekly_report_summary.php" class="btn-action-tactile bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 flex-shrink-0 whitespace-nowrap">
                     <span>Current Week</span>
                 </a>
                 <?php endif; ?>
 
-                <a href="weekly_report_summary.php?date=<?= $next_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm">
+                <a href="weekly_report_summary.php?date=<?= $next_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-shrink-0 whitespace-nowrap">
                     <span>Next Week</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </a>
@@ -627,7 +668,7 @@ function get_status_badge_class($st) {
                     <span class="text-[9px] text-sky-100 bg-sky-700/80 px-1.5 py-0.5 rounded font-mono border border-sky-400/30 hidden xl:inline">R-Click ⚙️</span>
                 </button>
 
-                <button id="btn-copy-weekly" onclick="copyWeeklyReport()" class="btn-action-tactile bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-600/25 flex-shrink-0">
+                <button id="btn-copy-weekly" onclick="copyWeeklyReport()" class="btn-action-tactile bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-600/25 flex-shrink-0 whitespace-nowrap">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
                     </svg>
@@ -841,7 +882,7 @@ function get_status_badge_class($st) {
                             <th class="py-2.5 px-3">Approved Date</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 dark:divide-slate-800/40">
+                    <tbody class="divide-y divide-slate-200/50 dark:divide-slate-800/40">
                         <?php if (empty($all_tasks)): ?>
                             <tr>
                                 <td colspan="8" class="py-8 text-center text-adaptive-sub">
@@ -852,13 +893,15 @@ function get_status_badge_class($st) {
                             <?php foreach ($all_tasks as $idx => $t): 
                                 $pic_display = !empty($t['username']) ? $t['username'] : (!empty($t['pic_email']) ? explode('@', $t['pic_email'])[0] : '-');
                                 $badge_cls = get_status_badge_class($t['progress_status']);
+                                $pic_badge_cls = get_pic_badge_class($pic_display);
+                                $tp_badge_cls = get_testplan_badge_class($t['test_plan_type']);
                             ?>
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors task-row" 
+                            <tr class="task-table-row task-row border-b border-slate-200/30 dark:border-slate-800/30" 
                                 data-status="<?= htmlspecialchars($t['progress_status']) ?>"
                                 data-urgent="<?= !empty($t['is_urgent']) ? '1' : '0' ?>"
                                 data-search="<?= strtolower(htmlspecialchars(($t['model_name'] ?? '') . ' ' . ($t['marketing_name'] ?? '') . ' ' . ($t['ap'] ?? '') . ' ' . $pic_display . ' ' . ($t['test_plan_type'] ?? ''))) ?>">
-                                <td class="py-2.5 px-3 text-adaptive-sub"><?= $idx + 1 ?></td>
-                                <td class="py-2.5 px-3">
+                                <td class="py-3 px-3 text-adaptive-sub font-medium"><?= $idx + 1 ?></td>
+                                <td class="py-3 px-3">
                                     <div class="font-bold text-adaptive-main flex items-center gap-1.5">
                                         <span><?= htmlspecialchars($t['model_name']) ?></span>
                                         <?php if (!empty($t['is_urgent'])): ?>
@@ -869,19 +912,24 @@ function get_status_badge_class($st) {
                                         <div class="text-[11px] text-adaptive-sub"><?= htmlspecialchars($t['marketing_name']) ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td class="py-2.5 px-3 font-mono font-medium text-adaptive-main"><?= htmlspecialchars($t['ap'] ?: '-') ?></td>
-                                <td class="py-2.5 px-3">
-                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-adaptive-main border border-slate-300 dark:border-slate-700">
-                                        <?= htmlspecialchars($pic_display) ?>
+                                <td class="py-3 px-3 font-mono text-xs font-semibold text-adaptive-main"><?= htmlspecialchars($t['ap'] ?: '-') ?></td>
+                                <td class="py-3 px-3">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border <?= $pic_badge_cls ?>">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-current opacity-70"></span>
+                                        <span><?= htmlspecialchars($pic_display) ?></span>
                                     </span>
                                 </td>
-                                <td class="py-2.5 px-3 text-adaptive-main"><?= htmlspecialchars($t['test_plan_type'] ?: '-') ?></td>
-                                <td class="py-2.5 px-3">
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border <?= $badge_cls ?>">
+                                <td class="py-3 px-3">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border <?= $tp_badge_cls ?>">
+                                        <?= htmlspecialchars($t['test_plan_type'] ?: '-') ?>
+                                    </span>
+                                </td>
+                                <td class="py-3 px-3">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border <?= $badge_cls ?>">
                                         <?= htmlspecialchars($t['progress_status']) ?>
                                     </span>
                                 </td>
-                                <td class="py-2.5 px-3">
+                                <td class="py-3 px-3">
                                     <?php if (!empty($t['deadline'])): ?>
                                         <div class="font-medium text-adaptive-main"><?= date('d/m/Y', strtotime($t['deadline'])) ?></div>
                                         <div class="text-[10px] <?= $t['deadline_badge_type'] === 'late' ? 'text-rose-500 dark:text-rose-400 font-bold' : 'text-adaptive-sub' ?>">
@@ -891,7 +939,7 @@ function get_status_badge_class($st) {
                                         <span class="text-adaptive-sub">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="py-2.5 px-3">
+                                <td class="py-3 px-3">
                                     <?php if (!empty($t['approved_date'])): ?>
                                         <span class="text-emerald-600 dark:text-emerald-400 font-medium"><?= date('d/m/Y', strtotime($t['approved_date'])) ?></span>
                                     <?php else: ?>
