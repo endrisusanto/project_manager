@@ -89,8 +89,8 @@ function is_task_in_week_range($task, $start, $end) {
         $task['approved_date'] ?? null,
         $task['deadline'] ?? null
     ];
-    if (!empty($task['created_at'])) {
-        $dates[] = substr($task['created_at'], 0, 10);
+    if (!empty($task['updated_at'])) {
+        $dates[] = substr($task['updated_at'], 0, 10);
     }
     foreach ($dates as $d) {
         if (!empty($d) && $d >= $start && $d <= $end) {
@@ -101,7 +101,7 @@ function is_task_in_week_range($task, $start, $end) {
 }
 
 // Fetch all tasks for the current year to build the multi-week matrix
-$matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.submission_date, t.approved_date, t.deadline, t.created_at, u.username 
+$matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.submission_date, t.approved_date, t.deadline, t.updated_at, u.username 
                FROM gba_tasks t 
                LEFT JOIN users u ON t.pic_email = u.email 
                WHERE (
@@ -109,7 +109,7 @@ $matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.su
                    YEAR(t.submission_date) = ? OR 
                    YEAR(t.approved_date) = ? OR 
                    YEAR(t.deadline) = ? OR 
-                   YEAR(t.created_at) = ?
+                   YEAR(t.updated_at) = ?
                )";
 $stmt_m = $conn->prepare($matrix_sql);
 $stmt_m->bind_param("sssss", $curr_year, $curr_year, $curr_year, $curr_year, $curr_year);
@@ -1199,8 +1199,8 @@ function get_pic_badge_class($name) {
                                     if (!empty($t['approved_date']) && $t['approved_date'] === $d_str) {
                                         $markers[] = 'Approve';
                                     }
-                                    // Fallback: created_at match for testing
-                                    if (empty($markers) && !empty($t['created_at']) && substr($t['created_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru'])) {
+                                    // Fallback: updated_at match for testing
+                                    if (empty($markers) && !empty($t['updated_at']) && substr($t['updated_at'], 0, 10) === $d_str && in_array($t['progress_status'], ['Test Ongoing', 'Task Baru'])) {
                                         $markers[] = 'Test';
                                     }
                                     $marker_text = implode(' / ', $markers);
