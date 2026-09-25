@@ -1,6 +1,6 @@
 <?php
 // ponytail: read DB connection from environment variables with XAMPP fallback
-define('DB_SERVER', getenv('DB_SERVER') ?: 'localhost');
+define('DB_SERVER', getenv('DB_SERVER') ?: '127.0.0.1');
 define('DB_USERNAME', getenv('DB_USERNAME') ?: 'root');
 define('DB_PASSWORD', getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '');
 define('DB_NAME', getenv('DB_NAME') ?: 'project_manager_db');

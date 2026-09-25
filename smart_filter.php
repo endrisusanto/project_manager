@@ -41,7 +41,12 @@ function parse_request_list($data)
     if (empty($lines)) return [];
 
     $header_line = strtolower(trim($lines[0]));
-    $is_header = (strpos($header_line, 'ap') !== false || strpos($header_line, 'version') !== false);
+    $is_header = (
+        strpos($header_line, 'ap') !== false || 
+        strpos($header_line, 'version') !== false || 
+        strpos($header_line, 'model') !== false ||
+        strpos($header_line, 'type') !== false
+    );
 
     $ap_idx = 0;
     $cp_idx = 1;
@@ -52,12 +57,32 @@ function parse_request_list($data)
     if ($is_header) {
         $headers = explode("\t", $header_line);
         foreach ($headers as $idx => $header) {
-            $h = trim($header);
-            if (strpos($h, 'ap') !== false) $ap_idx = $idx;
-            elseif (strpos($h, 'cp') !== false) $cp_idx = $idx;
-            elseif (strpos($h, 'csc') !== false) $csc_idx = $idx;
-            elseif (strpos($h, 'type') !== false) $type_idx = $idx;
-            elseif (strpos($h, 'model') !== false) $model_idx = $idx;
+            $h = strtolower(trim($header));
+            if ($model_idx === -1 && (preg_match('/^(model\s*name|model|project|perangkat|device)$/i', $h) || (strpos($h, 'model') !== false && strpos($h, 'modem') === false && strpos($h, 'csc') === false))) {
+                $model_idx = $idx;
+            }
+            if ($ap_idx === -1 && strpos($h, 'android') === false && strpos($h, 'app') === false && strpos($h, 'map') === false && strpos($h, 'cap') === false && strpos($h, 'csc') === false) {
+                if (preg_match('/^(ap\s*version|ap_version|ap\(code\)|pda|ap)$/i', $h) || (strpos($h, 'ap') !== false && strpos($h, 'ver') !== false) || $h === 'ap') {
+                    $ap_idx = $idx;
+                }
+            }
+            if ($cp_idx === -1 && strpos($h, 'csc') === false && strpos($h, 'desc') === false) {
+                if (preg_match('/^(cp\s*version|cp_version|cp\(code\)|phone|modem|cp)$/i', $h) || (strpos($h, 'cp') !== false && strpos($h, 'ver') !== false) || $h === 'cp') {
+                    $cp_idx = $idx;
+                }
+            }
+            if (strpos($h, 'name') === false && strpos($h, 'type') === false) {
+                if (preg_match('/^(csc\s*version|csc_version|csc\s*ver|csc\(code\)|multi\s*csc\s*version|omc\s*version)$/i', $h) || (strpos($h, 'csc') !== false && strpos($h, 'ver') !== false)) {
+                    $csc_idx = $idx;
+                } elseif ($csc_idx === -1 && $h === 'csc') {
+                    $csc_idx = $idx;
+                }
+            }
+            if ($type_idx === -1 && strpos($h, 'csc') === false && strpos($h, 'sw') === false && strpos($h, 'hw') === false) {
+                if (preg_match('/^(type|submission\s*type|test\s*plan\s*type|tipe)$/i', $h) || $h === 'type') {
+                    $type_idx = $idx;
+                }
+            }
         }
         $start_row = 1;
     } else {
@@ -71,34 +96,48 @@ function parse_request_list($data)
         $row = explode("\t", $line);
 
         $ap = trim($row[$ap_idx] ?? '');
-        $cp = trim($row[$cp_idx] ?? '');
-        $csc = trim($row[$csc_idx] ?? '');
+        $cp = $cp_idx !== -1 ? trim($row[$cp_idx] ?? '') : '';
+        $csc = $csc_idx !== -1 ? trim($row[$csc_idx] ?? '') : '';
         $type = $type_idx !== -1 ? trim($row[$type_idx] ?? '') : '';
         $model = $model_idx !== -1 ? trim($row[$model_idx] ?? '') : '';
 
-        // Fallback detection if headers were missing or shifted
-        if (is_numeric($ap) && strlen($ap) < 5 && isset($row[$ap_idx + 1])) {
-            $next_col = trim($row[$ap_idx + 1]);
-            if (strpos(strtoupper($next_col), 'SM-') === 0 && isset($row[$ap_idx + 2])) {
-                $model = trim($row[$ap_idx + 1]);
-                $ap = trim($row[$ap_idx + 2] ?? '');
-                $cp = trim($row[$cp_idx + 2] ?? '');
-                $csc = trim($row[$csc_idx + 2] ?? '');
-                $type = $type_idx !== -1 ? trim($row[$type_idx + 2] ?? '') : trim($row[5] ?? '');
-            } elseif (strlen($next_col) > 5) {
-                $ap = trim($row[$ap_idx + 1] ?? '');
-                $cp = trim($row[$cp_idx + 1] ?? '');
-                $csc = trim($row[$csc_idx + 1] ?? '');
-                $type = $type_idx !== -1 ? trim($row[$type_idx + 1] ?? '') : trim($row[4] ?? '');
+        // Fallback heuristic if $ap is a numeric index column (e.g. 1, 2, 3...)
+        if (is_numeric($ap) && strlen($ap) < 5) {
+            foreach ($row as $cVal) {
+                $cVal = trim($cVal);
+                if (preg_match('/^[A-Z0-9]{3,8}(XX|TB|BW|UE|UB|SC)[A-Z0-9]{4,8}$/i', $cVal) || (strlen($cVal) >= 10 && !stripos($cVal, 'SM-'))) {
+                    $ap = $cVal;
+                    break;
+                }
             }
         }
 
-        if (!empty($ap)) {
+        // Clean model name
+        if (empty($model)) {
+            foreach ($row as $cVal) {
+                $cVal = trim($cVal);
+                if (stripos($cVal, 'SM-') === 0 || stripos($cVal, 'SC-') === 0 || stripos($cVal, 'GT-') === 0 || stripos($cVal, 'SH-') === 0) {
+                    $model = $cVal;
+                    break;
+                }
+            }
+        }
+
+        // Normalize Type (Normal, SMR, SKU)
+        $norm_type = 'Normal';
+        $up_type = strtoupper($type);
+        if (strpos($up_type, 'SMR') !== false) {
+            $norm_type = 'SMR';
+        } elseif (strpos($up_type, 'SKU') !== false) {
+            $norm_type = 'SKU';
+        }
+
+        if (!empty($ap) && strtolower($ap) !== 'ap' && strtolower($ap) !== 'ap version') {
             $requests[] = [
                 'ap' => $ap,
-                'cp' => $cp,
-                'csc' => $csc,
-                'type' => $type,
+                'cp' => $cp ?: $ap,
+                'csc' => $csc ?: $ap,
+                'type' => $norm_type,
                 'model' => $model
             ];
         }
@@ -127,6 +166,12 @@ function parse_summary_list($data)
         $model = trim($row[0] ?? '');
         $ap = trim($row[1] ?? '');
         $csc = trim($row[3] ?? '');
+
+        // Skip subheaders if multi-row headers exist (e.g. "Model Name AP(Code) ver.")
+        if (strtolower($ap) === 'name' || strtolower($ap) === 'ap' || strtolower($ap) === 'ap(code)' || strtolower($ap) === 'ap version' || strtolower($model) === 'model') {
+            continue;
+        }
+
         if (!empty($ap)) {
             $summary_data['aps'][] = $ap;
             if (!empty($model)) {
@@ -152,6 +197,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
     try {
         switch ($_POST['action']) {
+            case 'fetch_baseline':
+                $stmt = $pdo->query("SELECT model_name, ap, cp, csc FROM gba_tasks WHERE ap IS NOT NULL AND TRIM(ap) != '' ORDER BY model_name ASC, id DESC");
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                $tsv = "Model Name\tAP Version\tCP Version\tCSC Version\n";
+                $tsv .= "Model\tName\tAP(Code)\tver.\n";
+                foreach ($rows as $r) {
+                    $tsv .= ($r['model_name'] ?? '') . "\t" . ($r['ap'] ?? '') . "\t" . ($r['cp'] ?? '') . "\t" . ($r['csc'] ?? '') . "\n";
+                }
+                echo json_encode(['status' => 'success', 'data' => trim($tsv), 'count' => count($rows)]);
+                break;
             case 'get_tasks':
                 echo json_encode(['status' => 'success', 'tasks' => $get_tasks()]);
                 break;
@@ -917,11 +973,11 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                         </div>
 
                         <!-- Card B Subheader (Matching height for vertical alignment) -->
-                        <div class="flex items-center justify-between min-h-[34px]">
-                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-[var(--card-bg)] border border-[var(--card-border)]" style="color: var(--text-secondary);">
-                                <i class="fas fa-database text-blue-500"></i>
-                                <span>Firmware Baseline Database</span>
-                            </div>
+                        <div class="flex items-center justify-between min-h-[34px] flex-wrap gap-2">
+                            <button type="button" id="btn-fetch-baseline" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 transition cursor-pointer" title="Ambil data AP baseline dari database">
+                                <i class="fas fa-cloud-download-alt"></i>
+                                <span>Fetch Data (Baseline)</span>
+                            </button>
                             <span class="text-[11px] font-medium hidden sm:inline" style="color: var(--text-secondary);">Format: Model, AP, CP, CSC</span>
                         </div>
 
@@ -1061,13 +1117,13 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                                 </td>
                                 <td class="text-center">
                                     <div class="inline-flex items-center gap-1">
-                                        <button class="copy-row-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Copy Baris">
+                                        <button class="copy-row-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="<?= $task['id'] ?>" title="Copy Baris">
                                             <i class="fas fa-copy text-xs"></i>
                                         </button>
-                                        <button class="edit-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Edit Task">
+                                        <button class="edit-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="<?= $task['id'] ?>" title="Edit Task">
                                             <i class="fas fa-pencil-alt text-xs"></i>
                                         </button>
-                                        <button class="delete-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Hapus Task">
+                                        <button class="delete-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="<?= $task['id'] ?>" title="Hapus Task">
                                             <i class="fas fa-trash-alt text-xs"></i>
                                         </button>
                                     </div>
@@ -1281,80 +1337,115 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                 reader.onload = function(e) {
                     try {
                         const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: false, raw: false });
                         const firstSheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[firstSheetName];
                         
-                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
                         if (!rows || rows.length === 0) {
                             showToast('File Excel kosong atau tidak terbaca.', true);
                             return;
                         }
 
                         let headerRowIdx = -1;
-                        let apIdx = -1, cpIdx = -1, cscIdx = -1, typeIdx = -1, modelIdx = -1;
+                        let noIdx = -1, modelIdx = -1, apIdx = -1, cpIdx = -1, cscIdx = -1, typeIdx = -1;
 
-                        for (let r = 0; r < Math.min(rows.length, 5); r++) {
-                            const row = rows[r];
-                            for (let c = 0; c < row.length; c++) {
-                                const val = String(row[c]).toLowerCase().trim();
-                                if (val.includes('ap') || val.includes('pda') || val.includes('version')) {
-                                    apIdx = c; headerRowIdx = r;
-                                } else if (val.includes('cp') || val.includes('phone') || val.includes('modem')) {
-                                    cpIdx = c;
-                                } else if (val.includes('csc')) {
-                                    cscIdx = c;
-                                } else if (val.includes('type') || val.includes('tipe')) {
-                                    typeIdx = c;
-                                } else if (val.includes('model') || val.includes('perangkat')) {
-                                    modelIdx = c;
-                                }
-                            }
-                            if (apIdx !== -1) break;
-                        }
-
-                        if (headerRowIdx === -1) {
-                            headerRowIdx = 0;
-                            apIdx = 0; cpIdx = 1; cscIdx = 2; typeIdx = 3;
-                        } else {
-                            if (cpIdx === -1) cpIdx = apIdx + 1;
-                            if (cscIdx === -1) cscIdx = apIdx + 2;
-                        }
-
-                        let tsv = 'AP\tCP\tCSC\tType\n';
-                        let parsedCount = 0;
-
-                        for (let r = headerRowIdx + (apIdx !== -1 && headerRowIdx !== 0 ? 1 : 0); r < rows.length; r++) {
+                        // Scan first 15 rows for header columns
+                        for (let r = 0; r < Math.min(rows.length, 15); r++) {
                             const row = rows[r];
                             if (!row || row.length === 0) continue;
 
-                            let ap = String(row[apIdx] || '').trim();
-                            let cp = String(row[cpIdx] || '').trim();
-                            let csc = String(row[cscIdx] || '').trim();
-                            let type = typeIdx !== -1 ? String(row[typeIdx] || '').trim() : '';
+                            let curNo = -1, curModel = -1, curAp = -1, curCp = -1, curCsc = -1, curType = -1;
 
-                            if (/^\d+$/.test(ap) && ap.length < 5 && row[apIdx + 1]) {
-                                if (String(row[apIdx + 1]).toUpperCase().startsWith('SM-')) {
-                                    ap = String(row[apIdx + 2] || '').trim();
-                                    cp = String(row[cpIdx + 2] || '').trim();
-                                    csc = String(row[cscIdx + 2] || '').trim();
-                                    type = String(row[typeIdx + 2] || row[5] || '').trim();
-                                } else {
-                                    ap = String(row[apIdx + 1] || '').trim();
-                                    cp = String(row[cpIdx + 1] || '').trim();
-                                    csc = String(row[cscIdx + 1] || '').trim();
-                                    type = String(row[typeIdx + 1] || row[4] || '').trim();
+                            for (let c = 0; c < row.length; c++) {
+                                const val = String(row[c] || '').trim().toLowerCase();
+                                if (!val) continue;
+
+                                if (curNo === -1 && /^(no|#|index|no\.|nomor)$/i.test(val)) {
+                                    curNo = c;
+                                }
+                                if (curModel === -1 && (/^(model\s*name|model|project|device|perangkat)$/i.test(val) || (val.includes('model') && !val.includes('modem') && !val.includes('csc')))) {
+                                    curModel = c;
+                                }
+                                if (curAp === -1 && !val.includes('android') && !val.includes('app') && !val.includes('map') && !val.includes('cap') && !val.includes('csc')) {
+                                    if (/^(ap\s*version|ap_version|ap\(code\)|pda|ap)$/i.test(val) || (val.includes('ap') && val.includes('ver')) || val === 'ap') {
+                                        curAp = c;
+                                    }
+                                }
+                                if (curCp === -1 && !val.includes('csc') && !val.includes('desc')) {
+                                    if (/^(cp\s*version|cp_version|cp\(code\)|phone|modem|cp)$/i.test(val) || (val.includes('cp') && val.includes('ver')) || val === 'cp') {
+                                        curCp = c;
+                                    }
+                                }
+                                // CSC Version - strictly exclude 'csc name' and 'csc type'
+                                if (!val.includes('name') && !val.includes('type')) {
+                                    if (/^(csc\s*version|csc_version|csc\s*ver|csc\(code\)|multi\s*csc\s*version|omc\s*version)$/i.test(val) || (val.includes('csc') && val.includes('ver'))) {
+                                        curCsc = c;
+                                    } else if (curCsc === -1 && val === 'csc') {
+                                        curCsc = c;
+                                    }
+                                }
+                                // Type - strictly exclude 'csc type', 'sw variant', 'hw variant'
+                                if (curType === -1 && !val.includes('csc') && !val.includes('sw') && !val.includes('hw')) {
+                                    if (/^(type|submission\s*type|test\s*plan\s*type|tipe)$/i.test(val) || val === 'type') {
+                                        curType = c;
+                                    }
                                 }
                             }
 
-                            if (!ap || ap.toLowerCase() === 'ap' || ap.toLowerCase() === 'version') continue;
+                            if (curAp !== -1 || (curModel !== -1 && (curCp !== -1 || curCsc !== -1))) {
+                                headerRowIdx = r;
+                                noIdx = curNo;
+                                modelIdx = curModel;
+                                apIdx = curAp;
+                                cpIdx = curCp;
+                                cscIdx = curCsc;
+                                typeIdx = curType;
+                                break;
+                            }
+                        }
 
-                            let normType = 'Normal';
-                            const upType = type.toUpperCase();
-                            if (upType.includes('SMR')) normType = 'SMR';
-                            else if (upType.includes('SKU')) normType = 'SKU';
+                        let tsv = 'No\tModel Name\tAp Version\tCp Version\tCsc Version\tType\n';
+                        let parsedCount = 0;
+                        let itemNo = 1;
+                        const startR = (headerRowIdx !== -1) ? (headerRowIdx + 1) : 0;
 
-                            tsv += `${ap}\t${cp || ap}\t${csc || ap}\t${normType}\n`;
+                        for (let r = startR; r < rows.length; r++) {
+                            const row = rows[r];
+                            if (!row || row.length === 0) continue;
+
+                            let model = modelIdx !== -1 ? String(row[modelIdx] || '').trim() : '';
+                            let ap = apIdx !== -1 ? String(row[apIdx] || '').trim() : '';
+                            let cp = cpIdx !== -1 ? String(row[cpIdx] || '').trim() : '';
+                            let csc = cscIdx !== -1 ? String(row[cscIdx] || '').trim() : '';
+                            let type = typeIdx !== -1 ? String(row[typeIdx] || '').trim() : '';
+
+                            // Fallback heuristic if columns were not mapped
+                            if (!ap && !model) {
+                                for (let c = 0; c < row.length; c++) {
+                                    const cellVal = String(row[c] || '').trim();
+                                    if (/^[A-Z0-9]{3,8}(XX|TB|BW|UE|UB|SC)[A-Z0-9]{4,8}$/i.test(cellVal)) {
+                                        ap = cellVal;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!model) {
+                                for (let c = 0; c < row.length; c++) {
+                                    const cellVal = String(row[c] || '').trim();
+                                    if (/^(SM|SC|GT|SH)-[A-Z0-9]+/i.test(cellVal)) {
+                                        model = cellVal;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // Skip header duplicates or empty lines
+                            if (!ap && !model) continue;
+                            if (ap.toLowerCase() === 'ap' || ap.toLowerCase() === 'ap version' || model.toLowerCase() === 'model name') continue;
+
+                            tsv += `${itemNo++}\t${model}\t${ap}\t${cp}\t${csc}\t${type}\n`;
                             parsedCount++;
                         }
 
@@ -1487,13 +1578,13 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                             escapeHtml(task.qb_userdebug),
                             sourceBadge,
                             `<div class="inline-flex items-center gap-1">
-                                <button class="copy-row-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Copy Baris">
+                                <button class="copy-row-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="${task.id}" title="Copy Baris">
                                     <i class="fas fa-copy text-xs"></i>
                                 </button>
-                                <button class="edit-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Edit Task">
+                                <button class="edit-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="${task.id}" title="Edit Task">
                                     <i class="fas fa-pencil-alt text-xs"></i>
                                 </button>
-                                <button class="delete-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-red-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Hapus Task">
+                                <button class="delete-btn p-1.5 rounded text-slate-500 dark:text-slate-400 hover:text-rose-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition" data-id="${task.id}" title="Hapus Task">
                                     <i class="fas fa-trash-alt text-xs"></i>
                                 </button>
                             </div>`
@@ -1521,6 +1612,34 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
                 selectAll.prop('checked', false);
                 updateBulkState();
             }
+
+            // Fetch Baseline Data Button Handler
+            $('#btn-fetch-baseline').on('click', function() {
+                const btn = $(this);
+                const origHtml = btn.html();
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Memuat...');
+
+                $.ajax({
+                    url: 'smart_filter.php',
+                    type: 'POST',
+                    data: { action: 'fetch_baseline' },
+                    dataType: 'json',
+                    success: function(res) {
+                        btn.prop('disabled', false).html(origHtml);
+                        if (res.status === 'success') {
+                            $('#sum-textarea').val(res.data);
+                            updateLineCount('#sum-textarea', '#sum-line-count');
+                            showToast(`Berhasil memuat ${res.count} baseline AP dari database!`);
+                        } else {
+                            showToast(res.message || 'Gagal memuat baseline data.', true);
+                        }
+                    },
+                    error: function() {
+                        btn.prop('disabled', false).html(origHtml);
+                        showToast('Terjadi kesalahan saat memuat baseline dari server.', true);
+                    }
+                });
+            });
 
             // Compare Form Submission
             $('#compareForm').on('submit', function (e) {
@@ -1587,19 +1706,27 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
             // Modal: Edit Task
             const editModal = $('#editModal');
             $('#tasksTable tbody').on('click', '.edit-btn', function () {
-                const row = $(this).closest('tr');
-                const taskId = row.data('id');
-                const rowData = table.row(row).data();
-                const clean = rowData.map(c => $('<div>').html(c).text().trim().replace(/^-\s*$/, ''));
+                const btn = $(this);
+                const row = btn.closest('tr');
+                const taskId = btn.data('id') || btn.attr('data-id') || row.data('id') || row.attr('data-id');
+                const tds = row.find('td');
+
+                const modelName = tds.eq(2).text().trim().replace(/^-\s*$/, '');
+                const ap = tds.eq(3).text().trim().replace(/^-\s*$/, '');
+                const cp = tds.eq(4).text().trim().replace(/^-\s*$/, '');
+                const csc = tds.eq(5).text().trim().replace(/^-\s*$/, '');
+                const reqType = tds.eq(6).text().trim() || 'Normal';
+                const qbUser = tds.eq(7).text().trim().replace(/^-\s*$/, '');
+                const qbUserdebug = tds.eq(8).text().trim().replace(/^-\s*$/, '');
 
                 $('#edit-task-id').val(taskId);
-                $('#edit-model_name').val(clean[2]);
-                $('#edit-ap').val(clean[3]);
-                $('#edit-cp').val(clean[4]);
-                $('#edit-csc').val(clean[5]);
-                $('#edit-request_type').val(clean[6] || 'Normal');
-                $('#edit-qb_user').val(clean[7]);
-                $('#edit-qb_userdebug').val(clean[8]);
+                $('#edit-model_name').val(modelName);
+                $('#edit-ap').val(ap);
+                $('#edit-cp').val(cp);
+                $('#edit-csc').val(csc);
+                $('#edit-request_type').val(reqType);
+                $('#edit-qb_user').val(qbUser);
+                $('#edit-qb_userdebug').val(qbUserdebug);
 
                 editModal.removeClass('hidden');
             });
@@ -1640,8 +1767,15 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
 
             // Single Delete
             $('#tasksTable tbody').on('click', '.delete-btn', function () {
-                const row = $(this).closest('tr');
-                const taskId = row.data('id');
+                const btn = $(this);
+                const row = btn.closest('tr');
+                const taskId = btn.data('id') || btn.attr('data-id') || row.data('id') || row.attr('data-id');
+                
+                if (!taskId) {
+                    showToast('ID Task tidak valid.', true);
+                    return;
+                }
+
                 if (confirm('Yakin ingin menghapus task ini?')) {
                     $.ajax({
                         url: 'smart_filter.php',
@@ -1669,16 +1803,17 @@ $all_tasks = $pdo->query("SELECT * FROM new_tasks ORDER BY is_manual DESC, id DE
 
             // Copy Single Row
             $('#tasksTable tbody').on('click', '.copy-row-btn', function () {
-                const rowData = table.row($(this).closest('tr')).data();
+                const row = $(this).closest('tr');
+                const tds = row.find('td');
                 const headers = ['Model', 'AP', 'CP', 'CSC', 'Type', 'QB User', 'QB Userdebug'];
                 const cleanValues = [
-                    $('<div>').html(rowData[2]).text().trim(),
-                    $('<div>').html(rowData[3]).text().trim(),
-                    $('<div>').html(rowData[4]).text().trim(),
-                    $('<div>').html(rowData[5]).text().trim(),
-                    $('<div>').html(rowData[6]).text().trim(),
-                    $('<div>').html(rowData[7]).text().trim(),
-                    $('<div>').html(rowData[8]).text().trim()
+                    tds.eq(2).text().trim().replace(/^-\s*$/, ''),
+                    tds.eq(3).text().trim().replace(/^-\s*$/, ''),
+                    tds.eq(4).text().trim().replace(/^-\s*$/, ''),
+                    tds.eq(5).text().trim().replace(/^-\s*$/, ''),
+                    tds.eq(6).text().trim(),
+                    tds.eq(7).text().trim().replace(/^-\s*$/, ''),
+                    tds.eq(8).text().trim().replace(/^-\s*$/, '')
                 ];
                 const text = headers.join('\t') + '\n' + cleanValues.join('\t');
                 copyToClipboard(text).then(() => {

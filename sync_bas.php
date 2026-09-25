@@ -449,6 +449,76 @@ function parse_bas_date($date_str) {
     return $time_val ? date('Y-m-d', $time_val) : null;
 }
 
+// ponytail: Helper to get status priority rank (Approved/On Hold > Pending > Submitted > Ongoing > Rejected > Batal)
+function get_status_priority_rank($status) {
+    if (empty($status)) return 0;
+    $s = strtoupper(trim(strval($status)));
+    if (strpos($s, 'APPROV') !== false || strpos($s, 'PASS') !== false || strpos($s, 'COMPLET') !== false || strpos($s, 'HOLD') !== false) {
+        return 100; // Approved and On Hold have highest priority
+    }
+    if (strpos($s, 'PENDING') !== false) {
+        return 80;
+    }
+    if (strpos($s, 'SUBMIT') !== false || strpos($s, 'WAITING') !== false || strpos($s, 'REVIEW') !== false) {
+        return 60;
+    }
+    if (strpos($s, 'ONGOING') !== false || strpos($s, 'PROGRESS') !== false || strpos($s, 'TEST') !== false) {
+        return 40;
+    }
+    if (strpos($s, 'REJECT') !== false || strpos($s, 'FAIL') !== false || strpos($s, 'DROP') !== false) {
+        return 20;
+    }
+    if (strpos($s, 'BATAL') !== false || strpos($s, 'CANCEL') !== false) {
+        return 10;
+    }
+    return 0;
+}
+
+// ponytail: Deduplicate submissions by AP version - prioritizing Approved over Rejected
+$deduped_submissions = [];
+foreach ($submissions as $sub) {
+    if (!is_array($sub)) continue;
+
+    $raw_ap = trim(strval($sub['AP'] ?? $sub['ap'] ?? $sub['ap_version'] ?? $sub['apVersion'] ?? ''));
+    $fingerprint = trim(strval($sub['Fingerprint'] ?? $sub['fingerprint'] ?? $sub['binaryName'] ?? $sub['binary_name'] ?? $sub['build_number'] ?? ''));
+    $ap_ver = extract_ap_version($fingerprint, $raw_ap);
+    $sub_id_val = trim(strval($sub['Id'] ?? $sub['id'] ?? $sub['ID'] ?? $sub['submission_id'] ?? $sub['submissionId'] ?? $sub['Submission ID'] ?? ''), "'\" \t\n\r\0\x0B");
+
+    $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
+    $cur_rank = get_status_priority_rank($raw_status);
+
+    $key = !empty($ap_ver) ? strtoupper($ap_ver) : (!empty($sub_id_val) ? 'SUB_' . $sub_id_val : uniqid('sub_'));
+
+    if (!isset($deduped_submissions[$key])) {
+        $deduped_submissions[$key] = [
+            'sub' => $sub,
+            'rank' => $cur_rank,
+            'id' => $sub_id_val
+        ];
+    } else {
+        // If current candidate has higher priority rank (e.g. Approved vs Rejected), pick candidate
+        if ($cur_rank > $deduped_submissions[$key]['rank']) {
+            $deduped_submissions[$key] = [
+                'sub' => $sub,
+                'rank' => $cur_rank,
+                'id' => $sub_id_val
+            ];
+        } elseif ($cur_rank === $deduped_submissions[$key]['rank']) {
+            // Same priority rank: pick the one with later date / ID
+            $existing_date = $deduped_submissions[$key]['sub']['Submission Date'] ?? $deduped_submissions[$key]['sub']['submission_date'] ?? '';
+            $candidate_date = $sub['Submission Date'] ?? $sub['submission_date'] ?? '';
+            if (strcmp(strval($candidate_date), strval($existing_date)) >= 0) {
+                $deduped_submissions[$key] = [
+                    'sub' => $sub,
+                    'rank' => $cur_rank,
+                    'id' => $sub_id_val
+                ];
+            }
+        }
+    }
+}
+$submissions = array_column($deduped_submissions, 'sub');
+
 foreach ($submissions as $sub) {
     if (!is_array($sub)) continue;
 
@@ -476,12 +546,12 @@ foreach ($submissions as $sub) {
 
     $target_progress_status = null;
 
-    // Comprehensive status normalization from BAS: 'Status' column is primary reference
+    // Comprehensive status normalization from BAS: 'Status' column is primary reference (On Hold is treated as Approved)
     $norm_status_upper = strtoupper($raw_status);
 
     if (strpos($norm_status_upper, 'PENDING') !== false) {
         $target_progress_status = 'Pending Feedback';
-    } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false) {
+    } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
         $target_progress_status = 'Approved';
         if (empty($approved_date)) {
             $approved_date = $sub_date ?: $today_str;
@@ -561,13 +631,19 @@ foreach ($submissions as $sub) {
         $params = [];
 
         // Progress status update (Pending Feedback / Approved / Submitted / Test Ongoing / Rejected)
+        // Never overwrite an already Approved task with lower priority (like Rejected / Batal)
         $final_status = $old_status;
+        $old_status_rank = get_status_priority_rank($old_status);
+        $target_status_rank = get_status_priority_rank($target_progress_status);
+
         if ($target_progress_status !== null && $target_progress_status !== $old_status) {
-            $updates[] = "progress_status = ?";
-            $types .= "s";
-            $params[] = $target_progress_status;
-            $final_status = $target_progress_status;
-            $need_update = true;
+            if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
+                $updates[] = "progress_status = ?";
+                $types .= "s";
+                $params[] = $target_progress_status;
+                $final_status = $target_progress_status;
+                $need_update = true;
+            }
         }
 
         // Update Approved Date directly from table if available
