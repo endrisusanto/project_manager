@@ -502,6 +502,43 @@ function getPicInitials($email) {
             background: rgba(59, 130, 246, 0.12);
             color: #38bdf8;
         }
+
+        /* Mobile Responsive Fullwidth Controls (ponytail + better-ui) */
+        @media (max-width: 767px) {
+            .main-container {
+                padding: 0.625rem 0.5rem !important;
+                gap: 0.625rem !important;
+            }
+            .month-nav-cluster {
+                width: 100% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 0.5rem !important;
+            }
+            .month-nav-cluster form {
+                flex: 1 1 auto !important;
+                display: flex !important;
+            }
+            .month-nav-cluster input[type="month"] {
+                width: 100% !important;
+                text-align: center !important;
+                padding: 0.45rem 0.5rem !important;
+                font-size: 13px !important;
+            }
+            .calendar-filter-group {
+                width: 100% !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 0.5rem !important;
+            }
+            .filter-toggle-pill {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 0.55rem 0.75rem !important;
+                font-size: 12px !important;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -515,43 +552,45 @@ function getPicInitials($email) {
         <div class="glass-panel p-2.5 flex flex-wrap items-center justify-between gap-2.5 flex-shrink-0">
             
             <!-- Left: Title & Month Total Count -->
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 flex-shrink-0">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                </div>
-                <div>
-                    <h1 class="text-base font-bold text-header tracking-tight flex items-center gap-2">
-                        <span><?= date('F Y', $timestamp) ?></span>
-                        <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
-                            <?= $total_month_tasks ?> Task • <?= $total_month_notes ?> Note
-                        </span>
-                    </h1>
+            <div class="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 flex-shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold text-header tracking-tight flex items-center gap-2">
+                            <span><?= date('F Y', $timestamp) ?></span>
+                            <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                                <?= $total_month_tasks ?> Task • <?= $total_month_notes ?> Note
+                            </span>
+                        </h1>
+                    </div>
                 </div>
             </div>
 
-            <!-- Center: Date Pagination Cluster -->
-            <div class="flex items-center gap-1.5">
-                <a href="?month=<?= $prev_month ?>" class="btn-nav-circle" title="Bulan Sebelumnya">
+            <!-- Center: Date Pagination Cluster (Fullwidth on mobile) -->
+            <div class="month-nav-cluster w-full sm:w-auto flex items-center justify-between sm:justify-start gap-1.5">
+                <a href="?month=<?= $prev_month ?>" class="btn-nav-circle shrink-0" title="Bulan Sebelumnya">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </a>
                 
-                <form method="GET" action="" class="flex items-center">
-                    <input type="month" name="month" value="<?= $current_month ?>" onchange="this.form.submit()" class="themed-input py-1 px-2.5 text-xs font-semibold font-mono cursor-pointer">
+                <form method="GET" action="" class="flex-1 sm:flex-initial flex items-center">
+                    <input type="month" name="month" value="<?= $current_month ?>" onchange="this.form.submit()" class="themed-input py-1.5 px-3 text-xs font-semibold font-mono cursor-pointer w-full text-center sm:w-auto">
                 </form>
 
-                <a href="?month=<?= $next_month ?>" class="btn-nav-circle" title="Bulan Berikutnya">
+                <a href="?month=<?= $next_month ?>" class="btn-nav-circle shrink-0" title="Bulan Berikutnya">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </a>
 
                 <?php if ($current_month !== date('Y-m')): ?>
-                    <a href="?month=<?= date('Y-m') ?>" class="px-2 py-1 text-xs font-semibold rounded-md border border-[var(--glass-border)] bg-[var(--card-bg)] text-secondary hover:text-primary transition-colors ml-1">
+                    <a href="?month=<?= date('Y-m') ?>" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-[var(--glass-border)] bg-[var(--card-bg)] text-secondary hover:text-primary transition-colors shrink-0 text-center">
                         Hari Ini
                     </a>
                 <?php endif; ?>
             </div>
 
-            <!-- Right: Filter Toggles -->
-            <div class="flex items-center gap-1.5">
+            <!-- Right: Filter Toggles (Fullwidth 2-column grid on mobile) -->
+            <div class="calendar-filter-group w-full sm:w-auto grid grid-cols-2 sm:flex items-center gap-2 sm:gap-1.5">
                 <div id="filter-task-pill" class="filter-toggle-pill" onclick="toggleFilter('task')">
                     <span class="w-2 h-2 rounded-full bg-blue-400"></span>
                     <span>Task</span>
@@ -786,8 +825,8 @@ function getPicInitials($email) {
     </div>
 
     <!-- Modal: Tambah / Edit Task GBA -->
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden" style="backdrop-filter: blur(8px);">
-        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-3">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden p-2 sm:p-4 overflow-y-auto" style="backdrop-filter: blur(8px);">
+        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-auto max-h-[92dvh] overflow-y-auto">
             <form id="task-form" action="handler.php" method="POST">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-[var(--glass-border)]">
                     <div class="flex items-center gap-2">

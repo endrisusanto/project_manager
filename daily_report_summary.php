@@ -659,6 +659,33 @@ function get_pic_badge_class($pic_name) {
             background: rgba(148, 163, 184, 0.25);
             border-radius: 4px;
         }
+
+        /* Mobile Responsive Adjustments */
+        @media (max-width: 767px) {
+            .metric-subcard {
+                padding: 10px 12px;
+            }
+            .metric-subcard .text-2xl {
+                font-size: 1.25rem;
+                line-height: 1.75rem;
+            }
+            .btn-action-tactile {
+                padding: 7px 12px;
+                font-size: 12px;
+            }
+            .toast-container {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+            }
+            .toast-item {
+                max-width: 100%;
+            }
+            .modal-dialog {
+                max-width: calc(100vw - 24px);
+                margin: 0 12px;
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -679,13 +706,13 @@ function get_pic_badge_class($pic_name) {
                 </p>
             </div>
 
-            <!-- Action Buttons (Strictly Inline & Non-wrapping, overflow visible for floating tooltips) -->
-            <div class="flex items-center gap-2 sm:gap-2.5 flex-nowrap flex-shrink-0 overflow-visible py-0.5">
+            <!-- Action Buttons (Responsive on mobile, inline on desktop) -->
+            <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap flex-shrink-0 overflow-visible py-0.5 w-full lg:w-auto">
                 <!-- Send Mail Button (Left-click: Send | Right-click: Configure) -->
                 <button id="btn-send-email-report" 
                         onclick="handleSendEmailClick()" 
                         oncontextmenu="openEmailConfigModal(event)" 
-                        class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-600/30 group relative flex-shrink-0 whitespace-nowrap"
+                        class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-600/30 group relative flex-1 sm:flex-initial whitespace-nowrap justify-center"
                         title="Klik kiri: Kirim Email Report langsung | Klik kanan: Atur Subject & Penerima">
                     <span id="send-mail-icon-wrap" class="flex items-center justify-center w-4 h-4">
                         <svg id="send-mail-icon" class="w-4 h-4 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -696,8 +723,8 @@ function get_pic_badge_class($pic_name) {
                     <span class="text-[9px] text-sky-100 bg-sky-700/80 px-1.5 py-0.5 rounded font-mono border border-sky-400/30 hidden xl:inline">R-Click ⚙️</span>
                 </button>
 
-                <div class="relative inline-flex flex-shrink-0">
-                    <button id="btn-copy-report" onclick="copyDailyReport()" class="btn-action-tactile bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/30 flex-shrink-0 whitespace-nowrap relative group">
+                <div class="relative inline-flex flex-1 sm:flex-initial flex-shrink-0">
+                    <button id="btn-copy-report" onclick="copyDailyReport()" class="btn-action-tactile bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-600/30 w-full sm:w-auto whitespace-nowrap relative group justify-center">
                         <svg id="copy-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
                         <span id="copy-text">Salin Laporan (Markdown)</span>
                     </button>
@@ -711,7 +738,7 @@ function get_pic_badge_class($pic_name) {
                     </div>
                 </div>
 
-                <button onclick="window.location.reload()" class="btn-action-tactile bg-[var(--metric-bg)] hover:opacity-90 text-secondary hover:text-primary border border-[var(--card-border)] flex-shrink-0" title="Muat ulang data">
+                <button onclick="window.location.reload()" class="btn-action-tactile bg-[var(--metric-bg)] hover:opacity-90 text-secondary hover:text-primary border border-[var(--card-border)] flex-shrink-0 justify-center" title="Muat ulang data">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                     <span class="sr-only sm:not-sr-only sm:inline-block">Refresh</span>
                 </button>
@@ -995,13 +1022,13 @@ function get_pic_badge_class($pic_name) {
                 </div>
 
                 <!-- Search & Filter Controls -->
-                <div class="flex items-center gap-2 flex-wrap">
-                    <div class="relative">
-                        <input type="text" id="task-search-input" placeholder="Cari model, PIC, test plan..." class="px-3 py-1.5 pl-8 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)] text-primary placeholder-[var(--text-secondary)] focus:outline-none focus:border-indigo-500 transition-colors w-48 sm:w-64" onkeyup="filterActiveTasksTable()">
+                <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                    <div class="relative flex-1 sm:flex-initial w-full sm:w-auto">
+                        <input type="text" id="task-search-input" placeholder="Cari model, PIC, test plan..." class="px-3 py-1.5 pl-8 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)] text-primary placeholder-[var(--text-secondary)] focus:outline-none focus:border-indigo-500 transition-colors w-full sm:w-64" onkeyup="filterActiveTasksTable()">
                         <svg class="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     </div>
                     
-                    <select id="status-filter-select" onchange="filterActiveTasksTable()" class="px-3 py-1.5 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)] text-primary focus:outline-none focus:border-indigo-500">
+                    <select id="status-filter-select" onchange="filterActiveTasksTable()" class="px-3 py-1.5 rounded-xl text-xs bg-[var(--input-bg)] border border-[var(--input-border)] text-primary focus:outline-none focus:border-indigo-500 w-full sm:w-auto">
                         <option value="ALL" class="bg-[var(--bg-primary)] text-primary">Semua Status</option>
                         <option value="Test Ongoing" class="bg-[var(--bg-primary)] text-primary">Test Ongoing</option>
                         <option value="Task Baru" class="bg-[var(--bg-primary)] text-primary">Task Baru</option>
@@ -1013,7 +1040,7 @@ function get_pic_badge_class($pic_name) {
 
             <!-- Table Responsive Container -->
             <div class="overflow-x-auto rounded-xl border border-[var(--card-border)] custom-scroll">
-                <table class="w-full text-left text-xs" id="active-tasks-table">
+                <table class="w-full text-left text-xs min-w-[640px]" id="active-tasks-table">
                     <thead class="bg-[var(--table-header-bg)] text-secondary uppercase tracking-wider text-[10px] border-b border-[var(--card-border)]">
                         <tr>
                             <th class="py-3 px-3.5">Model & Build Specs</th>

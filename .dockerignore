@@ -1,0 +1,10 @@
+# Exclude heavy folders and build artifacts
+desktop-bridge
+desktop-bridge/
+.git
+.github
+.vscode
+node_modules
+mcp-server/node_modules
+*.md
+*.sql

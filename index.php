@@ -283,6 +283,10 @@ function render_kinerja_status($task) {
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s, border-color 0.18s;
+            touch-action: pan-y;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         .task-card:hover {
             transform: translateY(-2.5px);
@@ -291,18 +295,71 @@ function render_kinerja_status($task) {
         }
         .task-card:active {
             cursor: grabbing;
-            transform: scale(0.985);
         }
         .sortable-chosen {
-            transform: rotate(1.2deg) scale(1.02);
-            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.35);
-            z-index: 50;
+            transform: scale(1.03) translateY(-4px) !important;
+            box-shadow: 0 20px 36px -4px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(59, 130, 246, 0.6) !important;
+            border-color: rgba(59, 130, 246, 0.8) !important;
+            z-index: 100 !important;
         }
         .sortable-ghost {
             opacity: 0.45;
             background: rgba(59, 130, 246, 0.08) !important;
             border: 1.5px dashed #3b82f6 !important;
             border-radius: 12px !important;
+        }
+
+        /* Emil Design Eng + Better UI: Mobile Horizontal Kanban Scroll Track */
+        @media (max-width: 767px) {
+            main {
+                height: calc(100% - 64px);
+                overflow: hidden !important;
+                padding: 10px 12px 14px 12px !important;
+            }
+            .kanban-board-container {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x mandatory;
+                scroll-behavior: smooth;
+                gap: 12px !important;
+                padding-bottom: 6px !important;
+                height: 100% !important;
+            }
+            .kanban-column-wrapper {
+                flex: 0 0 84vw !important;
+                max-width: 330px !important;
+                min-width: 270px !important;
+                scroll-snap-align: center;
+                scroll-snap-stop: normal;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .kanban-column {
+                flex: 1 1 0% !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior-y: contain;
+                touch-action: pan-y;
+            }
+            .kanban-board-container::-webkit-scrollbar {
+                height: 4px;
+            }
+            .kanban-board-container::-webkit-scrollbar-track {
+                background: rgba(0, 0, 0, 0.1);
+                border-radius: 4px;
+            }
+            .kanban-board-container::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+            }
+            html.light .kanban-board-container::-webkit-scrollbar-thumb {
+                background: rgba(0, 0, 0, 0.2);
+            }
         }
         html.light .sortable-ghost {
             background: rgba(59, 130, 246, 0.05) !important;
@@ -435,10 +492,10 @@ function render_kinerja_status($task) {
     <?php include 'header.php'; ?>
 
     <main class="w-full p-4 sm:p-6 lg:p-8 flex-grow">
-        <!-- MODIFIKASI: Menggunakan grid-cols-8 untuk menampung seluruh status tanpa wrap pada layar lebar (Passed disembunyikan) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-2.5 h-full">
+        <!-- MODIFIKASI: Menggunakan grid-cols-8 untuk menampung seluruh status tanpa wrap pada layar lebar (Passed disembunyikan), flex horizontal scroll pada mobile -->
+        <div class="kanban-board-container grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-8 gap-2.5 h-full">
             <?php foreach ($statuses as $status): ?>
-            <div class="flex flex-col">
+            <div class="kanban-column-wrapper flex flex-col">
                 
                 <div class="kanban-column-header">
                     <div class="column-pill-header">
@@ -462,16 +519,24 @@ function render_kinerja_status($task) {
                         $cp_version = trim($task['cp'] ?? '');
                         $cp_class = (!empty($ap_version) && !empty($cp_version) && $ap_version !== $cp_version) ? 'text-red-400 font-bold glow-highlight-red' : '';
                         $marketing_title = !empty($task['project_name']) ? $task['project_name'] : (function_exists('get_marketing_name') ? get_marketing_name($task['model_name']) : $task['model_name']);
+                        $is_laundry = function_exists('is_laundry_task') && is_laundry_task($task);
+                        $collapse_ap_class = $is_laundry 
+                            ? 'starlight-shimmer-text font-mono font-extrabold text-[13.5px] sm:text-[14.5px] tracking-tight break-all select-all leading-snug' 
+                            : 'font-extrabold text-[13.5px] sm:text-[14.5px] text-primary font-mono tracking-tight break-all select-all leading-snug';
+                        $expand_title_class = $is_laundry 
+                            ? 'starlight-shimmer-text font-bold text-xs leading-snug marketing-name truncate' 
+                            : 'font-bold text-xs leading-snug text-card-title marketing-name truncate';
                     ?>
                     <div id="task-<?= $task['id'] ?>" data-id="<?= $task['id'] ?>" data-task='<?= json_encode($task, JSON_HEX_APOS | JSON_HEX_QUOT) ?>' class="<?= $cardClasses ?>">
                         <div class="task-card-inner p-3.5">
                             <!-- Compact Summary (when in accordion summary mode) -->
                             <div class="accordion-summary">
-                               <!-- Full-Width Big AP Version -->
-                               <div class="mb-1">
-                                    <h4 class="font-extrabold text-[14px] sm:text-[15px] text-primary font-mono tracking-tight break-all select-all w-full leading-snug" title="<?= htmlspecialchars($task['ap'] ?: 'N/A') ?>">
+                               <!-- Full-Width Big AP Version & Animated AI Stars Icon Beside Title -->
+                               <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                                    <h4 class="<?= $collapse_ap_class ?>" title="<?= htmlspecialchars($task['ap'] ?: 'N/A') ?>">
                                         <?= htmlspecialchars($task['ap'] ?: 'N/A') ?>
                                     </h4>
+                                    <?php if (function_exists('render_laundry_icon')) echo render_laundry_icon($task, 'inline-flex items-center flex-shrink-0 align-middle', 'w-4 h-4 sm:w-4.5 sm:h-4.5'); ?>
                                </div>
                                <!-- Low Opacity / Samar Marketing Name & PIC Avatar -->
                                <div class="flex justify-between items-center gap-1.5 mt-0.5 mb-1.5">
@@ -499,7 +564,7 @@ function render_kinerja_status($task) {
                                 <!-- Top Full-Width Action Header with Separator Line -->
                                 <div class="flex justify-between items-center pb-1.5 mb-2 border-b border-[var(--glass-border)]">
                                     <span class="text-[10px] font-mono font-semibold text-secondary/70 tracking-wider">#<?= $task['id'] ?></span>
-                                    <div class="flex items-center gap-1">
+                                    <div class="flex items-center gap-1.5">
                                         <button onclick="toggleUrgent(event, this, <?= $task['id'] ?>)" title="Tandai sebagai Urgent" class="card-action-btn <?= $task['is_urgent'] ? 'text-red-400 bg-red-500/15' : 'text-icon hover:text-red-400' ?>">
                                             <svg class="h-3.5 w-3.5 <?= $task['is_urgent'] ? 'fill-red-400' : '' ?>" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd" /></svg>
                                         </button>
@@ -514,9 +579,12 @@ function render_kinerja_status($task) {
 
                                 <!-- Full-Width Title & Model Name -->
                                 <div class="mb-2">
-                                    <h3 class="font-bold text-xs leading-snug text-card-title marketing-name truncate" title="<?= htmlspecialchars($marketing_title) ?>">
-                                        <?= htmlspecialchars($marketing_title) ?>
-                                    </h3>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h3 class="<?= $expand_title_class ?>" title="<?= htmlspecialchars($marketing_title) ?>">
+                                            <?= htmlspecialchars($marketing_title) ?>
+                                        </h3>
+                                        <?php if (function_exists('render_laundry_icon')) echo render_laundry_icon($task, 'inline-flex items-center flex-shrink-0 align-middle', 'w-3.5 h-3.5 sm:w-4 sm:h-4'); ?>
+                                    </div>
                                     <p class="text-[11px] font-mono font-medium text-secondary model-name mt-0.5 truncate" title="<?= htmlspecialchars($task['model_name']) ?>"><?= htmlspecialchars($task['model_name']) ?></p>
                                 </div>
 
@@ -556,8 +624,8 @@ function render_kinerja_status($task) {
         </div>
     </main>
     
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm hidden">
-        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-3">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm hidden p-2 sm:p-4 overflow-y-auto">
+        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-auto max-h-[92dvh] overflow-y-auto">
             <form id="task-form" action="handler.php" method="POST">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-[var(--glass-border)]">
                     <div class="flex items-center gap-2">
@@ -796,19 +864,33 @@ function render_kinerja_status($task) {
         if (modal) modal.classList.remove('modal-closing', 'hidden'); 
     }
     
-    // Emil Design Eng + Ponytail: Quick Action Right-Click on Kanban Card directly opens Modal
+    // Track active touch interaction to prevent long-press on mobile from triggering right-click edit modal
+    let lastTouchStartTime = 0;
+    window.addEventListener('touchstart', function() {
+        lastTouchStartTime = Date.now();
+    }, { passive: true });
+
+    // Desktop only: Quick Action Right-Click on Kanban Card directly opens Modal
     document.addEventListener('contextmenu', function(e) {
         const card = e.target.closest('.task-card');
         if (!card) return;
         
+        // Always prevent default native context menu on kanban card (especially on long-press touch)
+        e.preventDefault();
+
         // Ignore right click inside modal or on action buttons/forms
         if (e.target.closest('#task-modal') || e.target.closest('.card-action-btn') || e.target.closest('form')) {
             return;
         }
+
+        // Check if contextmenu was triggered by touch or recent touch (long-press on mobile)
+        const isTouch = (e.pointerType === 'touch') || (Date.now() - lastTouchStartTime < 800) || ('ontouchstart' in window && window.innerWidth < 768);
+        if (isTouch) {
+            // On mobile / touch devices, long-press is strictly dedicated to Sortable drag & drop
+            return;
+        }
         
-        e.preventDefault();
-        
-        // Tactile micro-animation feedback on right click
+        // Desktop mouse right-click: Tactile micro-animation feedback
         card.style.transform = 'scale(0.98)';
         setTimeout(() => {
             card.style.transform = '';
@@ -1045,12 +1127,21 @@ function render_kinerja_status($task) {
             columns.forEach(column => {
                 new Sortable(column, {
                     group: 'kanban',
-                    animation: 180,
+                    animation: 200,
+                    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
                     ghostClass: 'sortable-ghost',
                     chosenClass: 'sortable-chosen',
                     dragClass: 'sortable-drag',
-                    emptyInsertThreshold: 15,
-                    fallbackTolerance: 3,
+                    emptyInsertThreshold: 20,
+                    fallbackTolerance: 4,
+                    delay: 300,             // 300ms long-press required on touch to prevent accidental drag during scroll
+                    delayOnTouchOnly: true, // Desktop mouse drags immediately
+                    touchStartThreshold: 6, // Prevents scroll hijacking on mobile
+                    onChoose: function () {
+                        if (window.navigator && window.navigator.vibrate) {
+                            try { window.navigator.vibrate(35); } catch(e) {}
+                        }
+                    },
                     onStart: function () {
                         document.body.classList.add('is-dragging-card');
                     },

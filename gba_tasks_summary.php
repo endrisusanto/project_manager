@@ -179,6 +179,27 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         :root{--bg-primary:#020617;--text-primary:#e2e8f0;--text-secondary:#94a3b8;--glass-bg:rgba(15,23,42,.4);--glass-border:rgba(51,65,85,.4);--modal-bg:rgba(15,23,42,0.96);--modal-border:rgba(51,65,85,0.6);--input-bg:rgba(30,41,59,.7);--input-border:#475569;--progress-bg:#1e293b;--progress-fill:#3b82f6;--toast-bg:#22c55e;--toast-text:#fff;--filter-btn-bg:rgba(255,255,255,.05);--filter-btn-bg-active:#2563eb;--text-header:#fff;--text-icon:#94a3b8}
         html.light{--bg-primary:#f1f5f9;--text-primary:#0f172a;--text-secondary:#475569;--glass-bg:rgba(255,255,255,.7);--glass-border:rgba(0,0,0,.08);--modal-bg:#ffffff;--modal-border:rgba(0,0,0,.12);--input-bg:#fff;--input-border:#cbd5e1;--progress-bg:#e2e8f0;--toast-bg:#16a34a;--filter-btn-bg:rgba(0,0,0,.05);--text-header:#0f172a;--text-icon:#475569}
         html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;background-color:var(--bg-primary);color:var(--text-primary)}html,body{height:100%;overflow:hidden}main{height:calc(100% - 64px)}.table-container{scroll-behavior:smooth}#neural-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1}.glass-container{background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--glass-border)}.glassmorphism-table{background:var(--glass-bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border)}.glassmorphism-modal,.modal-content-wrapper{background:var(--modal-bg)!important;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--modal-border)!important;color:var(--text-primary);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5)}
+        @media (max-width: 767px) {
+            html, body {
+                height: auto !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            main {
+                height: auto !important;
+                min-height: calc(100dvh - 64px) !important;
+                overflow: visible !important;
+            }
+            .table-container {
+                overflow-y: visible !important;
+                padding-bottom: 3rem !important;
+            }
+            .kpi-card {
+                padding: 0.65rem 0.85rem !important;
+                border-radius: 0.75rem !important;
+            }
+        }
         .nav-link{color:var(--text-secondary);transition:color .2s,border-color .2s;border-bottom:2px solid transparent}.nav-link:hover{color:var(--text-primary)}.nav-link-active{color:var(--text-primary)!important;font-weight:500;border-bottom:2px solid #3b82f6}.themed-input{background-color:var(--input-bg);border:1px solid var(--input-border)}html.light .themed-input,html.light .ql-editor{color:var(--text-primary)}.themed-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.5)}input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(var(--date-picker-invert,1))}html.light{--date-picker-invert:0}.ql-toolbar,.ql-container{border-color:var(--glass-border)!important}.ql-editor{color:var(--text-primary);min-height:100px}.ql-snow .ql-stroke{stroke:var(--text-icon)}.ql-snow .ql-picker-label{color:var(--text-icon)}
         .progress-bar-bg{background-color:var(--progress-bg)}.progress-bar-fill{background-color:var(--progress-fill);transition:width .6s ease-in-out;background-image:linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);background-size:1rem 1rem;animation:progress-bar-stripes 1s linear infinite}@keyframes progress-bar-stripes{from{background-position:1rem 0}to{background-position:0 0}}.progress-text{font-size:10px;font-weight:700;padding:0 6px;border-radius:4px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.75)}
         #toast{position:fixed;bottom:-100px;left:50%;transform:translateX(-50%);background-color:var(--toast-bg);color:var(--toast-text);padding:12px 20px;border-radius:8px;z-index:1000;transition:bottom .5s ease-in-out}#toast.show{bottom:30px}
@@ -369,20 +390,20 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         </div>
 
         <!-- Toolbar Section -->
-        <div class="px-4 sm:px-6 lg:px-8 pt-3 pb-3">
-            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-3 backdrop-blur-md shadow-sm">
-                <!-- Test Plan Pills -->
-                <div id="testplan-filter-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+        <div class="px-4 sm:px-6 lg:px-8 pt-3 pb-2.5">
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-2.5 sm:p-3 backdrop-blur-md shadow-sm">
+                <!-- Test Plan Pills (Horizontal swipe track on mobile) -->
+                <div id="testplan-filter-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none overscroll-x-contain shrink-0 max-w-full">
                     <button class="filter-button active" data-plan="All">Semua</button>
                     <?php foreach($all_test_plans as $plan): ?>
                         <button class="filter-button" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
                     <?php endforeach; ?>
                 </div>
 
-                <!-- Controls & Action Buttons -->
-                <div class="flex flex-wrap items-center gap-2.5 ml-auto">
+                <!-- Controls & Action Buttons (Clean wrap on mobile) -->
+                <div class="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-start lg:justify-end">
                     <!-- Status Filter -->
-                    <select id="status-filter" class="themed-input h-9 px-3 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
+                    <select id="status-filter" class="themed-input h-8 sm:h-9 px-2.5 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
                         <option value="All">Semua Status</option>
                         <?php foreach($all_statuses as $status): ?>
                             <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
@@ -390,16 +411,16 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     </select>
 
                     <!-- Export Excel -->
-                    <a id="export-button" href="export_handler.php" class="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a id="export-button" href="export_handler.php" class="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <span>Export Excel</span>
                     </a>
 
                     <!-- Export All AP -->
-                    <a id="export-latest-ap-button" href="export_latest_ap.php" class="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a id="export-latest-ap-button" href="export_latest_ap.php" class="h-8 sm:h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         <span>Export All AP</span>
@@ -424,8 +445,8 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
                         title="Copy all QB Build IDs for New Tasks (Semua Plan)"
-                        class="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                         <span>Copy QB ID Baru</span>
@@ -453,17 +474,16 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     <button onclick="copyActiveTasksBuilds(event, this)"
                         data-build-info="<?= htmlspecialchars($summary_active_builds_str) ?>"
                         title="Copy Model, AP, CSC, CP untuk task status Task Baru, Downloaded, Ongoing, Pending Feedback, Feedback Sent, Submitted"
-                        class="h-9 px-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="h-8 sm:h-9 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                         </svg>
                         <span>Build HomeBinary</span>
                     </button>
 
                     <!-- Rows Selector -->
-                    <div class="flex items-center gap-1.5 text-xs text-secondary">
-                        <span class="hidden sm:inline">Baris:</span>
-                        <select id="pagination-rows" class="themed-input h-9 px-2.5 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
+                    <div class="flex items-center gap-1 text-xs text-secondary">
+                        <select id="pagination-rows" class="themed-input h-8 sm:h-9 px-2 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer" title="Jumlah Baris">
                             <option value="10">10</option>
                             <option value="30" selected>30</option>
                             <option value="50">50</option>
@@ -474,10 +494,10 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             </div>
         </div>
         
-        <!-- Table Container -->
-        <div class="flex-grow overflow-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
-            <div class="glassmorphism-table rounded-2xl border border-[var(--glass-border)] overflow-hidden shadow-sm backdrop-blur-md">
-                <table class="w-full text-xs sm:text-sm text-left border-collapse">
+        <!-- Table Container with Horizontal Scroll on Mobile -->
+        <div class="flex-grow overflow-x-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
+            <div class="glassmorphism-table rounded-2xl border border-[var(--glass-border)] shadow-sm backdrop-blur-md overflow-x-auto overscroll-x-contain">
+                <table class="w-full min-w-[980px] text-xs sm:text-sm text-left border-collapse">
                     <thead>
                         <tr class="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                             <th class="py-3.5 px-3 text-center sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md">No.</th>
@@ -832,6 +852,22 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             return map[status] || 'bg-slate-500 shadow-sm shadow-slate-500/50';
         }
 
+        function isLaundryTaskJs(task) {
+            if (!task) return false;
+            const tp = (task.test_plan_type || '').toUpperCase().trim();
+            const isEligible = tp.includes('NORMAL') || tp.includes('SKU') || tp.includes('SMR') || tp === 'MR';
+            if (!isEligible) return false;
+            const subId = (task.submission_id || '').toString().trim();
+            const baseSubId = (task.base_submission_id || '').toString().trim();
+            return (subId && subId !== '-' && subId !== '0') || (baseSubId && baseSubId !== '-' && baseSubId !== '0');
+        }
+
+        function renderLaundryBadgeJs(task) {
+            if (!isLaundryTaskJs(task)) return '';
+            const uniqueId = 'laundry_js_' + (task.id || '') + '_' + Math.random().toString(36).substr(2, 6);
+            return `<div class="mt-1"><span class="badge-laundry inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-none font-bold bg-sky-500/10 text-sky-400 border border-sky-400/25 shadow-none" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode)"><svg class="w-4 h-4 laundry-sparkle-anim flex-shrink-0" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="${uniqueId}_grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs><path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-main"/><path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-sec"/><path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/></svg><span class="starlight-shimmer-text font-bold text-[11px] sm:text-xs">Laundry</span></span></div>`;
+        }
+
         function buildTableRows(tasks, startIndex) {
             tableBody.innerHTML = '';
             if (tasks.length === 0) {
@@ -857,6 +893,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                 const udBadge = isUdRequired 
                     ? `<div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>` 
                     : '';
+                const laundryBadge = renderLaundryBadgeJs(task);
                 const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link font-medium">${task.qb_user}</a></div>` : '';
                 const qbUserdebugLink = task.qb_userdebug ? `<div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link font-medium">${task.qb_userdebug}</a></div>` : '';
                 
@@ -923,7 +960,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                                 <div><span class="text-secondary/70">CSC:</span> <span class="copy-text cursor-pointer text-primary font-medium" title="Klik kanan untuk copy">${task.csc || '-'}</span></div>
                             </div>
                         </td>
-                        <td class="py-3 px-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}${udBadge}</td>
+                        <td class="py-3 px-3 text-xs text-secondary font-mono">${qbUserLink}${qbUserdebugLink}${udBadge}${laundryBadge}</td>
                         <td class="py-3 px-3"><span class="badge ${task.pic_color_class} font-medium">${task.pic_email || 'N/A'}</span></td>
                         <td class="py-3 px-3"><span class="${planBadgeClass}">${task.test_plan_type || 'N/A'}</span></td>
                         <td class="py-3 px-3">

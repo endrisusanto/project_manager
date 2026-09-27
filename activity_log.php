@@ -336,6 +336,63 @@ function getPicInitials($email) {
             background: rgba(0, 0, 0, 0.04);
             border-color: rgba(0, 0, 0, 0.08);
         }
+
+        /* Mobile Compact Timeline Optimization */
+        @media (max-width: 767px) {
+            .main-container {
+                padding: 0.625rem 0.5rem !important;
+            }
+            .timeline-container {
+                padding-left: 1.25rem !important;
+            }
+            .timeline-container::before {
+                left: 5px !important;
+            }
+            .timeline-node {
+                left: -1.25rem !important;
+                top: 10px !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
+            .node-dot {
+                width: 6px !important;
+                height: 6px !important;
+            }
+            .timeline-item {
+                margin-bottom: 0.625rem !important;
+            }
+            .timeline-item .glass-card {
+                padding: 0.625rem 0.75rem !important;
+                border-radius: 0.75rem !important;
+            }
+            .action-badge {
+                font-size: 10px !important;
+                padding: 1px 6px !important;
+            }
+            .task-chip {
+                font-size: 10px !important;
+                padding: 1px 5px !important;
+            }
+            .diff-chip {
+                font-size: 9.5px !important;
+                padding: 1px 5px !important;
+            }
+            .activity-details {
+                padding-left: 0 !important;
+                font-size: 11px !important;
+                line-height: 1.35 !important;
+            }
+            .profile-img {
+                width: 18px !important;
+                height: 18px !important;
+            }
+            .log-header-title {
+                font-size: 13px !important;
+            }
+            .log-header-desc {
+                font-size: 10.5px !important;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -351,8 +408,8 @@ function getPicInitials($email) {
                 <div class="flex items-center gap-3">
                     <div class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>
                     <div>
-                        <h1 class="text-base font-bold text-header tracking-tight">Activity Timeline Log</h1>
-                        <p class="text-xs text-secondary mt-0.5">Memantau riwayat aktivitas dan pembaruan task secara real-time</p>
+                        <h1 class="text-base font-bold text-header tracking-tight log-header-title">Activity Timeline Log</h1>
+                        <p class="text-xs text-secondary mt-0.5 log-header-desc">Memantau riwayat aktivitas dan pembaruan task secara real-time</p>
                     </div>
                     <span id="log-counter" class="ml-auto md:ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30">
                         <?= count($logs) ?> logs
@@ -414,13 +471,13 @@ function getPicInitials($email) {
                             <!-- Header: Action Badge, Target Task & Relative Time -->
                             <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[var(--glass-border)]">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $meta['badge'] ?>">
+                                    <span class="action-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $meta['badge'] ?>">
                                         <?= $meta['icon'] ?>
                                         <?= htmlspecialchars($meta['label']) ?>
                                     </span>
 
                                     <?php if ($model_name || $task_ap): ?>
-                                        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-mono bg-white/5 border border-white/10 text-primary font-medium">
+                                        <div class="task-chip inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-mono bg-white/5 border border-white/10 text-primary font-medium">
                                             <?php if ($model_name): ?>
                                                 <span><?= htmlspecialchars($model_name) ?></span>
                                             <?php endif; ?>
@@ -452,7 +509,7 @@ function getPicInitials($email) {
                                 </div>
 
                                 <!-- Activity Details -->
-                                <div class="text-xs leading-relaxed text-secondary pl-7">
+                                <div class="activity-details text-xs leading-relaxed text-secondary pl-7">
                                     <?php
                                     $details_string = $log['details'];
                                     

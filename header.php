@@ -630,6 +630,26 @@ $hdr_bas_status = get_header_bas_status();
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
+    @media (max-width: 767px) {
+        .nav-pill-group,
+        #theme-toggle,
+        #header-bas-badge,
+        .hdr-desktop-only,
+        .hdr-btn-primary,
+        .hdr-btn-emerald,
+        .hdr-btn-purple {
+            display: none !important;
+        }
+    }
+    @media (min-width: 768px) {
+        .hdr-desktop-only {
+            display: inline-flex !important;
+        }
+        #mobile-nav-toggle,
+        #mobile-nav-drawer {
+            display: none !important;
+        }
+    }
     html.light .nav-pill-group {
         background: rgba(0, 0, 0, 0.03);
         border-color: rgba(0, 0, 0, 0.05);
@@ -879,6 +899,34 @@ $hdr_bas_status = get_header_bas_status();
         box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
     }
 
+    /* Mobile Navigation Drawer styles (Mobile view only) */
+    @media (max-width: 767px) {
+        #mobile-nav-drawer.nav-open {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        #mobile-nav-drawer.nav-open #mobile-nav-panel {
+            transform: translateX(0) !important;
+        }
+    }
+    html.light #mobile-nav-panel {
+        background: #ffffff !important;
+        border-color: #e2e8f0 !important;
+    }
+    html.light #mobile-nav-panel .mobile-nav-header {
+        border-color: #f1f5f9 !important;
+    }
+    html.light #mobile-nav-panel .mobile-title {
+        color: #0f172a !important;
+    }
+    html.light #mobile-nav-panel a:not([class*="bg-sky"]) {
+        color: #475569 !important;
+    }
+    html.light #mobile-nav-panel a:not([class*="bg-sky"]):hover {
+        background: #f8fafc !important;
+        color: #0f172a !important;
+    }
+
     .profile-user-card {
         background: rgba(30, 41, 59, 0.6);
         border: 1px solid rgba(51, 65, 85, 0.4);
@@ -984,13 +1032,306 @@ $hdr_bas_status = get_header_bas_status();
             transform: scale(1) translateY(0);
         }
     }
+
+    /* Laundry Badge Animation (Ponytail + Emil Design Eng) */
+    .badge-laundry {
+        background: rgba(14, 165, 233, 0.14);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.12);
+        user-select: none;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        line-height: 1;
+    }
+    .badge-laundry:hover {
+        background: rgba(14, 165, 233, 0.22);
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.28);
+        transform: translateY(-0.5px);
+    }
+    html.light .badge-laundry {
+        background: #e0f2fe;
+        color: #0284c7;
+        border-color: #bae6fd;
+        box-shadow: 0 1px 4px rgba(2, 132, 199, 0.1);
+    }
+
+    @keyframes laundryStarPulse {
+        0%, 100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 0.9;
+        }
+        50% {
+            transform: scale(1.12) rotate(6deg);
+            opacity: 1;
+        }
+    }
+
+    @keyframes laundryStarTwinkle {
+        0%, 100% {
+            transform: scale(0.85);
+            opacity: 0.7;
+        }
+        50% {
+            transform: scale(1.18);
+            opacity: 1;
+        }
+    }
+
+    .laundry-sparkle-anim {
+        display: inline-block;
+        vertical-align: middle;
+        transform-origin: center;
+        will-change: transform, opacity;
+        filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.45));
+    }
+    .laundry-sparkle-anim .laundry-star-main {
+        transform-origin: 14px 12px;
+        animation: laundryStarPulse 2.8s ease-in-out infinite;
+    }
+    .laundry-sparkle-anim .laundry-star-sec {
+        transform-origin: 5px 6px;
+        animation: laundryStarTwinkle 2.8s ease-in-out infinite 0.5s;
+    }
+    .laundry-sparkle-anim .laundry-star-tert {
+        transform-origin: 6px 19px;
+        animation: laundryStarTwinkle 2.8s ease-in-out infinite 1s;
+    }
+
+    /* --- Emil Kowalski Inspired Starlight Shimmer Effect --- */
+    .starlight-shimmer-text {
+        background: linear-gradient(
+            110deg,
+            #38bdf8 0%,
+            #38bdf8 20%,
+            #a5f3fc 38%,
+            #ffffff 50%,
+            #a5f3fc 62%,
+            #818cf8 80%,
+            #38bdf8 100%
+        );
+        background-size: 220% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: starlightShimmerSweep 5s linear infinite;
+        filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.45));
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    html.light .starlight-shimmer-text {
+        background: linear-gradient(
+            110deg,
+            #0369a1 0%,
+            #0284c7 20%,
+            #0284c7 35%,
+            #38bdf8 50%,
+            #0284c7 65%,
+            #1d4ed8 80%,
+            #0369a1 100%
+        );
+        background-size: 220% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 2px rgba(2, 132, 199, 0.35));
+    }
+
+    @keyframes starlightShimmerSweep {
+        0% {
+            background-position: 220% center;
+        }
+        100% {
+            background-position: -220% center;
+        }
+    }
+
+    /* --- Orbit Label: Starlight Shimmer Text with Twin-Glint (4.2s Cycle) --- */
+    .orbit-sync-badge {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 9999px;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        overflow: hidden;
+        user-select: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    html.light .orbit-sync-badge {
+        background: rgba(240, 249, 255, 0.85);
+        border: 1px solid rgba(14, 165, 233, 0.28);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .orbit-sync-badge:hover {
+        border-color: rgba(56, 189, 248, 0.45);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    }
+
+    /* Color fallback first (guarantees readability on unsupported browsers) */
+    .orbit-shimmer-text {
+        font-family: inherit;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        line-height: 1.1;
+        color: #38bdf8;
+        display: inline-block;
+        white-space: nowrap;
+    }
+
+    html.light .orbit-shimmer-text {
+        color: #0284c7;
+    }
+
+    /* Gated Background-Clip Text Shimmer with Twin-Glint Peak */
+    @supports ((background-clip: text) or (-webkit-background-clip: text)) {
+        .orbit-shimmer-text {
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            background-image: linear-gradient(
+                105deg,
+                rgba(148, 163, 184, 0.75) 0%,
+                rgba(56, 189, 248, 0.9) 14%,
+                #ffffff 22%,
+                rgba(56, 189, 248, 0.95) 30%,
+                rgba(148, 163, 184, 0.75) 42%,
+                rgba(56, 189, 248, 0.9) 56%,
+                #ffffff 64%,
+                rgba(56, 189, 248, 0.95) 72%,
+                rgba(148, 163, 184, 0.75) 100%
+            );
+            background-size: 230% 100%;
+            background-repeat: no-repeat;
+            animation: orbitTwinGlint 4.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+        }
+
+        html.light .orbit-shimmer-text {
+            background-image: linear-gradient(
+                105deg,
+                #0369a1 0%,
+                #0284c7 14%,
+                #38bdf8 22%,
+                #0369a1 30%,
+                #0284c7 42%,
+                #0369a1 56%,
+                #38bdf8 64%,
+                #0284c7 72%,
+                #0369a1 100%
+            );
+        }
+    }
+
+    /* 4.2s Twin-Glint Keyframe: 
+       ~14% first peak (12px glow), 
+       ~44% second peak (12px glow), 
+       58%-100% long quiet notification hold */
+    @keyframes orbitTwinGlint {
+        0% {
+            background-position: 100% center;
+            filter: drop-shadow(0 0 1px rgba(56, 189, 248, 0.15));
+        }
+        14% {
+            /* First Glint Peak (~14%) */
+            background-position: 72% center;
+            filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.85));
+        }
+        25% {
+            /* Brief dip */
+            background-position: 55% center;
+            filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.25));
+        }
+        44% {
+            /* Second Glint Peak (~44%) */
+            background-position: 24% center;
+            filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.95));
+        }
+        58%, 100% {
+            /* Long Quiet Hold (Active notification ping hold) */
+            background-position: 0% center;
+            filter: drop-shadow(0 0 1px rgba(56, 189, 248, 0.1));
+        }
+    }
+
+    /* Separate aria-hidden Sparkle Layer */
+    .orbit-sparkles-layer {
+        display: inline-flex;
+        align-items: center;
+        pointer-events: none;
+    }
+
+    .orbit-sparkle-1 {
+        transform-origin: center;
+        animation: orbitSparklePulse1 4.2s ease-in-out infinite;
+    }
+
+    .orbit-sparkle-2 {
+        transform-origin: center;
+        animation: orbitSparklePulse2 4.2s ease-in-out infinite;
+    }
+
+    @keyframes orbitSparklePulse1 {
+        0%, 8%, 22%, 100% {
+            transform: scale(0.75);
+            opacity: 0.35;
+        }
+        14% {
+            transform: scale(1.3) rotate(12deg);
+            opacity: 1;
+            filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.9));
+        }
+    }
+
+    @keyframes orbitSparklePulse2 {
+        0%, 36%, 52%, 100% {
+            transform: scale(0.75);
+            opacity: 0.35;
+        }
+        44% {
+            transform: scale(1.3) rotate(-12deg);
+            opacity: 1;
+            filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.9));
+        }
+    }
+
+    /* Reduced motion accessibility */
+    @media (prefers-reduced-motion: reduce) {
+        .laundry-sparkle-anim,
+        .laundry-sparkle-anim *,
+        .starlight-shimmer-text,
+        .orbit-shimmer-text,
+        .orbit-sparkle-1,
+        .orbit-sparkle-2 {
+            animation: none !important;
+            background-position: 22% center !important;
+            filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.4)) !important;
+        }
+    }
 </style>
 
 <header class="app-header sticky top-0 z-30 shadow-sm flex-shrink-0">
-    <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="w-full mx-auto px-3 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
-            <!-- Left: Navigation Segmented Control -->
-            <div class="flex items-center">
+            <!-- Left: Mobile Menu Toggle & Navigation Segmented Control -->
+            <div class="flex items-center gap-2">
+                <button id="mobile-nav-toggle" type="button" class="md:hidden hdr-icon-btn" title="Buka Menu Navigasi" aria-label="Buka Menu Navigasi">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
                 <nav class="hidden md:flex nav-pill-group" aria-label="Main Navigation">
                     <a href="index.php"
                         class="<?php echo ($active_page === 'project_dashboard') ? 'nav-link-active' : 'nav-link'; ?>">Kanban</a>
@@ -1017,7 +1358,7 @@ $hdr_bas_status = get_header_bas_status();
             </div>
 
             <!-- Right: Actions, Search, View, Theme, Profile -->
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1 sm:space-x-2">
                 <?php if (in_array($active_page, ['project_dashboard', 'gba_tasks', 'gba_tasks_summary'])): ?>
                     <button id="sl-trigger" title="Cari (Ctrl+K)">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8">
@@ -1045,7 +1386,7 @@ $hdr_bas_status = get_header_bas_status();
                     </button>
                 <?php endif; ?>
 
-                <button id="theme-toggle" type="button" class="hdr-icon-btn" title="Ganti Tema (Dark/Light)">
+                <button id="theme-toggle" type="button" class="hdr-icon-btn hdr-desktop-only" title="Ganti Tema (Dark/Light)">
                     <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
                     </svg>
@@ -1060,45 +1401,45 @@ $hdr_bas_status = get_header_bas_status();
                 <button type="button"
                     id="header-bas-badge"
                     onclick="openBasSyncModal()"
-                    class="hdr-btn <?= $hdr_bas_status['active'] ? 'hdr-btn-bas-active' : ($hdr_bas_status['status'] === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive') ?>"
+                    class="hdr-btn hdr-desktop-only <?= $hdr_bas_status['active'] ? 'hdr-btn-bas-active' : ($hdr_bas_status['status'] === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive') ?>"
                     title="BAS Token Status: <?= htmlspecialchars($hdr_bas_status['status']) ?> (Last Update: <?= htmlspecialchars($hdr_bas_status['updated_at']) ?>). Klik untuk membuka modal Live Sync & Breadcrumb Fetcher.">
                     <span class="relative flex h-2 w-2">
                         <span id="header-bas-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full <?= $hdr_bas_status['active'] ? 'bg-emerald-400 opacity-75' : 'hidden' ?>"></span>
                         <span id="header-bas-dot" class="relative inline-flex rounded-full h-2 w-2 <?= $hdr_bas_status['active'] ? 'bg-emerald-400' : ($hdr_bas_status['status'] === 'Expired' ? 'bg-amber-400' : 'bg-rose-400') ?>"></span>
                     </span>
                     <span class="text-xs font-semibold" id="header-bas-text">
-                        BAS: <span id="header-bas-status-label"><?= htmlspecialchars($hdr_bas_status['status']) ?></span>
+                        <span class="hidden sm:inline">BAS: </span><span id="header-bas-status-label"><?= htmlspecialchars($hdr_bas_status['status']) ?></span>
                     </span>
                     <span class="text-[11px] opacity-80 hidden lg:inline" id="header-bas-detail">(<?= htmlspecialchars($hdr_bas_status['detail']) ?>)</span>
                 </button>
 
                 <a href="smart_filter.php"
-                    class="hdr-btn hdr-btn-purple <?= ($active_page == 'smart_filter') ? 'active' : '' ?>">
+                    class="hdr-btn hdr-btn-purple hdr-desktop-only <?= ($active_page == 'smart_filter') ? 'active' : '' ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
                         class="w-4 h-4">
                         <path fill-rule="evenodd"
                             d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.59L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z"
                             clip-rule="evenodd" />
                     </svg>
-                    <span>Smart Filter</span>
+                    <span class="hidden sm:inline">Smart Filter</span>
                 </a>
 
                 <a href="bulk_add.php"
-                    class="hdr-btn hdr-btn-emerald">
+                    class="hdr-btn hdr-btn-emerald hdr-desktop-only">
                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
                         viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 010 2.25H5.625a1.125 1.125 0 010-2.25z" />
                     </svg>
-                    <span>Bulk Add</span>
+                    <span class="hidden sm:inline">Bulk Add</span>
                 </a>
 
                 <button onclick="openAddModal()"
-                    class="hdr-btn hdr-btn-primary">
+                    class="hdr-btn hdr-btn-primary hdr-desktop-only">
                     <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    <span>Task Baru</span>
+                    <span class="hidden sm:inline">Task Baru</span>
                 </button>
 
                 <!-- Profile Menu -->
@@ -1168,6 +1509,121 @@ $hdr_bas_status = get_header_bas_status();
     </div>
 </header>
 
+<!-- Mobile Navigation Drawer Overlay (ponytail + better-ui + emil-design-eng) -->
+<div id="mobile-nav-drawer" class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-200 ease-out md:hidden">
+    <!-- Backdrop -->
+    <div id="mobile-nav-backdrop" class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"></div>
+    
+    <!-- Drawer Panel -->
+    <div id="mobile-nav-panel" class="absolute top-0 bottom-0 left-0 w-80 max-w-[85vw] bg-slate-900 border-r border-slate-800 shadow-2xl flex flex-col p-4 transform -translate-x-full transition-transform duration-250 ease-out">
+        <div class="mobile-nav-header flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></span>
+                <span class="mobile-title font-bold text-sm tracking-wide text-slate-100">Project Manager</span>
+            </div>
+            <button id="mobile-nav-close" type="button" class="hdr-icon-btn w-8 h-8" title="Tutup Menu">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Mobile Quick Actions -->
+        <div class="space-y-2 pb-3 mb-2 border-b border-slate-800/80">
+            <button onclick="if(typeof closeMobileNav==='function')closeMobileNav();openAddModal();"
+                class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-md shadow-blue-600/20 active:scale-[0.98] transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                <span>Task Baru</span>
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <a href="bulk_add.php"
+                    class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all text-center">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.125 1.125 0 010 2.25H5.625a1.125 1.125 0 010-2.25z" />
+                    </svg>
+                    <span>Bulk Add</span>
+                </a>
+                <a href="smart_filter.php"
+                    class="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border border-purple-500/30 transition-all text-center">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 0 1 .628.74v2.288a2.25 2.25 0 0 1-.659 1.59l-4.682 4.683a2.25 2.25 0 0 0-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 0 1 8 18.25v-5.757a2.25 2.25 0 0 0-.659-1.59L2.659 6.22A2.25 2.25 0 0 1 2 4.629V2.34a.75.75 0 0 1 .628-.74Z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Smart Filter</span>
+                </a>
+            </div>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto space-y-1 py-1">
+            <a href="index.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'project_dashboard') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                <span>Kanban Board</span>
+            </a>
+            <a href="gba_dashboard.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'gba_dashboard') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="monthly_calendar.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'monthly_calendar') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span>Calendar</span>
+            </a>
+            <a href="project_roadmap.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'project_roadmap') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                <span>Roadmap</span>
+            </a>
+            <a href="gba_tasks.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'gba_tasks') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                <span>Active Tasks</span>
+            </a>
+            <a href="gba_tasks_summary.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'gba_tasks_summary') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                <span>Summary</span>
+            </a>
+            <a href="activity_log.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'activity_log') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <svg class="w-4 h-4 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>Activity Log</span>
+            </a>
+            <a href="mcp_features.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium <?= ($active_page === 'mcp_features') ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-800/60 hover:text-white' ?>">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>MCP Hub</span>
+            </a>
+        </nav>
+
+        <!-- Drawer Footer Utilities -->
+        <div class="pt-3 mt-2 border-t border-slate-800/80 space-y-2">
+            <!-- BAS Status & Sync Button -->
+            <button type="button"
+                onclick="if(typeof closeMobileNav==='function')closeMobileNav();openBasSyncModal();"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 transition-all">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full <?= $hdr_bas_status['active'] ? 'bg-emerald-400 opacity-75' : 'hidden' ?>"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 <?= $hdr_bas_status['active'] ? 'bg-emerald-400' : ($hdr_bas_status['status'] === 'Expired' ? 'bg-amber-400' : 'bg-rose-400') ?>"></span>
+                    </span>
+                    <span>BAS: <?= htmlspecialchars($hdr_bas_status['status']) ?></span>
+                </div>
+                <span class="text-[10px] text-sky-400 font-normal">Sync &rarr;</span>
+            </button>
+
+            <!-- Theme Toggle -->
+            <button id="mobile-theme-toggle" type="button"
+                class="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-700/50 transition-all">
+                <div class="flex items-center gap-2">
+                    <svg id="mobile-theme-dark-icon" class="hidden w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+                    </svg>
+                    <svg id="mobile-theme-light-icon" class="hidden w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path>
+                    </svg>
+                    <span id="mobile-theme-label">Tema</span>
+                </div>
+                <span class="text-[10px] text-slate-400">Ganti Mode</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ponytail: Universal Centralized Dark/Light Theme Controller & Profile Dropdown
 (function() {
@@ -1184,6 +1640,20 @@ $hdr_bas_status = get_header_bas_status();
             } else {
                 lightIcon.classList.add('hidden');
                 darkIcon.classList.remove('hidden');
+            }
+        }
+        var mLightIcon = document.getElementById('mobile-theme-light-icon');
+        var mDarkIcon = document.getElementById('mobile-theme-dark-icon');
+        var mThemeLabel = document.getElementById('mobile-theme-label');
+        if (mLightIcon && mDarkIcon) {
+            if (isLight) {
+                mLightIcon.classList.remove('hidden');
+                mDarkIcon.classList.add('hidden');
+                if (mThemeLabel) mThemeLabel.textContent = 'Light Mode';
+            } else {
+                mLightIcon.classList.add('hidden');
+                mDarkIcon.classList.remove('hidden');
+                if (mThemeLabel) mThemeLabel.textContent = 'Dark Mode';
             }
         }
     }
@@ -1214,6 +1684,46 @@ $hdr_bas_status = get_header_bas_status();
                 applyTheme(newIsLight);
             };
         }
+
+        var mToggleBtn = document.getElementById('mobile-theme-toggle');
+        if (mToggleBtn) {
+            mToggleBtn.onclick = function(e) {
+                e.preventDefault();
+                var newIsLight = !document.documentElement.classList.contains('light');
+                applyTheme(newIsLight);
+            };
+        }
+
+        // Mobile Nav Drawer Toggle
+        var mobileNavToggle = document.getElementById('mobile-nav-toggle');
+        var mobileNavDrawer = document.getElementById('mobile-nav-drawer');
+        var mobileNavClose = document.getElementById('mobile-nav-close');
+        var mobileNavBackdrop = document.getElementById('mobile-nav-backdrop');
+
+        function openMobileNav() {
+            if (mobileNavDrawer) mobileNavDrawer.classList.add('nav-open');
+        }
+        function closeMobileNav() {
+            if (mobileNavDrawer) mobileNavDrawer.classList.remove('nav-open');
+        }
+        window.openMobileNav = openMobileNav;
+        window.closeMobileNav = closeMobileNav;
+
+        if (mobileNavToggle) mobileNavToggle.addEventListener('click', openMobileNav);
+        if (mobileNavClose) mobileNavClose.addEventListener('click', closeMobileNav);
+        if (mobileNavBackdrop) mobileNavBackdrop.addEventListener('click', closeMobileNav);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && mobileNavDrawer && mobileNavDrawer.classList.contains('nav-open')) {
+                closeMobileNav();
+            }
+        });
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768 && mobileNavDrawer && mobileNavDrawer.classList.contains('nav-open')) {
+                closeMobileNav();
+            }
+        });
 
         // Profile Menu Dropdown
         var profileMenu = document.getElementById('profile-menu');
@@ -1794,7 +2304,7 @@ if (isset($_GET['chat_popup'])) {
                     statusLabel.textContent = status;
                     if (detail) detail.textContent = '(' + timeLabel + ')';
 
-                    badge.className = 'hdr-btn ' + (isActive ? 'hdr-btn-bas-active' : (status === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive'));
+                    badge.className = 'hdr-btn hdr-desktop-only ' + (isActive ? 'hdr-btn-bas-active' : (status === 'Expired' ? 'hdr-btn-bas-expired' : 'hdr-btn-bas-inactive'));
                     
                     if (ping) {
                         if (isActive) {
@@ -2603,7 +3113,15 @@ if (isset($_GET['chat_popup'])) {
             var startTime = performance.now();
 
             fetch('sync_bas.php', { method: 'POST', cache: 'no-store' })
-                .then(function(res) { return res.json(); })
+                .then(function(res) {
+                    return res.text().then(function(text) {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            throw new Error('Server mengembalikan respon non-JSON (HTTP ' + res.status + '): ' + (text.substring(0, 120).replace(/<[^>]+>/g, '').trim() || 'Respon kosong/HTML.'));
+                        }
+                    });
+                })
                 .then(function(data) {
                     var elapsedSec = ((performance.now() - startTime) / 1000).toFixed(2) + 's';
 

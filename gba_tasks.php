@@ -271,15 +271,36 @@ function getTestPlanBadgeClass($plan) {
         html,
         body {
             height: 100%;
-            overflow: hidden
+            overflow: hidden;
         }
 
         main {
-            height: calc(100% - 64px)
+            height: calc(100% - 64px);
+        }
+
+        @media (max-width: 767px) {
+            html,
+            body {
+                height: auto !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            main {
+                height: auto !important;
+                min-height: calc(100dvh - 64px) !important;
+                overflow: visible !important;
+            }
+
+            .table-container {
+                overflow-y: visible !important;
+                padding-bottom: 3rem !important;
+            }
         }
 
         .table-container {
-            scroll-behavior: smooth
+            scroll-behavior: smooth;
         }
 
         #neural-canvas {
@@ -1128,41 +1149,30 @@ function getTestPlanBadgeClass($plan) {
         <?php endif; ?>
 
         <!-- Toolbar Section -->
-        <div class="px-4 sm:px-6 lg:px-8 pt-5 pb-3">
-            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-3 backdrop-blur-md shadow-sm">
-                <!-- Test Plan Pills -->
-                <div id="testplan-filter-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+        <div class="px-4 sm:px-6 lg:px-8 pt-4 pb-2.5">
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-2.5 sm:p-3 backdrop-blur-md shadow-sm">
+                <!-- Test Plan Pills (Horizontal swipe track on mobile) -->
+                <div id="testplan-filter-container" class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none overscroll-x-contain shrink-0 max-w-full">
                     <button class="filter-button active" data-plan="All">Semua</button>
                     <?php foreach ($all_test_plans as $plan): ?>
                         <button class="filter-button" data-plan="<?= htmlspecialchars($plan) ?>"><?= htmlspecialchars($plan) ?></button>
                     <?php endforeach; ?>
                 </div>
 
-                <!-- Controls & Action Buttons -->
-                <div class="flex flex-wrap items-center gap-2.5 ml-auto">
+                <!-- Controls & Action Buttons (Clean wrap on mobile) -->
+                <div class="flex flex-wrap items-center gap-2 lg:ml-auto w-full lg:w-auto justify-start lg:justify-end">
                     <!-- Status Filter -->
-                    <select id="status-filter" class="themed-input h-9 px-3 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
+                    <select id="status-filter" class="themed-input h-8 sm:h-9 px-2.5 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
                         <option value="All">Semua Status</option>
                         <?php foreach ($all_statuses as $status): ?>
                             <option value="<?= htmlspecialchars($status) ?>"><?= htmlspecialchars($status) ?></option>
                         <?php endforeach; ?>
                     </select>
 
-                    <!-- Rows Selector -->
-                    <div class="flex items-center gap-1.5 text-xs text-secondary">
-                        <span class="hidden sm:inline">Baris:</span>
-                        <select id="pagination-rows" class="themed-input h-9 px-2.5 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer">
-                            <option value="5">5</option>
-                            <option value="10" selected>10</option>
-                            <option value="30">30</option>
-                            <option value="50">50</option>
-                        </select>
-                    </div>
-
                     <!-- Export Image -->
                     <button onclick="exportNewTasksImage()"
-                        class="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="h-8 sm:h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <span>Export Task Baru</span>
@@ -1187,8 +1197,8 @@ function getTestPlanBadgeClass($plan) {
                     <button onclick="copyNewTasksQbIds(event, this)"
                         data-qb-ids="<?= htmlspecialchars($new_tasks_qb_ids_str) ?>"
                         title="Copy all QB Build IDs for New Tasks (Semua Plan)"
-                        class="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="h-8 sm:h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                         <span>Copy QB ID Baru</span>
@@ -1216,20 +1226,30 @@ function getTestPlanBadgeClass($plan) {
                     <button onclick="copyActiveTasksBuilds(event, this)"
                         data-build-info="<?= htmlspecialchars($active_task_builds_str) ?>"
                         title="Copy Model, AP, CSC, CP untuk task status Task Baru, Downloaded, Ongoing, Pending Feedback, Feedback Sent, Submitted"
-                        class="h-9 px-3.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="h-8 sm:h-9 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white text-xs font-medium inline-flex items-center gap-1.5 transition-all shadow-sm">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                         </svg>
                         <span>Build HomeBinary</span>
                     </button>
+
+                    <!-- Rows Selector -->
+                    <div class="flex items-center gap-1 text-xs text-secondary">
+                        <select id="pagination-rows" class="themed-input h-8 sm:h-9 px-2 text-xs font-medium rounded-xl border border-[var(--glass-border)] focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer" title="Jumlah Baris">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="30">30</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Table Container -->
-        <div class="flex-grow overflow-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
-            <div class="glassmorphism-table rounded-2xl border border-[var(--glass-border)] overflow-hidden shadow-sm backdrop-blur-md">
-                <table class="w-full text-xs sm:text-sm text-left border-collapse">
+        <!-- Table Container with Horizontal Scroll on Mobile -->
+        <div class="flex-grow overflow-x-auto px-4 sm:px-6 lg:px-8 pb-16 table-container">
+            <div class="glassmorphism-table rounded-2xl border border-[var(--glass-border)] shadow-sm backdrop-blur-md overflow-x-auto overscroll-x-contain">
+                <table class="w-full min-w-[980px] text-xs sm:text-sm text-left border-collapse">
                     <thead>
                         <tr class="border-b border-[var(--glass-border)] bg-[var(--glass-bg)] text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                             <th class="py-3.5 px-3 text-center sticky top-0 bg-[var(--glass-bg)] z-10 backdrop-blur-md w-14">
@@ -1310,6 +1330,11 @@ function getTestPlanBadgeClass($plan) {
                                         <?php endif; ?>
                                         <?php if (function_exists('is_userdata_required') && is_userdata_required($task['model_name'])): ?>
                                             <div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>
+                                        <?php endif; ?>
+                                        <?php if (function_exists('render_laundry_badge') && is_laundry_task($task)): ?>
+                                            <div class="mt-1.5">
+                                                <?= render_laundry_badge($task) ?>
+                                            </div>
                                         <?php endif; ?>
                                     </td>
                                     <td class="py-3 px-3">
@@ -1415,8 +1440,8 @@ function getTestPlanBadgeClass($plan) {
         <?php endif; ?>
     </main>
 
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden" style="backdrop-filter: blur(8px);">
-        <div class="modal-content-wrapper glassmorphism-modal rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-3">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden p-2 sm:p-4 overflow-y-auto" style="backdrop-filter: blur(8px);">
+        <div class="modal-content-wrapper glassmorphism-modal rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-auto max-h-[92dvh] overflow-y-auto">
             <form id="task-form" action="handler.php" method="POST">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-[var(--glass-border)]">
                     <div class="flex items-center gap-2">

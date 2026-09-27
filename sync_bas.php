@@ -1,6 +1,9 @@
 <?php
 // sync_bas.php - Core Sync Engine connecting BAS (Build Approval System) to Project Manager local
 
+if (ob_get_level() === 0) {
+    ob_start();
+}
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
@@ -8,6 +11,9 @@ error_reporting(E_ALL);
 register_shutdown_function(function() {
     $err = error_get_last();
     if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR])) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         if (!headers_sent()) {
             http_response_code(200);
             header("Content-Type: application/json; charset=UTF-8");
@@ -37,6 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 function respond_output($data, $is_cli, $status_code = 200) {
     if (!$is_cli) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
         if (!headers_sent()) {
             http_response_code(200); // Always return 200 for clean client-side JSON parsing
             header("Content-Type: application/json; charset=UTF-8");
@@ -150,39 +159,34 @@ try {
         }
     }
 
-    // 2. Fetch submissions from BAS (Search Submissions from beginning of month until today with exact KST payload)
+    // 2. Fetch submissions from BAS (Search Submissions from last 90 days with exact KST payload)
     $today_str = date('Y-m-d');
     $month_start_ts = strtotime(date('Y-m-01 00:00:00'));
     
-    // Exact KST ISO-8601 timestamps (+09:00) as used by BAS portal search
-    $start_iso = date('Y-m-01\T00:00:00.000000+09:00');
-    $end_iso = date('Y-m-d\T23:59:59.000000+09:00');
+    // Exact KST ISO-8601 timestamps (+09:00) as used by BAS portal search (Covering last 90 days)
+    $start_iso = date('Y-m-d\T00:00:00.000000+09:00', strtotime('-90 days'));
+    $end_iso = date('Y-m-d\T23:59:59.000000+09:00', strtotime('+1 day'));
 
     $debug_logs = [];
 
-    // Search payload (Exact specification from BAS portal createExcel)
+    // Single comprehensive search covering all carriers over the last 90 days
     $search_payload = [
         'startDate' => $start_iso,
         'endDate' => $end_iso,
         'approvalType' => 'All',
         'group' => 'SRV',
-        'carriers' => 'XID',
+        'carriers' => '',
         'lastUpdateCheck' => 'false',
         'legacy' => true,
-        'pageSize' => 500,
+        'pageSize' => 1000,
         'count' => true
     ];
 
-    $search_urls = [
-        "https://buildapprovalsystem.com/submission/search/createExcel",
-        "https://buildapprovalsystem.com/submission/searchSubmissions",
-        "https://buildapprovalsystem.com/searchSubmissions",
-        "https://buildapprovalsystem.com/submission/search"
-    ];
+    $search_url = "https://buildapprovalsystem.com/submission/search/createExcel";
+    $search_url_fallback = "https://buildapprovalsystem.com/submission/searchSubmissions";
 
     $all_raw_submissions = [];
     $auth_error = null;
-    $search_succeeded = false;
 
     $req_headers = [
         "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
@@ -193,12 +197,56 @@ try {
         "Cookie: {$cookie_string}"
     ];
 
-    // Helper function to execute POST or GET requests to BAS with 25s timeout
-    $execute_bas_request = function($url, $method = 'POST', $json_payload = null, $timeout = 25) use ($cookie_string, $req_headers, &$auth_error, &$debug_logs) {
+    // Helper function to execute POST or GET requests to BAS (with Host Proxy support for Docker)
+    $execute_bas_request = function($url, $method = 'POST', $json_payload = null, $timeout = 45) use ($cookie_string, $req_headers, &$auth_error, &$debug_logs) {
         $res_raw = false;
         $http_code = 0;
 
-        if (function_exists('curl_init')) {
+        // 1. Try MCP Host Network Proxy first (for reliable Docker to Intranet/Internet bridge)
+        $proxy_endpoints = [
+            'http://host.docker.internal:3800/api/bas/proxy',
+            'http://127.0.0.1:3800/api/bas/proxy'
+        ];
+
+        $header_map = [];
+        foreach ($req_headers as $h) {
+            $parts = explode(':', $h, 2);
+            if (count($parts) === 2) {
+                $header_map[trim($parts[0])] = trim($parts[1]);
+            }
+        }
+        
+        foreach ($proxy_endpoints as $proxy_url) {
+            if (function_exists('curl_init')) {
+                $ch_p = curl_init($proxy_url);
+                $proxy_payload = [
+                    'url' => $url,
+                    'method' => $method,
+                    'headers' => $header_map,
+                    'body' => $json_payload
+                ];
+                curl_setopt_array($ch_p, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => json_encode($proxy_payload),
+                    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                    CURLOPT_TIMEOUT => $timeout,
+                    CURLOPT_CONNECTTIMEOUT => 3
+                ]);
+                $p_res = curl_exec($ch_p);
+                $p_code = curl_getinfo($ch_p, CURLINFO_HTTP_CODE);
+                curl_close($ch_p);
+
+                if ($p_code >= 200 && $p_code < 500 && !empty($p_res)) {
+                    $res_raw = $p_res;
+                    $http_code = $p_code;
+                    break;
+                }
+            }
+        }
+
+        // 2. Direct cURL fallback
+        if (empty($res_raw) && function_exists('curl_init')) {
             $ch = curl_init($url);
             $opts = [
                 CURLOPT_RETURNTRANSFER => true,
@@ -206,7 +254,7 @@ try {
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_SSL_VERIFYHOST => false,
                 CURLOPT_TIMEOUT => $timeout,
-                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_HTTPHEADER => $req_headers
             ];
             if ($method === 'POST') {
@@ -217,25 +265,6 @@ try {
             $res_raw = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-        } else {
-            $context_opts = [
-                'http' => [
-                    'method' => $method,
-                    'header' => implode("\r\n", $req_headers) . "\r\n",
-                    'timeout' => $timeout,
-                    'ignore_errors' => true
-                ],
-                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
-            ];
-            if ($method === 'POST' && $json_payload !== null) {
-                $context_opts['http']['content'] = is_array($json_payload) ? json_encode($json_payload) : (string)$json_payload;
-            }
-            $context = stream_context_create($context_opts);
-            $res_raw = @file_get_contents($url, false, $context);
-            $http_code = 200;
-            if (isset($http_response_header) && preg_match('/HTTP\/\S+\s+(\d+)/', $http_response_header[0], $m)) {
-                $http_code = (int)$m[1];
-            }
         }
 
         $body_len = is_string($res_raw) ? strlen($res_raw) : 0;
@@ -284,7 +313,7 @@ try {
     };
 
     // Helper to extract rows from any BAS response format (JSON or CSV downloadLink)
-    $extract_items_from_response = function($raw_body) use (&$parse_bas_csv, &$debug_logs) {
+    $extract_items_from_response = function($raw_body) use (&$parse_bas_csv, &$execute_bas_request, &$debug_logs) {
         if (empty($raw_body)) return [];
         $parsed = json_decode($raw_body, true);
         if (!is_array($parsed)) return [];
@@ -292,20 +321,25 @@ try {
         // Check if response contains downloadLink for CSV export
         if (!empty($parsed['downloadLink'])) {
             $csv_url = $parsed['downloadLink'];
-            $csv_content = false;
+            $csv_content = null;
+
+            // Try direct cURL download first
             if (function_exists('curl_init')) {
-                $ch_csv = curl_init($csv_url);
-                curl_setopt_array($ch_csv, [
+                $ch_d = curl_init($csv_url);
+                curl_setopt_array($ch_d, [
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_SSL_VERIFYPEER => false,
                     CURLOPT_SSL_VERIFYHOST => false,
-                    CURLOPT_TIMEOUT => 20
+                    CURLOPT_TIMEOUT => 25
                 ]);
-                $csv_content = curl_exec($ch_csv);
-                curl_close($ch_csv);
-            } else {
-                $csv_content = @file_get_contents($csv_url);
+                $csv_content = curl_exec($ch_d);
+                curl_close($ch_d);
+            }
+
+            if (empty($csv_content)) {
+                $res_csv = $execute_bas_request($csv_url, 'GET', null, 25);
+                $csv_content = $res_csv['body'];
             }
 
             if ($csv_content) {
@@ -332,32 +366,29 @@ try {
         return $items;
     };
 
-    // 1. Try search endpoints with search payload
-    foreach ($search_urls as $s_url) {
-        $res = $execute_bas_request($s_url, 'POST', $search_payload, 25);
-        if ($res['code'] >= 200 && $res['code'] < 400 && !empty($res['body'])) {
-            $found_items = $extract_items_from_response($res['body']);
-            if (!empty($found_items)) {
-                foreach ($found_items as $it) {
-                    if (is_array($it)) {
-                        $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
-                        if (!empty($sub_id_val)) {
-                            $all_raw_submissions[$sub_id_val] = $it;
-                        } else {
-                            $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . ($it['Fingerprint'] ?? rand());
-                            $all_raw_submissions[$sub_key] = $it;
-                        }
-                    }
+    // Execute Search across All Carriers (Includes XID & Non-XID in one fast request)
+    $res_search = $execute_bas_request($search_url, 'POST', $search_payload, 45);
+    if ($res_search['code'] < 200 || $res_search['code'] >= 400 || empty($res_search['body'])) {
+        $res_search = $execute_bas_request($search_url_fallback, 'POST', $search_payload, 45);
+    }
+    if (!empty($res_search['body'])) {
+        $found_items = $extract_items_from_response($res_search['body']);
+        foreach ($found_items as $it) {
+            if (is_array($it)) {
+                $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
+                if (!empty($sub_id_val)) {
+                    $all_raw_submissions[$sub_id_val] = $it;
+                } else {
+                    $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
+                    $all_raw_submissions[$sub_key] = $it;
                 }
-                $search_succeeded = true;
-                break; // Found successful search results!
             }
         }
     }
 
-    // 2. Fallback to mySubmission only if general search completely returned nothing
-    if (!$search_succeeded || empty($all_raw_submissions)) {
-        $fallback_res = $execute_bas_request("https://buildapprovalsystem.com/submission/mySubmission/submitted/all", 'GET', null, 10);
+    // Fallback to mySubmission only if general search completely returned nothing
+    if (empty($all_raw_submissions)) {
+        $fallback_res = $execute_bas_request("https://buildapprovalsystem.com/submission/mySubmission/submitted/all", 'GET', null, 15);
         if ($fallback_res['code'] < 400 && !empty($fallback_res['body'])) {
             $fallback_items = $extract_items_from_response($fallback_res['body']);
             foreach ($fallback_items as $it) {
@@ -366,7 +397,7 @@ try {
                     if (!empty($sub_id_val)) {
                         $all_raw_submissions[$sub_id_val] = $it;
                     } else {
-                        $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . ($it['Fingerprint'] ?? rand());
+                        $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
                         $all_raw_submissions[$sub_key] = $it;
                     }
                 }
@@ -386,7 +417,6 @@ try {
 
     // Process all submissions returned by BAS search query
     $submissions = array_values($all_raw_submissions);
-
 
 // 3. Process submissions and match with gba_tasks
 $updated_tasks = [];
@@ -474,8 +504,8 @@ function get_status_priority_rank($status) {
     return 0;
 }
 
-// ponytail: Deduplicate submissions by AP version - prioritizing Approved over Rejected
-$deduped_submissions = [];
+// Group submissions by AP version - prioritizing XID & Approved submissions
+$ap_submission_map = [];
 foreach ($submissions as $sub) {
     if (!is_array($sub)) continue;
 
@@ -484,145 +514,154 @@ foreach ($submissions as $sub) {
     $ap_ver = extract_ap_version($fingerprint, $raw_ap);
     $sub_id_val = trim(strval($sub['Id'] ?? $sub['id'] ?? $sub['ID'] ?? $sub['submission_id'] ?? $sub['submissionId'] ?? $sub['Submission ID'] ?? ''), "'\" \t\n\r\0\x0B");
 
+    $raw_carrier = trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? $sub['Sales Code'] ?? $sub['sales_code'] ?? ''));
+    $raw_csc = trim(strval($sub['CSC'] ?? $sub['csc'] ?? $sub['csc_version'] ?? $sub['cscVersion'] ?? ''));
+    $is_xid_sub = (empty($raw_carrier) || stripos($raw_carrier, 'XID') !== false || stripos($raw_csc, 'OLE') !== false);
+
     $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
     $cur_rank = get_status_priority_rank($raw_status);
 
     $key = !empty($ap_ver) ? strtoupper($ap_ver) : (!empty($sub_id_val) ? 'SUB_' . $sub_id_val : uniqid('sub_'));
 
-    if (!isset($deduped_submissions[$key])) {
-        $deduped_submissions[$key] = [
-            'sub' => $sub,
-            'rank' => $cur_rank,
-            'id' => $sub_id_val
+    if (!isset($ap_submission_map[$key])) {
+        $ap_submission_map[$key] = [
+            'xid_sub' => $is_xid_sub ? $sub : null,
+            'xid_rank' => $is_xid_sub ? $cur_rank : -1,
+            'all_sub' => $sub,
+            'all_rank' => $cur_rank
         ];
     } else {
-        // If current candidate has higher priority rank (e.g. Approved vs Rejected), pick candidate
-        if ($cur_rank > $deduped_submissions[$key]['rank']) {
-            $deduped_submissions[$key] = [
-                'sub' => $sub,
-                'rank' => $cur_rank,
-                'id' => $sub_id_val
-            ];
-        } elseif ($cur_rank === $deduped_submissions[$key]['rank']) {
-            // Same priority rank: pick the one with later date / ID
-            $existing_date = $deduped_submissions[$key]['sub']['Submission Date'] ?? $deduped_submissions[$key]['sub']['submission_date'] ?? '';
-            $candidate_date = $sub['Submission Date'] ?? $sub['submission_date'] ?? '';
-            if (strcmp(strval($candidate_date), strval($existing_date)) >= 0) {
-                $deduped_submissions[$key] = [
-                    'sub' => $sub,
-                    'rank' => $cur_rank,
-                    'id' => $sub_id_val
-                ];
+        if ($is_xid_sub) {
+            if ($ap_submission_map[$key]['xid_sub'] === null || $cur_rank > $ap_submission_map[$key]['xid_rank']) {
+                $ap_submission_map[$key]['xid_sub'] = $sub;
+                $ap_submission_map[$key]['xid_rank'] = $cur_rank;
             }
+        }
+        if ($cur_rank > $ap_submission_map[$key]['all_rank']) {
+            $ap_submission_map[$key]['all_sub'] = $sub;
+            $ap_submission_map[$key]['all_rank'] = $cur_rank;
         }
     }
 }
-$submissions = array_column($deduped_submissions, 'sub');
 
-foreach ($submissions as $sub) {
-    if (!is_array($sub)) continue;
+foreach ($ap_submission_map as $ap_key => $entry) {
+    $xid_sub = $entry['xid_sub'];
+    $all_sub = $entry['all_sub'];
 
-    $sub_id = trim(strval($sub['Id'] ?? $sub['id'] ?? $sub['ID'] ?? $sub['submission_id'] ?? $sub['submissionId'] ?? $sub['Submission ID'] ?? ''), "'\" \t\n\r\0\x0B");
-    $fingerprint = trim(strval($sub['Fingerprint'] ?? $sub['fingerprint'] ?? $sub['binaryName'] ?? $sub['binary_name'] ?? $sub['build_number'] ?? ''));
-    $raw_ap = trim(strval($sub['AP'] ?? $sub['ap'] ?? $sub['ap_version'] ?? $sub['apVersion'] ?? ''));
-    $raw_csc = trim(strval($sub['CSC'] ?? $sub['csc'] ?? $sub['csc_version'] ?? $sub['cscVersion'] ?? ''));
-    $raw_cp = trim(strval($sub['CP'] ?? $sub['cp'] ?? $sub['cp_version'] ?? $sub['cpVersion'] ?? ''));
+    // Primary submission for metadata (AP, CP, CSC, Model)
+    $primary_sub = $xid_sub ?: $all_sub;
+    if (!is_array($primary_sub)) continue;
+
+    $raw_ap = trim(strval($primary_sub['AP'] ?? $primary_sub['ap'] ?? $primary_sub['ap_version'] ?? $primary_sub['apVersion'] ?? ''));
+    $raw_csc = trim(strval($primary_sub['CSC'] ?? $primary_sub['csc'] ?? $primary_sub['csc_version'] ?? $primary_sub['cscVersion'] ?? ''));
+    $raw_cp = trim(strval($primary_sub['CP'] ?? $primary_sub['cp'] ?? $primary_sub['cp_version'] ?? $primary_sub['cpVersion'] ?? ''));
+    $fingerprint = trim(strval($primary_sub['Fingerprint'] ?? $primary_sub['fingerprint'] ?? $primary_sub['binaryName'] ?? $primary_sub['binary_name'] ?? $primary_sub['build_number'] ?? ''));
 
     $ap_version = extract_ap_version($fingerprint, $raw_ap);
     $csc_version = extract_csc_version($fingerprint, $raw_csc);
-    $model_name = trim($sub['Model Name'] ?? $sub['modelName'] ?? $sub['model_name'] ?? $sub['Model'] ?? $sub['model'] ?? '');
-    
-    // Status normalization
-    $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
-    $reviewer = trim(strval($sub['Reviewer'] ?? $sub['reviewer'] ?? $sub['reviewer_email'] ?? $sub['reviewerEmail'] ?? $sub['reviewed_by'] ?? $sub['PL Email'] ?? $sub['Reviewer Group'] ?? ''), "'\" \t\n\r\0\x0B");
-    $urgent_raw = $sub['Urgent'] ?? $sub['urgent'] ?? $sub['is_urgent'] ?? $sub['isUrgent'] ?? false;
-    $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
-    
-    $raw_submission_date = $sub['Submission Date'] ?? $sub['submissionDate'] ?? $sub['submission_date'] ?? $sub['submitted_at'] ?? $sub['date'] ?? null;
-    $raw_approval_date = $sub['Approval Date'] ?? $sub['approvalDate'] ?? $sub['approved_date'] ?? $sub['approvedAt'] ?? $sub['Review Completion Time'] ?? $sub['reviewCompletionTime'] ?? null;
+    $model_name = trim($primary_sub['Model Name'] ?? $primary_sub['modelName'] ?? $primary_sub['model_name'] ?? $primary_sub['Model'] ?? $primary_sub['model'] ?? '');
 
-    $sub_date = parse_bas_date($raw_submission_date);
-    $approved_date = parse_bas_date($raw_approval_date);
+    $xid_sub_id = $xid_sub ? trim(strval($xid_sub['Id'] ?? $xid_sub['id'] ?? $xid_sub['ID'] ?? $xid_sub['submission_id'] ?? $xid_sub['submissionId'] ?? ''), "'\" \t\n\r\0\x0B") : '';
+    $all_sub_id = $all_sub ? trim(strval($all_sub['Id'] ?? $all_sub['id'] ?? $all_sub['ID'] ?? $all_sub['submission_id'] ?? $all_sub['submissionId'] ?? ''), "'\" \t\n\r\0\x0B") : '';
+    $all_base_sub_id = $all_sub ? trim(strval($all_sub['Base Submission ID'] ?? $all_sub['baseSubmissionId'] ?? $all_sub['base_submission_id'] ?? $all_sub['Base ID'] ?? $all_sub['base_id'] ?? ''), "'\" \t\n\r\0\x0B") : '';
 
-    $target_progress_status = null;
-
-    // Comprehensive status normalization from BAS: 'Status' column is primary reference (On Hold is treated as Approved)
-    $norm_status_upper = strtoupper($raw_status);
-
-    if (strpos($norm_status_upper, 'PENDING') !== false) {
-        $target_progress_status = 'Pending Feedback';
-    } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
-        $target_progress_status = 'Approved';
-        if (empty($approved_date)) {
-            $approved_date = $sub_date ?: $today_str;
-        }
-    } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
-        $target_progress_status = 'Submitted';
-    } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false) {
-        $target_progress_status = 'Rejected';
-    } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
-        $target_progress_status = 'Test Ongoing';
-    } elseif (strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
-        $target_progress_status = 'Batal';
-    }
-
-    if (empty($sub_id) && empty($ap_version)) {
+    if (empty($ap_version) && empty($xid_sub_id) && empty($all_sub_id)) {
         continue;
     }
 
-    // Match candidate task in database strictly by AP Version (Direct single-key matching)
-    $matched_task = null;
+    // Parse XID status, reviewer, and dates if XID submission exists
+    $target_progress_status = null;
+    $approved_date = null;
+    $sub_date = null;
+    $reviewer = '';
+    $is_urgent = 0;
+
+    if ($xid_sub) {
+        $raw_status = trim($xid_sub['Status'] ?? $xid_sub['status'] ?? $xid_sub['progress_status'] ?? $xid_sub['approvalStatus'] ?? $xid_sub['submissionStatus'] ?? '');
+        $reviewer = trim(strval($xid_sub['Reviewer'] ?? $xid_sub['reviewer'] ?? $xid_sub['reviewer_email'] ?? $xid_sub['reviewerEmail'] ?? $xid_sub['reviewed_by'] ?? $xid_sub['PL Email'] ?? $xid_sub['Reviewer Group'] ?? ''), "'\" \t\n\r\0\x0B");
+        $urgent_raw = $xid_sub['Urgent'] ?? $xid_sub['urgent'] ?? $xid_sub['is_urgent'] ?? $xid_sub['isUrgent'] ?? false;
+        $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
+
+        $raw_submission_date = $xid_sub['Submission Date'] ?? $xid_sub['submissionDate'] ?? $xid_sub['submission_date'] ?? $xid_sub['submitted_at'] ?? $xid_sub['date'] ?? null;
+        $raw_approval_date = $xid_sub['Approval Date'] ?? $xid_sub['approvalDate'] ?? $xid_sub['approved_date'] ?? $xid_sub['approvedAt'] ?? $xid_sub['Review Completion Time'] ?? $xid_sub['reviewCompletionTime'] ?? null;
+
+        $sub_date = parse_bas_date($raw_submission_date);
+        $approved_date = parse_bas_date($raw_approval_date);
+
+        // Normalize progress status
+        $norm_status_upper = strtoupper($raw_status);
+        if (strpos($norm_status_upper, 'PENDING') !== false) {
+            $target_progress_status = 'Pending Feedback';
+        } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
+            $target_progress_status = 'Approved';
+            if (empty($approved_date)) {
+                $approved_date = $sub_date ?: $today_str;
+            }
+        } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
+            $target_progress_status = 'Submitted';
+        } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false) {
+            $target_progress_status = 'Rejected';
+        } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
+            $target_progress_status = 'Test Ongoing';
+        } elseif (strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
+            $target_progress_status = 'Batal';
+        }
+    }
+
+    // Match ALL candidate tasks in database (without LIMIT 1 so all statuses: Task Baru, Downloaded, Test Ongoing are synced)
+    $matched_tasks = [];
 
     // Match 1: Exact match by AP Version
     if (!empty($ap_version)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE TRIM(ap) = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, test_plan_type, progress_status, reviewer_email, is_urgent, submission_id, base_submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE TRIM(ap) = ?");
         if ($stmt) {
             $stmt->bind_param("s", $ap_version);
             $stmt->execute();
             $res = $stmt->get_result();
-            if ($res && $row = $res->fetch_assoc()) {
-                $matched_task = $row;
+            while ($res && $row = $res->fetch_assoc()) {
+                $matched_tasks[$row['id']] = $row;
             }
             $stmt->close();
         }
     }
 
     // Match 2: By submission_id if exists
-    if (!$matched_task && !empty($sub_id)) {
-        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE submission_id = ? LIMIT 1");
+    if (!empty($xid_sub_id)) {
+        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, test_plan_type, progress_status, reviewer_email, is_urgent, submission_id, base_submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE submission_id = ?");
         if ($stmt) {
-            $stmt->bind_param("s", $sub_id);
+            $stmt->bind_param("s", $xid_sub_id);
             $stmt->execute();
             $res = $stmt->get_result();
-            if ($res && $row = $res->fetch_assoc()) {
-                $matched_task = $row;
+            while ($res && $row = $res->fetch_assoc()) {
+                $matched_tasks[$row['id']] = $row;
             }
             $stmt->close();
         }
     }
 
-    // Match 3: Fallback by AP substring / LIKE
-    if (!$matched_task && !empty($ap_version) && strlen($ap_version) >= 8) {
+    // Match 3: Fallback by AP substring / LIKE if no exact match found
+    if (empty($matched_tasks) && !empty($ap_version) && strlen($ap_version) >= 8) {
         $like_ap = "%" . $ap_version . "%";
-        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, progress_status, reviewer_email, is_urgent, submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE ap LIKE ? OR ? LIKE CONCAT('%', ap, '%') LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, model_name, ap, cp, csc, test_plan_type, progress_status, reviewer_email, is_urgent, submission_id, base_submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks WHERE (ap LIKE ? OR ? LIKE CONCAT('%', ap, '%'))");
         if ($stmt) {
             $stmt->bind_param("ss", $like_ap, $ap_version);
             $stmt->execute();
             $res = $stmt->get_result();
-            if ($res && $row = $res->fetch_assoc()) {
-                $matched_task = $row;
+            while ($res && $row = $res->fetch_assoc()) {
+                $matched_tasks[$row['id']] = $row;
             }
             $stmt->close();
         }
     }
 
-    // If task found, evaluate if changes are needed
-    if ($matched_task) {
+    // Iterate through each matched task and evaluate changes
+    foreach ($matched_tasks as $matched_task) {
         $task_id = (int)$matched_task['id'];
         $old_status = $matched_task['progress_status'];
         $old_reviewer = $matched_task['reviewer_email'];
         $old_urgent = (int)$matched_task['is_urgent'];
         $old_sub_id = $matched_task['submission_id'];
+        $old_base_sub_id = $matched_task['base_submission_id'] ?? '';
         $old_sub_date = $matched_task['submission_date'];
 
         $need_update = false;
@@ -630,67 +669,86 @@ foreach ($submissions as $sub) {
         $types = "";
         $params = [];
 
-        // Progress status update (Pending Feedback / Approved / Submitted / Test Ongoing / Rejected)
-        // Never overwrite an already Approved task with lower priority (like Rejected / Batal)
         $final_status = $old_status;
-        $old_status_rank = get_status_priority_rank($old_status);
-        $target_status_rank = get_status_priority_rank($target_progress_status);
 
-        if ($target_progress_status !== null && $target_progress_status !== $old_status) {
-            if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
-                $updates[] = "progress_status = ?";
+        // 1. Task progress, dates, reviewer, urgent, and submission_id updates apply when XID submission exists
+        if ($xid_sub) {
+            $old_status_rank = get_status_priority_rank($old_status);
+            $target_status_rank = get_status_priority_rank($target_progress_status);
+
+            if ($target_progress_status !== null && $target_progress_status !== $old_status) {
+                if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
+                    $updates[] = "progress_status = ?";
+                    $types .= "s";
+                    $params[] = $target_progress_status;
+                    $final_status = $target_progress_status;
+                    $need_update = true;
+                }
+            }
+
+            // Update Approved Date directly from table if available
+            if ($approved_date && $approved_date !== $matched_task['approved_date']) {
+                $updates[] = "approved_date = ?";
                 $types .= "s";
-                $params[] = $target_progress_status;
-                $final_status = $target_progress_status;
+                $params[] = $approved_date;
+                $need_update = true;
+            }
+
+            // Update Sign Off Date when Approved
+            if (($target_progress_status === 'Approved' || $old_status === 'Approved' || $old_status === 'Passed') && $approved_date && $approved_date !== $matched_task['sign_off_date']) {
+                $updates[] = "sign_off_date = ?";
+                $types .= "s";
+                $params[] = $approved_date;
+                $need_update = true;
+            }
+
+            // Update Submission Date directly from table if available
+            if ($sub_date && $sub_date !== $matched_task['submission_date']) {
+                $updates[] = "submission_date = ?";
+                $types .= "s";
+                $params[] = $sub_date;
+                $need_update = true;
+            }
+
+            // Reviewer update
+            if (!empty($reviewer) && trim($reviewer) !== trim(strval($old_reviewer))) {
+                $updates[] = "reviewer_email = ?";
+                $types .= "s";
+                $params[] = $reviewer;
+                $need_update = true;
+            }
+
+            // Urgent flag update
+            if ($is_urgent !== $old_urgent) {
+                $updates[] = "is_urgent = ?";
+                $types .= "i";
+                $params[] = $is_urgent;
+                $need_update = true;
+            }
+
+            // XID Submission ID
+            if (!empty($xid_sub_id) && trim($xid_sub_id) !== trim(strval($old_sub_id))) {
+                $updates[] = "submission_id = ?";
+                $types .= "s";
+                $params[] = $xid_sub_id;
                 $need_update = true;
             }
         }
 
-        // Update Approved Date directly from table if available
-        if ($approved_date && $approved_date !== $matched_task['approved_date']) {
-            $updates[] = "approved_date = ?";
+        // 2. Laundry feature checks all carriers: if non-XID build exists, populate base_submission_id
+        $target_base_id = !empty($all_base_sub_id) ? $all_base_sub_id : ((!$xid_sub && !empty($all_sub_id)) ? $all_sub_id : '');
+        if (!empty($target_base_id) && trim($target_base_id) !== trim(strval($old_base_sub_id))) {
+            $updates[] = "base_submission_id = ?";
             $types .= "s";
-            $params[] = $approved_date;
+            $params[] = $target_base_id;
             $need_update = true;
         }
 
-        // Update Sign Off Date when Approved
-        if (($target_progress_status === 'Approved' || $old_status === 'Approved' || $old_status === 'Passed') && $approved_date && $approved_date !== $matched_task['sign_off_date']) {
-            $updates[] = "sign_off_date = ?";
+        // If task has no submission_id and we found an all_sub ID (non-XID), populate submission_id as fallback for laundry detection
+        if (empty($old_sub_id) && empty($xid_sub_id) && !empty($all_sub_id) && empty($target_base_id)) {
+            $updates[] = "base_submission_id = ?";
             $types .= "s";
-            $params[] = $approved_date;
-            $need_update = true;
-        }
-
-        // Update Submission Date directly from table if available
-        if ($sub_date && $sub_date !== $matched_task['submission_date']) {
-            $updates[] = "submission_date = ?";
-            $types .= "s";
-            $params[] = $sub_date;
-            $need_update = true;
-        }
-
-        // Reviewer update
-        if (!empty($reviewer) && trim($reviewer) !== trim(strval($old_reviewer))) {
-            $updates[] = "reviewer_email = ?";
-            $types .= "s";
-            $params[] = $reviewer;
-            $need_update = true;
-        }
-
-        // Urgent flag update
-        if ($is_urgent !== $old_urgent) {
-            $updates[] = "is_urgent = ?";
-            $types .= "i";
-            $params[] = $is_urgent;
-            $need_update = true;
-        }
-
-        // Submission ID update
-        if (!empty($sub_id) && trim($sub_id) !== trim(strval($old_sub_id))) {
-            $updates[] = "submission_id = ?";
-            $types .= "s";
-            $params[] = $sub_id;
+            $params[] = $all_sub_id;
             $need_update = true;
         }
 
@@ -728,12 +786,15 @@ foreach ($submissions as $sub) {
                     $log_csc = !empty($matched_task['csc']) && trim($matched_task['csc']) !== '-' ? $matched_task['csc'] : ($csc_version ?: 'N/A');
                     $log_model = !empty($matched_task['model_name']) ? $matched_task['model_name'] : 'N/A';
 
-                    // Record in activity_log with AP and CSC prominently displayed to prevent false positives
+                    // Record in activity_log with AP and CSC prominently displayed
                     $log_details = "AP: {$log_ap} | CSC: {$log_csc} | Status: [{$old_status} -> {$final_status}]";
-                    if (!empty($sub_id) && $sub_id !== $old_sub_id) {
-                        $log_details .= " | SubID: {$sub_id}";
-                    } elseif (!empty($old_sub_id)) {
-                        $log_details .= " | SubID: {$old_sub_id}";
+                    $effective_sub_id = !empty($xid_sub_id) ? $xid_sub_id : $old_sub_id;
+                    $effective_base_id = !empty($target_base_id) ? $target_base_id : $old_base_sub_id;
+                    if (!empty($effective_sub_id)) {
+                        $log_details .= " | SubID: {$effective_sub_id}";
+                    }
+                    if (!empty($effective_base_id)) {
+                        $log_details .= " | BaseSubID: {$effective_base_id}";
                     }
                     if (!empty($reviewer) && $reviewer !== $old_reviewer) {
                         $log_details .= " | Reviewer: {$reviewer}";
@@ -758,7 +819,8 @@ foreach ($submissions as $sub) {
                         'new_status' => $final_status,
                         'reviewer' => $reviewer ?: $old_reviewer,
                         'is_urgent' => $is_urgent,
-                        'submission_id' => $sub_id ?: $old_sub_id
+                        'submission_id' => $effective_sub_id,
+                        'base_submission_id' => $effective_base_id
                     ];
                 } else {
                     error_log("Execute failed for task #{$task_id}: " . $stmt_up->error);

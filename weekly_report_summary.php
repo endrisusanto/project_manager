@@ -951,6 +951,26 @@ function get_pic_badge_class($name) {
             background: rgba(148, 163, 184, 0.25);
             border-radius: 4px;
         }
+
+        /* Mobile Responsive Adjustments */
+        @media (max-width: 767px) {
+            .btn-action-tactile {
+                padding: 7px 12px;
+                font-size: 12px;
+            }
+            .modal-dialog {
+                max-width: calc(100vw - 24px);
+                margin: 0 12px;
+            }
+            .better-table-wrap {
+                border-radius: 12px;
+                -webkit-overflow-scrolling: touch;
+            }
+            .better-table th, .better-table td {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -992,45 +1012,49 @@ function get_pic_badge_class($name) {
                 </div>
             </div>
 
-            <!-- WEEK SELECTOR CONTROLLER & ACTION BUTTONS (NO WRAP ON DESKTOP) -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-1 2xl:pb-0 flex-nowrap flex-shrink-0">
-                <a href="weekly_report_summary.php?date=<?= $prev_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-shrink-0 whitespace-nowrap">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                    <span>Prev Week</span>
-                </a>
+            <!-- WEEK SELECTOR CONTROLLER & ACTION BUTTONS (RESPONSIVE ON MOBILE) -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 2xl:pb-0 flex-wrap sm:flex-nowrap flex-shrink-0 w-full 2xl:w-auto custom-scroll">
+                <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                    <a href="weekly_report_summary.php?date=<?= $prev_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-1 sm:flex-initial whitespace-nowrap justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                        <span>Prev Week</span>
+                    </a>
 
-                <?php if (!$is_current_week): ?>
-                <a href="weekly_report_summary.php" class="btn-action-tactile bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 flex-shrink-0 whitespace-nowrap">
-                    <span>Current Week</span>
-                </a>
-                <?php endif; ?>
+                    <?php if (!$is_current_week): ?>
+                    <a href="weekly_report_summary.php" class="btn-action-tactile bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 flex-1 sm:flex-initial whitespace-nowrap justify-center">
+                        <span>Current</span>
+                    </a>
+                    <?php endif; ?>
 
-                <a href="weekly_report_summary.php?date=<?= $next_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-shrink-0 whitespace-nowrap">
-                    <span>Next Week</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </a>
+                    <a href="weekly_report_summary.php?date=<?= $next_week_date ?>" class="btn-action-tactile nav-week-btn shadow-sm flex-1 sm:flex-initial whitespace-nowrap justify-center">
+                        <span>Next Week</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                </div>
 
-                <!-- Send Mail Button (Left-click: Send | Right-click: Configure) -->
-                <button id="btn-send-email-report" 
-                        onclick="handleSendEmailClick()" 
-                        oncontextmenu="openEmailConfigModal(event)" 
-                        class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-600/30 group relative flex-shrink-0 whitespace-nowrap"
-                        title="Klik kiri: Kirim Email Report langsung | Klik kanan: Atur Subject & Penerima">
-                    <span id="send-mail-icon-wrap" class="flex items-center justify-center w-4 h-4">
-                        <svg id="send-mail-icon" class="w-4 h-4 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <div class="flex items-center gap-1.5 w-full sm:w-auto">
+                    <!-- Send Mail Button (Left-click: Send | Right-click: Configure) -->
+                    <button id="btn-send-email-report" 
+                            onclick="handleSendEmailClick()" 
+                            oncontextmenu="openEmailConfigModal(event)" 
+                            class="btn-action-tactile bg-sky-600 hover:bg-sky-500 text-white shadow-sm shadow-sky-600/30 group relative flex-1 sm:flex-initial whitespace-nowrap justify-center"
+                            title="Klik kiri: Kirim Email Report langsung | Klik kanan: Atur Subject & Penerima">
+                        <span id="send-mail-icon-wrap" class="flex items-center justify-center w-4 h-4">
+                            <svg id="send-mail-icon" class="w-4 h-4 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                        </span>
+                        <span id="send-mail-text">Kirim Email</span>
+                        <span class="text-[9px] text-sky-100 bg-sky-700/80 px-1.5 py-0.5 rounded font-mono border border-sky-400/30 hidden xl:inline">R-Click ⚙️</span>
+                    </button>
+
+                    <button id="btn-copy-weekly" onclick="copyWeeklyReport()" class="btn-action-tactile bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-600/25 flex-1 sm:flex-initial whitespace-nowrap justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
                         </svg>
-                    </span>
-                    <span id="send-mail-text">Kirim Email Report</span>
-                    <span class="text-[9px] text-sky-100 bg-sky-700/80 px-1.5 py-0.5 rounded font-mono border border-sky-400/30 hidden xl:inline">R-Click ⚙️</span>
-                </button>
-
-                <button id="btn-copy-weekly" onclick="copyWeeklyReport()" class="btn-action-tactile bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-600/25 flex-shrink-0 whitespace-nowrap">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                    </svg>
-                    <span>Copy Report</span>
-                </button>
+                        <span>Copy</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1209,7 +1233,7 @@ function get_pic_badge_class($name) {
             </div>
 
             <div class="better-table-wrap overflow-x-auto">
-                <table class="better-table text-xs select-none">
+                <table class="better-table text-xs select-none min-w-[700px]">
                     <thead>
                         <tr>
                             <th rowspan="2" class="header-sapphire py-2.5 px-4 font-bold text-center whitespace-nowrap text-xs">GBA PIC</th>
@@ -1291,15 +1315,15 @@ function get_pic_badge_class($name) {
                     <p class="text-xs text-adaptive-sub">Total <?= $total_week_tasks ?> task terdata dalam siklus Rabu - Selasa</p>
                 </div>
                 
-                <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                     <!-- Search Input -->
-                    <div class="relative">
-                        <input type="text" id="table-search" placeholder="Cari model, AP, PIC..." onkeyup="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-sky-500 pl-8 w-48 sm:w-60 transition-all shadow-sm">
+                    <div class="relative flex-1 sm:flex-initial w-full sm:w-auto">
+                        <input type="text" id="table-search" placeholder="Cari model, AP, PIC..." onkeyup="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-sky-500 pl-8 w-full sm:w-60 transition-all shadow-sm">
                         <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
 
                     <!-- Status Filter Dropdown -->
-                    <select id="status-filter" onchange="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-sky-500 transition-all shadow-sm">
+                    <select id="status-filter" onchange="filterWeeklyTable()" class="px-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-sky-500 transition-all shadow-sm w-full sm:w-auto">
                         <option value="ALL">Semua Status (<?= $total_week_tasks ?>)</option>
                         <option value="Approved">Approved (<?= $approved_count ?>)</option>
                         <option value="Submitted">Submitted (<?= $submitted_count ?>)</option>
@@ -1313,7 +1337,7 @@ function get_pic_badge_class($name) {
 
             <!-- Table responsive (Grid Layout Sesuai Gambar) -->
             <div class="better-table-wrap overflow-x-auto">
-                <table id="weekly-table" class="better-table text-left text-xs">
+                <table id="weekly-table" class="better-table text-left text-xs min-w-[960px]">
                     <thead>
                         <tr class="select-none font-bold">
                             <th class="header-sapphire py-3 px-2.5 text-center whitespace-nowrap w-10">No</th>

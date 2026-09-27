@@ -416,12 +416,12 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
         }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="min-h-screen lg:h-screen flex flex-col overflow-y-auto lg:overflow-hidden">
     <canvas id="neural-canvas"></canvas>
 
     <?php include 'header.php'; ?>
 
-    <main class="main-container flex-grow overflow-y-auto lg:overflow-hidden">
+    <main class="main-container flex-grow overflow-y-auto lg:overflow-hidden pb-6 lg:pb-0">
         <div class="max-w-[1720px] w-full mx-auto flex flex-col flex-1 min-h-0 gap-2.5">
             
             <!-- Top Row: Executive Hero KPI & Pipeline Strip -->
@@ -615,7 +615,7 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
                             </span>
                         </div>
                     </div>
-                    <div class="flex-1 min-h-0 w-full relative">
+                    <div class="flex-1 w-full relative min-h-[260px] sm:min-h-[300px] lg:min-h-0">
                         <canvas id="weeklyTaskChart"></canvas>
                     </div>
                 </div>
@@ -657,7 +657,7 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
                                 </span>
                             </div>
                         </div>
-                        <div class="flex-1 min-h-0 w-full relative flex items-center justify-center">
+                        <div class="flex-1 w-full relative flex items-center justify-center min-h-[220px] sm:min-h-[240px] lg:min-h-0 overflow-hidden">
                             <canvas id="picPieChart"></canvas>
                         </div>
                     </div>
@@ -682,8 +682,8 @@ $approval_rate = ($stats['total'] > 0) ? round(($stats['approved'] / $stats['tot
     </main>
 
     <!-- Task Modal (Add/Edit) -->
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden" style="backdrop-filter: blur(8px);">
-        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-3">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm hidden p-2 sm:p-4 overflow-y-auto" style="backdrop-filter: blur(8px);">
+        <div class="modal-content-wrapper rounded-2xl shadow-2xl p-4 sm:p-5 w-full max-w-5xl mx-auto max-h-[92dvh] overflow-y-auto">
             <form id="task-form" action="handler.php" method="POST">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-[var(--glass-border)]">
                     <div class="flex items-center gap-2">

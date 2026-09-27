@@ -1107,6 +1107,35 @@ Jawab pertanyaan dan buatkan laporan secara profesional, ringkas, dan jelas dala
     return;
   }
 
+  // POST /api/bas/proxy - Proxy BAS requests through Host Network
+  if (req.method === "POST" && url.pathname === "/api/bas/proxy") {
+    let bodyText = "";
+    req.on("data", (chunk) => { bodyText += chunk; });
+    req.on("end", async () => {
+      try {
+        const reqData = JSON.parse(bodyText || "{}");
+        const targetUrl = reqData.url;
+        const targetMethod = reqData.method || "POST";
+        const targetHeaders = reqData.headers || {};
+        const targetBody = reqData.body ? (typeof reqData.body === "string" ? reqData.body : JSON.stringify(reqData.body)) : null;
+
+        const basRes = await fetch(targetUrl, {
+          method: targetMethod,
+          headers: targetHeaders,
+          body: (targetMethod !== "GET" && targetMethod !== "HEAD") ? targetBody : undefined
+        });
+
+        const respText = await basRes.text();
+        res.writeHead(basRes.status, { "Content-Type": "application/json" });
+        res.end(respText);
+      } catch (err) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/sync/broadcast - Web changes trigger WSS push to desktop bridge clients
   if (req.method === "POST" && url.pathname === "/api/sync/broadcast") {
     let bodyText = "";

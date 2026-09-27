@@ -10,6 +10,30 @@ if ($users_result && $users_result->num_rows > 0) {
 ?>
 <!-- ponytail: Better-UI & Emil-Design-Eng Compact Zero-Scroll Form Layout -->
 <style>
+    /* Modal Mobile Scrolling & Viewport Adaptability */
+    #task-modal {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    #task-modal .modal-content-wrapper {
+        max-height: calc(100dvh - 24px) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    @media (max-width: 767px) {
+        #task-modal {
+            align-items: flex-start !important;
+            padding: 8px !important;
+        }
+        #task-modal .modal-content-wrapper {
+            max-height: calc(100dvh - 16px) !important;
+            padding: 14px 12px !important;
+            margin: auto !important;
+        }
+    }
+
     .form-card {
         background: rgba(15, 23, 42, 0.65);
         border: 1px solid rgba(51, 65, 85, 0.65);

@@ -243,6 +243,90 @@ if (!function_exists('is_model_dropped')) {
     }
 }
 
+if (!function_exists('is_laundry_task')) {
+    function is_laundry_task($task) {
+        if (!is_array($task)) return false;
+        
+        // 1. Check test plan: Normal, SKU, SMR
+        $tp = strtoupper(trim((string)($task['test_plan_type'] ?? '')));
+        $is_eligible = (strpos($tp, 'NORMAL') !== false || strpos($tp, 'SKU') !== false || strpos($tp, 'SMR') !== false || $tp === 'MR');
+        if (!$is_eligible) return false;
+        
+        // 2. Check if AP version exists in BAS system (has submission_id or base_submission_id)
+        $sub_id = trim((string)($task['submission_id'] ?? ''));
+        $base_sub_id = trim((string)($task['base_submission_id'] ?? ''));
+        
+        return (!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0');
+    }
+}
+
+if (!function_exists('render_laundry_icon')) {
+    function render_laundry_icon($task, $extra_classes = '', $size = 'w-3.5 h-3.5') {
+        if (!is_laundry_task($task)) return '';
+        
+        $unique_id = 'laundry_ico_' . ($task['id'] ?? '') . '_' . mt_rand(1000, 9999);
+        return '<span class="inline-flex items-center justify-center ' . htmlspecialchars($extra_classes) . '" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode)">'
+            . '<svg class="' . htmlspecialchars($size) . ' laundry-sparkle-anim flex-shrink-0 cursor-pointer" viewBox="0 0 24 24" fill="none">'
+            . '<defs>'
+            . '<linearGradient id="' . $unique_id . '_grad" x1="0%" y1="0%" x2="100%" y2="100%">'
+            . '<stop offset="0%" stop-color="#22d3ee" />'
+            . '<stop offset="50%" stop-color="#38bdf8" />'
+            . '<stop offset="100%" stop-color="#3b82f6" />'
+            . '</linearGradient>'
+            . '</defs>'
+            . '<path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#' . $unique_id . '_grad)" class="laundry-star-main"/>'
+            . '<path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#' . $unique_id . '_grad)" class="laundry-star-sec"/>'
+            . '<path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/>'
+            . '</svg>'
+            . '</span>';
+    }
+}
+
+if (!function_exists('render_laundry_badge')) {
+    function render_laundry_badge($task, $extra_classes = '') {
+        if (!is_laundry_task($task)) return '';
+        
+        $unique_id = 'laundry_' . ($task['id'] ?? '') . '_' . mt_rand(1000, 9999);
+        return '<span class="badge-laundry inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-none font-bold bg-sky-500/10 text-sky-400 border border-sky-400/25 shadow-none ' . htmlspecialchars($extra_classes) . '" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode)">'
+            . '<svg class="w-4 h-4 laundry-sparkle-anim flex-shrink-0" viewBox="0 0 24 24" fill="none">'
+            . '<defs>'
+            . '<linearGradient id="' . $unique_id . '_grad" x1="0%" y1="0%" x2="100%" y2="100%">'
+            . '<stop offset="0%" stop-color="#22d3ee" />'
+            . '<stop offset="50%" stop-color="#38bdf8" />'
+            . '<stop offset="100%" stop-color="#3b82f6" />'
+            . '</linearGradient>'
+            . '</defs>'
+            . '<path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#' . $unique_id . '_grad)" class="laundry-star-main"/>'
+            . '<path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#' . $unique_id . '_grad)" class="laundry-star-sec"/>'
+            . '<path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/>'
+            . '</svg>'
+            . '<span class="starlight-shimmer-text font-bold text-[11px] sm:text-xs">Laundry</span>'
+            . '</span>';
+    }
+}
+
+if (!function_exists('render_orbit_sync_badge')) {
+    function render_orbit_sync_badge($phrase = 'Orbit Sync', $extra_classes = '') {
+        $unique_id = 'orbit_' . uniqid();
+        return '<span class="orbit-sync-badge ' . htmlspecialchars($extra_classes) . '" title="Orbit Sync: Active real-time synchronization">'
+            . '<span class="orbit-sparkles-layer" aria-hidden="true">'
+            . '<svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">'
+            . '<defs>'
+            . '<linearGradient id="' . $unique_id . '_grad" x1="0%" y1="0%" x2="100%" y2="100%">'
+            . '<stop offset="0%" stop-color="#22d3ee" />'
+            . '<stop offset="50%" stop-color="#38bdf8" />'
+            . '<stop offset="100%" stop-color="#3b82f6" />'
+            . '</linearGradient>'
+            . '</defs>'
+            . '<path d="M15.5 3 Q15.5 9.5 9 9.5 Q15.5 9.5 15.5 16 Q15.5 9.5 22 9.5 Q15.5 9.5 15.5 3 Z" fill="url(#' . $unique_id . '_grad)" class="orbit-sparkle-1"/>'
+            . '<path d="M7 11.5 Q7 16 2.5 16 Q7 16 7 20.5 Q7 16 11.5 16 Q7 16 7 11.5 Z" fill="url(#' . $unique_id . '_grad)" class="orbit-sparkle-2"/>'
+            . '</svg>'
+            . '</span>'
+            . '<span class="orbit-shimmer-text">' . htmlspecialchars($phrase) . '</span>'
+            . '</span>';
+    }
+}
+
 if (!function_exists('get_marketing_name')) {
     function get_marketing_name($model_name, $default = '') {
         global $model_mapping;
