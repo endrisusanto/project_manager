@@ -588,7 +588,7 @@ foreach ($ap_submission_map as $ap_key => $entry) {
         $sub_date = parse_bas_date($raw_submission_date);
         $approved_date = parse_bas_date($raw_approval_date);
 
-        // Normalize progress status
+        // Normalize progress status (Rejected and Batal are both saved as Batal)
         $norm_status_upper = strtoupper($raw_status);
         if (strpos($norm_status_upper, 'PENDING') !== false) {
             $target_progress_status = 'Pending Feedback';
@@ -599,12 +599,10 @@ foreach ($ap_submission_map as $ap_key => $entry) {
             }
         } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
             $target_progress_status = 'Submitted';
-        } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false) {
-            $target_progress_status = 'Rejected';
+        } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false || strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
+            $target_progress_status = 'Batal';
         } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
             $target_progress_status = 'Test Ongoing';
-        } elseif (strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
-            $target_progress_status = 'Batal';
         }
     }
 
@@ -676,7 +674,10 @@ foreach ($ap_submission_map as $ap_key => $entry) {
             $old_status_rank = get_status_priority_rank($old_status);
             $target_status_rank = get_status_priority_rank($target_progress_status);
 
-            if ($target_progress_status !== null && $target_progress_status !== $old_status) {
+            // If BAS only has Rejected / Batal / Cancel, do NOT overwrite the local task status (leave status as is)
+            $is_rejected_or_batal = in_array($target_progress_status, ['Batal', 'Rejected']);
+
+            if ($target_progress_status !== null && $target_progress_status !== $old_status && !$is_rejected_or_batal) {
                 if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
                     $updates[] = "progress_status = ?";
                     $types .= "s";

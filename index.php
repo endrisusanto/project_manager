@@ -502,6 +502,9 @@ function render_kinerja_status($task) {
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2 h-2 rounded-full <?= getStatusDotColor($status) ?> flex-shrink-0"></span>
                             <span class="text-xs font-bold text-header truncate"><?= htmlspecialchars($status) ?></span>
+                            <?php if ($status === 'Approved'): ?>
+                                <span class="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 font-mono font-medium" title="Diperbarui otomatis oleh BAS Sync">Auto BAS</span>
+                            <?php endif; ?>
                         </div>
                         <span class="count-pill count-<?= str_replace(' ', '', $status) ?>">
                             <?= count($tasksToDisplay[$status]) ?>
@@ -1126,7 +1129,13 @@ function render_kinerja_status($task) {
         if (typeof Sortable === 'function') {
             columns.forEach(column => {
                 new Sortable(column, {
-                    group: 'kanban',
+                    group: {
+                        name: 'kanban',
+                        put: function (to) {
+                            const targetStatus = to.el.dataset.status;
+                            return targetStatus !== 'Approved';
+                        }
+                    },
                     animation: 200,
                     easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
                     ghostClass: 'sortable-ghost',
@@ -1152,8 +1161,19 @@ function render_kinerja_status($task) {
                         const card = evt.item;
                         const taskId = card.dataset.id;
                         const newStatus = evt.to.dataset.status;
+                        const oldStatus = evt.from.dataset.status;
 
-                        if (newStatus === 'Approved') { triggerConfetti(); }
+                        if (newStatus === oldStatus) {
+                            return;
+                        }
+
+                        if (newStatus === 'Approved') {
+                            showToast(`Status 'Approved' diperbarui otomatis oleh BAS Sync.`, 'warning');
+                            evt.from.appendChild(card);
+                            updateColumnCounts();
+                            return;
+                        }
+
                         if (newStatus === 'Batal') { triggerSadAnimation(); }
 
                         fetch('handler.php', {

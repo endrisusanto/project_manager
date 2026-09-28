@@ -381,15 +381,15 @@ if ($users_result && $users_result->num_rows > 0) {
                 <div>
                     <label for="progress_status" class="form-micro-label">Status Progress <span class="text-rose-400">*</span></label>
                     <select id="progress_status" name="progress_status" class="compact-input font-medium text-blue-400 font-semibold" required>
-                        <option>Task Baru</option>
-                        <option>Downloaded</option>
-                        <option>Test Ongoing</option>
-                        <option>Passed</option>
-                        <option>Submitted</option>
-                        <option>Approved</option>
-                        <option>Pending Feedback</option>
-                        <option>Feedback Sent</option>
-                        <option>Batal</option>
+                        <option value="Task Baru">Task Baru</option>
+                        <option value="Downloaded">Downloaded</option>
+                        <option value="Test Ongoing">Test Ongoing</option>
+                        <option value="Passed">Passed</option>
+                        <option value="Submitted">Submitted</option>
+                        <option value="Approved" disabled class="text-slate-500 bg-slate-800/50">Approved (Auto BAS Sync)</option>
+                        <option value="Pending Feedback">Pending Feedback</option>
+                        <option value="Feedback Sent">Feedback Sent</option>
+                        <option value="Batal">Batal</option>
                     </select>
                 </div>
             </div>

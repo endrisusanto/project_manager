@@ -808,6 +808,14 @@ switch ($action) {
         $new_status = $data['new_status'];
         $today = date('Y-m-d');
 
+        if ($new_status === 'Approved') {
+            echo json_encode([
+                'success' => false,
+                'error' => "Status 'Approved' diperbarui secara otomatis oleh BAS Sync."
+            ]);
+            exit();
+        }
+
         // 1. Fetch original status and model name for logging
         $get_old_status_stmt = $conn->prepare("SELECT progress_status, model_name, test_plan_type FROM gba_tasks WHERE id = ?");
         $get_old_status_stmt->bind_param("i", $task_id);

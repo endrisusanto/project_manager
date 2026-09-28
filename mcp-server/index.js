@@ -565,12 +565,10 @@ async function executeTool(name, args = {}) {
         (t.request_date BETWEEN ? AND ?) OR
         (t.submission_date BETWEEN ? AND ?) OR
         (t.approved_date BETWEEN ? AND ?) OR
-        (t.deadline BETWEEN ? AND ?) OR
-        (DATE(t.updated_at) BETWEEN ? AND ?) OR
-        (t.progress_status NOT IN ('Approved', 'Passed', 'Batal') AND (t.request_date <= ? OR t.request_date IS NULL))
+        (t.deadline BETWEEN ? AND ?)
       )
       ORDER BY t.deadline ASC, t.id DESC
-    `, [startStr, endStr, startStr, endStr, startStr, endStr, startStr, endStr, startStr, endStr, endStr]);
+    `, [startStr, endStr, startStr, endStr, startStr, endStr, startStr, endStr]);
 
     let approvedCount = 0;
     let submittedCount = 0;

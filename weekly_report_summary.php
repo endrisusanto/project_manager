@@ -89,9 +89,6 @@ function is_task_in_week_range($task, $start, $end) {
         $task['approved_date'] ?? null,
         $task['deadline'] ?? null
     ];
-    if (!empty($task['updated_at'])) {
-        $dates[] = substr($task['updated_at'], 0, 10);
-    }
     foreach ($dates as $d) {
         if (!empty($d) && $d >= $start && $d <= $end) {
             return true;
@@ -101,18 +98,17 @@ function is_task_in_week_range($task, $start, $end) {
 }
 
 // Fetch all tasks for the current year to build the multi-week matrix
-$matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.submission_date, t.approved_date, t.deadline, t.updated_at, u.username 
+$matrix_sql = "SELECT t.id, t.pic_email, t.progress_status, t.request_date, t.submission_date, t.approved_date, t.deadline, u.username 
                FROM gba_tasks t 
                LEFT JOIN users u ON t.pic_email = u.email 
                WHERE (
                    YEAR(t.request_date) = ? OR 
                    YEAR(t.submission_date) = ? OR 
                    YEAR(t.approved_date) = ? OR 
-                   YEAR(t.deadline) = ? OR 
-                   YEAR(t.updated_at) = ?
+                   YEAR(t.deadline) = ?
                )";
 $stmt_m = $conn->prepare($matrix_sql);
-$stmt_m->bind_param("sssss", $curr_year, $curr_year, $curr_year, $curr_year, $curr_year);
+$stmt_m->bind_param("ssss", $curr_year, $curr_year, $curr_year, $curr_year);
 $stmt_m->execute();
 $res_m = $stmt_m->get_result();
 $matrix_tasks = [];
@@ -223,20 +219,16 @@ $sql = "SELECT t.*, u.username, u.profile_picture
             (t.request_date BETWEEN ? AND ?) OR
             (t.submission_date BETWEEN ? AND ?) OR
             (t.approved_date BETWEEN ? AND ?) OR
-            (t.deadline BETWEEN ? AND ?) OR
-            (DATE(t.updated_at) BETWEEN ? AND ?) OR
-            (t.progress_status NOT IN ('Approved', 'Passed', 'Batal') AND (t.request_date <= ? OR t.request_date IS NULL))
+            (t.deadline BETWEEN ? AND ?)
         )
         ORDER BY t.deadline ASC, t.id DESC";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("sssssssssss", 
+$stmt->bind_param("ssssssss", 
     $start_date_str, $end_date_str,
     $start_date_str, $end_date_str,
     $start_date_str, $end_date_str,
-    $start_date_str, $end_date_str,
-    $start_date_str, $end_date_str,
-    $end_date_str
+    $start_date_str, $end_date_str
 );
 $stmt->execute();
 $res = $stmt->get_result();

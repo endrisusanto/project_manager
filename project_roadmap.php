@@ -949,14 +949,14 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                         <div>
                             <label for="progress_status" class="form-label block mb-1 text-sm font-medium">Status Progress</label>
                             <select id="progress_status" name="progress_status" class="themed-input w-full p-2.5 text-sm rounded-lg important-field" required>
-                                <option>Task Baru</option>
-                                <option>Test Ongoing</option>
-                                <option>Passed</option>
-                                <option>Submitted</option>
-                                <option>Approved</option>
-                                <option>Pending Feedback</option>
-                                <option>Feedback Sent</option>
-                                <option>Batal</option>
+                                <option value="Task Baru">Task Baru</option>
+                                <option value="Test Ongoing">Test Ongoing</option>
+                                <option value="Passed">Passed</option>
+                                <option value="Submitted">Submitted</option>
+                                <option value="Approved" disabled class="text-slate-500">Approved (Auto BAS Sync)</option>
+                                <option value="Pending Feedback">Pending Feedback</option>
+                                <option value="Feedback Sent">Feedback Sent</option>
+                                <option value="Batal">Batal</option>
                             </select>
                         </div>
                         <div>
