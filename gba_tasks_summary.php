@@ -602,7 +602,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     
     <script>
         const allTasksData = <?= json_encode($tasks) ?>;
-        const isAdmin = <?= json_encode(is_admin()) ?>;
+        const isAdmin = <?= json_encode(is_admin() || is_endri_or_admin()) ?>;
         const userdataModels = <?= json_encode(array_keys(array_filter($userdata_models ?? []))) ?>;
         const modelMapping = <?= json_encode($model_mapping ?? []) ?>;
 
@@ -863,6 +863,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         }
 
         function renderLaundryBadgeJs(task) {
+            if (isAdmin) return '';
             if (!isLaundryTaskJs(task)) return '';
             const uniqueId = 'laundry_js_' + (task.id || '') + '_' + Math.random().toString(36).substr(2, 6);
             return `<div class="mt-1"><span class="badge-laundry inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-none font-bold bg-sky-500/10 text-sky-400 border border-sky-400/25 shadow-none" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode)"><svg class="w-4 h-4 laundry-sparkle-anim flex-shrink-0" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="${uniqueId}_grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs><path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-main"/><path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-sec"/><path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/></svg><span class="starlight-shimmer-text font-bold text-[11px] sm:text-xs">Laundry</span></span></div>`;

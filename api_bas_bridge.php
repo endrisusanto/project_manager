@@ -123,8 +123,35 @@ function save_bas_session_data($session_data) {
     }
 }
 
-// Handle GET request to check status
+// Handle GET request to check status or list tasks
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $action = $_GET['action'] ?? '';
+    if ($action === 'list_tasks' || $action === 'get_tasks') {
+        $tasks = [];
+        $res = $conn->query("SELECT id, project_name, model_name, ap, cp, csc, qb_user, qb_userdebug, pic_email, test_plan_type, progress_status FROM gba_tasks ORDER BY id DESC LIMIT 50");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $tasks[] = [
+                    'id' => (int)$row['id'],
+                    'project_name' => $row['project_name'] ?? '',
+                    'model_name' => $row['model_name'] ?? '',
+                    'ap' => $row['ap'] ?? '',
+                    'cp' => $row['cp'] ?? '',
+                    'csc' => $row['csc'] ?? '',
+                    'qb_user' => $row['qb_user'] ?? '',
+                    'qb_userdebug' => $row['qb_userdebug'] ?? '',
+                    'pic_email' => $row['pic_email'] ?? '',
+                    'test_plan_type' => $row['test_plan_type'] ?? 'Normal MR',
+                    'progress_status' => $row['progress_status'] ?? 'Pending'
+                ];
+            }
+        }
+        echo json_encode([
+            'success' => true,
+            'data' => $tasks
+        ]);
+        exit;
+    }
     $data = load_bas_session_data();
 
     if (!$data || empty($data['sid'])) {

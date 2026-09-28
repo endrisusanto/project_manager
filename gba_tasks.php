@@ -1331,7 +1331,7 @@ function getTestPlanBadgeClass($plan) {
                                         <?php if (function_exists('is_userdata_required') && is_userdata_required($task['model_name'])): ?>
                                             <div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>
                                         <?php endif; ?>
-                                        <?php if (function_exists('render_laundry_badge') && is_laundry_task($task)): ?>
+                                        <?php if (!is_admin() && !is_endri_or_admin() && function_exists('render_laundry_badge') && is_laundry_task($task)): ?>
                                             <div class="mt-1.5">
                                                 <?= render_laundry_badge($task) ?>
                                             </div>
