@@ -1168,68 +1168,7 @@ function get_pic_badge_class($pic_name) {
 
     <!-- Ambient Neural Network Canvas Animation -->
     <script>
-        const canvas = document.getElementById('neural-canvas');
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            let width = canvas.width = window.innerWidth;
-            let height = canvas.height = window.innerHeight;
-            let particles = [];
-
-            window.addEventListener('resize', () => {
-                width = canvas.width = window.innerWidth;
-                height = canvas.height = window.innerHeight;
-            });
-
-            class Particle {
-                constructor() {
-                    this.x = Math.random() * width;
-                    this.y = Math.random() * height;
-                    this.vx = (Math.random() - 0.5) * 0.4;
-                    this.vy = (Math.random() - 0.5) * 0.4;
-                    this.radius = Math.random() * 1.5 + 0.5;
-                }
-                update() {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    if (this.x < 0 || this.x > width) this.vx *= -1;
-                    if (this.y < 0 || this.y > height) this.vy *= -1;
-                }
-                draw() {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = document.documentElement.classList.contains('light') ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.25)';
-                    ctx.fill();
-                }
-            }
-
-            const pCount = window.innerWidth > 768 ? 60 : 30;
-            for (let i = 0; i < pCount; i++) particles.push(new Particle());
-
-            function animate() {
-                ctx.clearRect(0, 0, width, height);
-                for (let i = 0; i < particles.length; i++) {
-                    particles[i].update();
-                    particles[i].draw();
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const dx = particles[i].x - particles[j].x;
-                        const dy = particles[i].y - particles[j].y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 120) {
-                            ctx.beginPath();
-                            ctx.moveTo(particles[i].x, particles[i].y);
-                            ctx.lineTo(particles[j].x, particles[j].y);
-                            ctx.strokeStyle = document.documentElement.classList.contains('light') 
-                                ? `rgba(99, 102, 241, ${0.12 * (1 - dist / 120)})` 
-                                : `rgba(99, 102, 241, ${0.15 * (1 - dist / 120)})`;
-                            ctx.stroke();
-                        }
-                    }
-                }
-                requestAnimationFrame(animate);
-            }
-            animate();
-        }
-
+        // Note: #neural-canvas is now managed by the centralized lean engine in header.php
         // Universal Copy Helper for all browser environments (HTTP, HTTPS, Local, Legacy)
         function fallbackCopyText(text) {
             const textArea = document.createElement("textarea");

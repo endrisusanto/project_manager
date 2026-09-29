@@ -953,7 +953,7 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                                 <option value="Test Ongoing">Test Ongoing</option>
                                 <option value="Passed">Passed</option>
                                 <option value="Submitted">Submitted</option>
-                                <option value="Approved" disabled class="text-slate-500">Approved (Auto BAS Sync)</option>
+                                <option value="Approved">Approved</option>
                                 <option value="Pending Feedback">Pending Feedback</option>
                                 <option value="Feedback Sent">Feedback Sent</option>
                                 <option value="Batal">Batal</option>
@@ -991,33 +991,7 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
     <script>
         const root = document.documentElement;
 
-        // --- 2. BACKGROUND ANIMATION (NEURAL NETWORK) ---
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-        let particles = [], hue = 210;
-        let isNeuralAnimRunning = true;
-        let neuralAnimId = null;
-        function setCanvasSize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        class Particle { constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.vx = (Math.random() - .5) * .4; this.vy = (Math.random() - .5) * .4; this.size = Math.random() * 2 + 1.5; } update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > canvas.width) this.vx *= -1; if (this.y < 0 || this.y > canvas.height) this.vy *= -1; } draw() { ctx.fillStyle = `hsl(${hue},100%,75%)`; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); } }
-        function initParticles(n) { particles = []; for (let i = 0; i < n; i++) particles.push(new Particle()); }
-        function animateParticles() { 
-            if (!isNeuralAnimRunning) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
-            hue = (hue + .3) % 360; 
-            particles.forEach(p => { p.update(); p.draw(); }); 
-            neuralAnimId = requestAnimationFrame(animateParticles); 
-        }
-        function pauseNeuralAnimation() {
-            isNeuralAnimRunning = false;
-            if (neuralAnimId) cancelAnimationFrame(neuralAnimId);
-        }
-        function resumeNeuralAnimation() {
-            if (!isNeuralAnimRunning) {
-                isNeuralAnimRunning = true;
-                animateParticles();
-            }
-        }
-        window.addEventListener('resize', setCanvasSize); setCanvasSize(); initParticles(80); animateParticles();
-
+        // Note: #neural-canvas is now managed by the centralized lean engine in header.php
         // --- 3. MODAL LOGIC (QUIL EDITOR) ---
         let quill;
         function openEditModal(data) {

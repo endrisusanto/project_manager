@@ -502,7 +502,7 @@ function render_kinerja_status($task) {
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="w-2 h-2 rounded-full <?= getStatusDotColor($status) ?> flex-shrink-0"></span>
                             <span class="text-xs font-bold text-header truncate"><?= htmlspecialchars($status) ?></span>
-                            <?php if ($status === 'Approved'): ?>
+                            <?php if ($status === 'Approved' || $status === 'Submitted'): ?>
                                 <span class="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20 font-mono font-medium" title="Diperbarui otomatis oleh BAS Sync">Auto BAS</span>
                             <?php endif; ?>
                         </div>
@@ -654,110 +654,7 @@ function render_kinerja_status($task) {
         </div>
     </div>
 <script>
-    // --- ANIMATION & THEME LOGIC (KEEPING IMPROVEMENTS) ---
-    const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-    let particles = [], hue = 210;
-    
-    const mouse = { x: undefined, y: undefined, radius: 120 };
-
-    function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-
-    window.addEventListener('mousemove', function(event) {
-        mouse.x = event.clientX;
-        mouse.y = event.clientY;
-    });
-
-    window.addEventListener('mouseout', function(){
-        mouse.x = undefined;
-        mouse.y = undefined;
-    });
-    
-    class Particle{
-        constructor(x, y){
-            this.x = x || Math.random() * canvas.width;
-            this.y = y || Math.random() * canvas.height;
-            this.vx = (Math.random() - 0.5) * 1.5; 
-            this.vy = (Math.random() - 0.5) * 1.5; 
-            this.size = Math.random() * 2 + 1;
-        }
-
-        update(){
-            this.x += this.vx;
-            this.y += this.vy;
-            if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-            if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-        }
-        
-        draw(){
-            ctx.fillStyle=`hsl(${hue},100%,75%)`;
-            ctx.beginPath();
-            ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-            ctx.fill();
-        }
-    }
-
-    function init(num){
-        particles = [];
-        for(let i=0;i<num;i++)particles.push(new Particle())
-    }
-
-    function handleParticles() {
-        if (mouse.x !== undefined && mouse.y !== undefined) {
-            ctx.beginPath();
-            let gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, mouse.radius);
-            gradient.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.15)`);
-            gradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = gradient;
-            ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        for(let i = 0; i < particles.length; i++) {
-            particles[i].update();
-            particles[i].draw();
-
-            if (mouse.x !== undefined && mouse.y !== undefined) {
-                const dxM = particles[i].x - mouse.x;
-                const dyM = particles[i].y - mouse.y;
-                const distM = Math.sqrt(dxM * dxM + dyM * dyM);
-                if (distM < mouse.radius) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${1 - distM / mouse.radius})`;
-                    ctx.lineWidth = 0.8;
-                    ctx.moveTo(mouse.x, mouse.y);
-                    ctx.lineTo(particles[i].x, particles[i].y);
-                    ctx.stroke();
-                }
-            }
-
-            for (let j = i; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 120) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
-                    ctx.lineWidth = 1;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.stroke();
-                    ctx.closePath();
-                }
-            }
-        }
-    }
-
-    function animate(){
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        hue = (hue + 1.0) % 360; 
-        handleParticles();
-        requestAnimationFrame(animate);
-    }
-    
-    const particleCount = window.innerWidth > 768 ? 150 : 70;
-    init(particleCount);
-    animate();
-    
+    // Note: #neural-canvas is now managed by the centralized lean engine in header.php
     // --- PAGE SPECIFIC LOGIC ---
     const modal = document.getElementById('task-modal'), 
           modalTitle = document.getElementById('modal-title'), 
@@ -1167,13 +1064,7 @@ function render_kinerja_status($task) {
                             return;
                         }
 
-                        if (newStatus === 'Approved') {
-                            showToast(`Status 'Approved' diperbarui otomatis oleh BAS Sync.`, 'warning');
-                            evt.from.appendChild(card);
-                            updateColumnCounts();
-                            return;
-                        }
-
+                        if (newStatus === 'Approved' || newStatus === 'Passed') { triggerConfetti(); }
                         if (newStatus === 'Batal') { triggerSadAnimation(); }
 
                         fetch('handler.php', {

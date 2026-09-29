@@ -92,6 +92,28 @@ $hdr_bas_status = get_header_bas_status();
             display: none !important;
         }
 
+        /* ponytail: Global Reduce UI Motion & Kill Continuous GPU Animations in Eco/Static/Reduce-Motion */
+        html.reduce-ui-motion *,
+        html[data-canvas-mode="static"] *,
+        html[data-canvas-mode="off"] * {
+            animation: none !important;
+        }
+
+        html.reduce-ui-motion *,
+        html[data-canvas-mode="static"] * {
+            transition-duration: 0.05s !important;
+        }
+
+        html[data-canvas-mode="off"] * {
+            transition: none !important;
+        }
+
+        html[data-canvas-mode="eco"] .laundry-sparkle-anim,
+        html[data-canvas-mode="eco"] .animate-pulse-alert,
+        html[data-canvas-mode="eco"] #spotlight-box {
+            animation-duration: 8s !important;
+        }
+
         #spotlight-overlay {
             position: fixed;
             inset: 0;
@@ -3230,5 +3252,248 @@ if (isset($_GET['chat_popup'])) {
             closeBasSyncModal();
         }
     });
+})();
+
+// =========================================================================
+// PONTAIL LEAN & EMIL DESIGN ENG: Centralized Neural Canvas Engine
+// Zero-Bloat, Throttled FPS & Static Mode to eliminate GPU overhead on budget laptops
+// =========================================================================
+(function() {
+    function getCanvasMode() {
+        var mode = localStorage.getItem('canvas_performance_mode');
+        if (!mode) {
+            // Check legacy key
+            if (localStorage.getItem('disable_canvas_animation') === 'true') {
+                mode = 'off';
+            } else {
+                mode = 'eco'; // Default to Eco (Throttled FPS) for best balance
+            }
+        }
+        return mode;
+    }
+
+    window.initNeuralCanvasEngine = function() {
+        var canvas = document.getElementById('neural-canvas');
+        if (!canvas) return;
+
+        // Ensure canvas has correct style
+        canvas.style.position = 'fixed';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.zIndex = '-1';
+        canvas.style.pointerEvents = 'none';
+
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        var width = 0, height = 0;
+        var particles = [];
+        var animId = null;
+        var lastDrawTime = 0;
+        var currentMode = getCanvasMode();
+
+        function syncClassWithMode() {
+            document.documentElement.setAttribute('data-canvas-mode', currentMode);
+            if (currentMode === 'off') {
+                document.documentElement.classList.add('disable-canvas-animation');
+                canvas.style.display = 'none';
+            } else {
+                document.documentElement.classList.remove('disable-canvas-animation');
+                canvas.style.display = 'block';
+            }
+
+            var isReduceMotion = (localStorage.getItem('reduce_ui_motion') === 'true') || (currentMode === 'static') || (currentMode === 'off');
+            document.documentElement.classList.toggle('reduce-ui-motion', isReduceMotion);
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            reinitParticles();
+            if (currentMode === 'static') {
+                renderSingleFrame();
+            }
+        }
+
+        function reinitParticles() {
+            particles = [];
+            var isMobile = width < 768;
+            var maxCount = 20;
+            if (currentMode === 'full') {
+                maxCount = isMobile ? 22 : 40;
+            } else if (currentMode === 'static') {
+                maxCount = isMobile ? 18 : 28;
+            } else if (currentMode === 'eco') {
+                maxCount = isMobile ? 12 : 22;
+            }
+
+            var count = Math.min(maxCount, Math.max(8, Math.floor((width * height) / 45000)));
+            for (var i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * (currentMode === 'full' ? 0.4 : 0.25),
+                    vy: (Math.random() - 0.5) * (currentMode === 'full' ? 0.4 : 0.25),
+                    radius: Math.random() * 1.4 + 0.8
+                });
+            }
+        }
+
+        function getColors() {
+            var isLight = document.documentElement.classList.contains('light');
+            return {
+                node: isLight ? 'rgba(59, 130, 246, 0.35)' : 'rgba(96, 165, 250, 0.35)',
+                line: isLight ? 'rgba(59, 130, 246, 0.08)' : 'rgba(96, 165, 250, 0.08)'
+            };
+        }
+
+        function drawNodes(colors) {
+            ctx.clearRect(0, 0, width, height);
+            var maxDistSq = 120 * 120; // 14400 (Avoid expensive Math.sqrt)
+
+            for (var i = 0; i < particles.length; i++) {
+                var p = particles[i];
+
+                // Draw Particle Node
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = colors.node;
+                ctx.fill();
+
+                // Draw Connections using Squared Distance
+                for (var j = i + 1; j < particles.length; j++) {
+                    var p2 = particles[j];
+                    var dx = p.x - p2.x;
+                    var dy = p.y - p2.y;
+                    var distSq = dx * dx + dy * dy;
+
+                    if (distSq < maxDistSq) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.strokeStyle = colors.line;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function renderSingleFrame() {
+            if (currentMode === 'off') {
+                ctx.clearRect(0, 0, width, height);
+                return;
+            }
+            drawNodes(getColors());
+        }
+
+        function loop(timestamp) {
+            if (currentMode === 'off' || currentMode === 'static' || document.hidden) {
+                animId = null;
+                return;
+            }
+
+            // FPS Throttling: Eco = ~18 FPS (55ms interval), Full = 60 FPS (16ms interval)
+            var targetInterval = (currentMode === 'eco') ? 55 : 16;
+            if (timestamp - lastDrawTime >= targetInterval) {
+                lastDrawTime = timestamp;
+
+                // Update positions
+                for (var i = 0; i < particles.length; i++) {
+                    var p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0) p.x = width;
+                    if (p.x > width) p.x = 0;
+                    if (p.y < 0) p.y = height;
+                    if (p.y > height) p.y = 0;
+                }
+
+                drawNodes(getColors());
+            }
+
+            animId = requestAnimationFrame(loop);
+        }
+
+        function start() {
+            syncClassWithMode();
+            if (currentMode === 'off') {
+                if (animId) cancelAnimationFrame(animId);
+                animId = null;
+                ctx.clearRect(0, 0, width, height);
+                return;
+            }
+            if (currentMode === 'static') {
+                if (animId) cancelAnimationFrame(animId);
+                animId = null;
+                renderSingleFrame();
+                return;
+            }
+            if (!animId && !document.hidden) {
+                lastDrawTime = performance.now();
+                animId = requestAnimationFrame(loop);
+            }
+        }
+
+        function stop() {
+            if (animId) {
+                cancelAnimationFrame(animId);
+                animId = null;
+            }
+        }
+
+        function applyMode(newMode) {
+            currentMode = newMode;
+            stop();
+            syncClassWithMode();
+            reinitParticles();
+            if (currentMode === 'static') {
+                renderSingleFrame();
+            } else if (currentMode !== 'off') {
+                start();
+            } else {
+                ctx.clearRect(0, 0, width, height);
+            }
+        }
+
+        // Initialize
+        resize();
+        window.addEventListener('resize', resize, { passive: true });
+
+        // Auto pause on tab hidden (Saves 100% CPU/GPU when backgrounded)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stop();
+            } else if (currentMode !== 'off' && currentMode !== 'static') {
+                start();
+            }
+        });
+
+        // Listen to live profile setting change
+        window.addEventListener('canvasperformancechanged', function(e) {
+            var mode = (e && e.detail && e.detail.mode) ? e.detail.mode : getCanvasMode();
+            applyMode(mode);
+        });
+
+        window.addEventListener('canvasanimationchanged', function(e) {
+            var mode = (e && e.detail && e.detail.disabled) ? 'off' : getCanvasMode();
+            applyMode(mode);
+        });
+
+        window.addEventListener('reducemotionchanged', function(e) {
+            syncClassWithMode();
+        });
+
+        start();
+        window.__neuralCanvasEngine = { applyMode: applyMode, resize: resize };
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', window.initNeuralCanvasEngine);
+    } else {
+        window.initNeuralCanvasEngine();
+    }
 })();
 </script>

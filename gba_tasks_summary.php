@@ -601,7 +601,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
     </div>
     
     <script>
-        const allTasksData = <?= json_encode($tasks) ?>;
+        const allTasksData = <?= json_encode($tasks, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?: '[]' ?>;
         const isAdmin = <?= json_encode(is_admin() || is_endri_or_admin()) ?>;
         const userdataModels = <?= json_encode(array_keys(array_filter($userdata_models ?? []))) ?>;
         const modelMapping = <?= json_encode($model_mapping ?? []) ?>;
@@ -625,71 +625,18 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             return '';
         }
 
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-        let particles = [], hue = 210;
-        function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
-        
-        class Particle{
-            constructor(x,y){
-                this.x=x||Math.random()*canvas.width;
-                this.y=y||Math.random()*canvas.height;
-                this.vx=(Math.random()-.5)*.4;
-                this.vy=(Math.random()-.5)*.4;
-                this.size=Math.random()*2 + 1.5;
-            }
-            update(){
-                this.x+=this.vx;this.y+=this.vy;
-                if(this.x<0||this.x>canvas.width)this.vx*=-1;
-                if(this.y<0||this.y>canvas.height)this.vy*=-1;
-            }
-            draw(){
-                ctx.fillStyle=`hsl(${hue},100%,75%)`;
-                ctx.beginPath();
-                ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-                ctx.fill();
-            }
-        }
+        // Note: #neural-canvas is now managed by the centralized lean engine in header.php
 
-        function init(num){
-            particles = [];
-            for(let i=0;i<num;i++)particles.push(new Particle())
-        }
-
-        function handleParticles() {
-            for(let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                for (let j = i; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 120) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
-                        ctx.lineWidth = 1;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function animate(){
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            hue = (hue + 0.3) % 360; 
-            handleParticles();
-            requestAnimationFrame(animate);
-        }
-        
-        const particleCount = window.innerWidth > 768 ? 150 : 70;
-        init(particleCount);
-        animate();
-
-        // --- PAGE SPECIFIC LOGIC ---
         const modal=document.getElementById('task-modal'),modalTitle=document.getElementById('modal-title'),taskForm=document.getElementById('task-form'),formAction=document.getElementById('form-action'),taskId=document.getElementById('task-id');let quill;
-        window.addEventListener('resize',()=>{setCanvasSize();init(particleCount)});
+        
+        function openEditModalById(id) {
+            if (!Array.isArray(allTasksData)) return;
+            const task = allTasksData.find(t => String(t.id) === String(id));
+            if (task) {
+                openEditModal(task);
+            }
+        }
+
         function openAddModal(){
             taskForm.reset();
             modalTitle.innerText='Tambah Task Baru';
@@ -863,10 +810,11 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         }
 
         function renderLaundryBadgeJs(task) {
-            if (isAdmin) return '';
             if (!isLaundryTaskJs(task)) return '';
-            const uniqueId = 'laundry_js_' + (task.id || '') + '_' + Math.random().toString(36).substr(2, 6);
-            return `<div class="mt-1"><span class="badge-laundry inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-none font-bold bg-sky-500/10 text-sky-400 border border-sky-400/25 shadow-none" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode)"><svg class="w-4 h-4 laundry-sparkle-anim flex-shrink-0" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="${uniqueId}_grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs><path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-main"/><path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-sec"/><path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/></svg><span class="starlight-shimmer-text font-bold text-[11px] sm:text-xs">Laundry</span></span></div>`;
+            const taskId = task.id || 0;
+            const uniqueId = 'laundry_js_' + taskId + '_' + Math.random().toString(36).substr(2, 6);
+            const dlUrl = `api_download_laundry.php?task_id=${taskId}&stream=1`;
+            return `<div class="mt-1"><a href="${dlUrl}" target="_blank" onclick="event.stopPropagation();" class="badge-laundry cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs leading-none font-bold bg-sky-500/10 text-sky-400 hover:text-sky-300 hover:bg-sky-500/20 border border-sky-400/25 transition-all shadow-none" title="BAS Verified: Build terdaftar di BAS System (Laundry Mode). Klik untuk download Laundry ZIP."><svg class="w-4 h-4 laundry-sparkle-anim flex-shrink-0" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="${uniqueId}_grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#22d3ee"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient></defs><path d="M 14 2 Q 14 12 5 12 Q 14 12 14 22 Q 14 12 23 12 Q 14 12 14 2 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-main"/><path d="M 5 1 Q 5 6 0.5 6 Q 5 6 5 11 Q 5 6 9.5 6 Q 5 6 5 1 Z" fill="url(#${uniqueId}_grad)" class="laundry-star-sec"/><path d="M 6 15.5 Q 6 19 3 19 Q 6 19 6 22.5 Q 6 19 9 19 Q 6 19 6 15.5 Z" fill="#2dd4bf" class="laundry-star-tert"/></svg><span class="starlight-shimmer-text font-bold text-[11px] sm:text-xs">Laundry</span></a></div>`;
         }
 
         function buildTableRows(tasks, startIndex) {
@@ -895,8 +843,10 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     ? `<div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>` 
                     : '';
                 const laundryBadge = renderLaundryBadgeJs(task);
-                const qbUserLink = task.qb_user ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${task.qb_user}" target="_blank" class="qb-link font-medium">${task.qb_user}</a></div>` : '';
-                const qbUserdebugLink = task.qb_userdebug ? `<div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/${task.qb_userdebug}" target="_blank" class="qb-link font-medium">${task.qb_userdebug}</a></div>` : '';
+                const qbUserTrimmed = (task.qb_user || '').toString().trim();
+                const qbUserdebugTrimmed = (task.qb_userdebug || '').toString().trim();
+                const qbUserLink = (qbUserTrimmed && qbUserTrimmed !== '-') ? `<div>USER: <a href="https://android.qb.sec.samsung.net/build/${qbUserTrimmed}" target="_blank" class="qb-link font-medium">${qbUserTrimmed}</a></div>` : '';
+                const qbUserdebugLink = (qbUserdebugTrimmed && qbUserdebugTrimmed !== '-') ? `<div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/${qbUserdebugTrimmed}" target="_blank" class="qb-link font-medium">${qbUserdebugTrimmed}</a></div>` : '';
                 
                 const apVersion = (task.ap || '').trim();
                 const cpVersion = (task.cp || '').trim();
@@ -941,7 +891,6 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');" class="inline-block m-0"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="card-action-btn hover:text-red-500" title="Hapus Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
                 }
 
-                const taskJsonString = JSON.stringify(task).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const planBadgeClass = getTestPlanBadgeClassJs(task.test_plan_type);
                 const dotColorClass = getStatusDotColorJs(task.progress_status);
                 const marketingName = getMarketingNameJs(task.model_name, task.project_name);
@@ -981,7 +930,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                         <td class="py-3 px-3 text-xs whitespace-nowrap">${kinerjaHtml}</td>
                         <td class="py-3 px-3 text-right">
                             <div class="flex items-center justify-end gap-1">
-                                <button onclick='openEditModal(${taskJsonString})' class="card-action-btn hover:text-blue-500" title="Edit Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
+                                <button onclick="openEditModalById(${task.id})" class="card-action-btn hover:text-blue-500" title="Edit Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                 ${deleteButton}
                             </div>
                         </td>
@@ -1100,7 +1049,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
         });
 
         // Jalankan semua fungsi setelah DOM siap
-        document.addEventListener('DOMContentLoaded', () => {
+        function initSummaryPage() {
             renderTable();
             setupQuill('');
             updateChecklistVisibility();
@@ -1109,27 +1058,40 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             if (profileMenu) {
                 const profileButton = profileMenu.querySelector('button');
                 const profileDropdown = document.getElementById('profile-dropdown');
-                profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
-                document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
+                if (profileButton && profileDropdown) {
+                    profileButton.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
+                    document.addEventListener('click', e => { if (!profileMenu.contains(e.target)) { profileDropdown.classList.add('hidden'); } });
+                }
             }
 
             if (searchInput) { searchInput.addEventListener('input', renderTable); }
-            rowsSelect.addEventListener('change', () => { currentPage = 1; renderTable(); });
-            testplanFilterContainer.addEventListener('click', e => {
-                if (e.target.tagName === 'BUTTON') {
-                    testplanFilterContainer.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    activePlanFilter = e.target.dataset.plan;
+            if (rowsSelect) { rowsSelect.addEventListener('change', () => { currentPage = 1; renderTable(); }); }
+            if (testplanFilterContainer) {
+                testplanFilterContainer.addEventListener('click', e => {
+                    if (e.target.tagName === 'BUTTON') {
+                        const prevActive = testplanFilterContainer.querySelector('.active');
+                        if (prevActive) prevActive.classList.remove('active');
+                        e.target.classList.add('active');
+                        activePlanFilter = e.target.dataset.plan || 'All';
+                        currentPage = 1;
+                        renderTable();
+                    }
+                });
+            }
+            if (statusFilter) {
+                statusFilter.addEventListener('change', () => {
+                    activeStatusFilter = statusFilter.value;
                     currentPage = 1;
                     renderTable();
-                }
-            });
-            statusFilter.addEventListener('change', () => {
-                activeStatusFilter = statusFilter.value;
-                currentPage = 1;
-                renderTable();
-            });
-        });
+                });
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSummaryPage);
+        } else {
+            initSummaryPage();
+        }
 
         // ============ REDISTRIBUTE REQUEST DATE LOGIC ============
         function openRedistributeModal() {

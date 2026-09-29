@@ -50,6 +50,13 @@ function getActionMeta($action_type) {
                 'dot' => 'dot-bas',
                 'icon' => '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>'
             ];
+        case 'Laundry Auto-Download':
+            return [
+                'label' => 'Laundry Download',
+                'badge' => 'action-badge-bas',
+                'dot' => 'dot-bas',
+                'icon' => '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>'
+            ];
         case 'TASK_CREATED':
             return [
                 'label' => 'Task Created',
@@ -565,82 +572,7 @@ function getPicInitials($email) {
     </main>
     
     <script>
-        // --- NEURAL CANVAS BACKGROUND (Consistent Emil Design & Aesthetics) ---
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-        let particles = [], hue = 215;
-        const mouse = { x: undefined, y: undefined, radius: 120 };
-
-        function setCanvasSize(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        setCanvasSize();
-
-        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-        window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
-        window.addEventListener('resize', () => { setCanvasSize(); init(particleCount); });
-
-        class Particle {
-            constructor() {
-                this.x = Math.random() * canvas.width;
-                this.y = Math.random() * canvas.height;
-                this.vx = (Math.random() - 0.5) * 1.2;
-                this.vy = (Math.random() - 0.5) * 1.2;
-                this.size = Math.random() * 2 + 1;
-            }
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-            }
-            draw() {
-                ctx.fillStyle = `hsl(${hue}, 100%, 75%)`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        const particleCount = window.innerWidth > 768 ? 90 : 45;
-        function init(num) { particles = []; for (let i = 0; i < num; i++) particles.push(new Particle()); }
-        init(particleCount);
-
-        function handleParticles() {
-            if (mouse.x !== undefined && mouse.y !== undefined) {
-                ctx.beginPath();
-                let gradient = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, mouse.radius);
-                gradient.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.15)`);
-                gradient.addColorStop(1, 'transparent');
-                ctx.fillStyle = gradient;
-                ctx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                for (let j = i; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < 110) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - dist / 110})`;
-                        ctx.lineWidth = 0.8;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hue = (hue + 0.3) % 360;
-            handleParticles();
-            requestAnimationFrame(animate);
-        }
-        animate();
-
+        // Note: #neural-canvas is now managed by the centralized lean engine in header.php
         // --- REALTIME INSTANT SEARCH & FILTER LOGIC ---
         document.addEventListener('DOMContentLoaded', () => {
             const searchInput = document.getElementById('log-search');

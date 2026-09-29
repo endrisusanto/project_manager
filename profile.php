@@ -168,32 +168,99 @@ $user = $_SESSION['user_details'];
             <div class="flex items-center justify-between border-b pb-3" style="border-color: var(--card-border);">
                 <div class="flex items-center gap-2">
                     <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                    <h2 class="text-base font-bold" style="color: var(--text-primary);">Tampilan & Performa</h2>
+                    <h2 class="text-base font-bold" style="color: var(--text-primary);">Tampilan & Penghemat Resource (GPU/CPU)</h2>
                 </div>
-                <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 flex items-center gap-1.5">
+                <span id="canvas-active-badge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 flex items-center gap-1.5">
                     <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     Hemat Resource
                 </span>
             </div>
 
-            <div class="pt-2">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-[var(--input-bg)] border border-[var(--input-border)] transition-colors">
-                    <div class="space-y-1 pr-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-bold" style="color: var(--text-primary);">Animasi Background Canvas (Neural Particles)</span>
+            <div class="space-y-3 pt-1">
+                <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+                    Pilih mode animasi latar belakang canvas (Neural Particles) yang sesuai dengan spesifikasi perangkat Anda. Mode <strong>Hemat GPU</strong> dan <strong>Statis</strong> dirancang khusus untuk laptop standar agar browsing tetap sangat ringan, hemat baterai, dan responsif.
+                </p>
+
+                <!-- 4-Tier Performance Option Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1" id="canvas-mode-options">
+                    
+                    <!-- Option 1: Eco Mode (Default & Recommended) -->
+                    <label class="relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all hover:border-emerald-500/50 canvas-mode-card" data-mode="eco" style="background: var(--input-bg); border-color: var(--card-border);">
+                        <input type="radio" name="canvas_perf_mode" value="eco" class="sr-only">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🌿</span>
+                                <span class="text-xs font-bold" style="color: var(--text-primary);">Eco / Hemat GPU</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Rekomendasi</span>
                         </div>
-                        <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
-                            Matikan partikel canvas bergerak di seluruh halaman untuk menghemat daya baterai, penggunaan CPU, dan memori browser.
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
+                            Animasi tetap berjalan perlahan (~18 FPS, 20 partikel), memangkas 75% beban GPU, dan auto-pause saat tab tidak aktif.
+                        </p>
+                    </label>
+
+                    <!-- Option 2: Static Mode (0% GPU) -->
+                    <label class="relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all hover:border-blue-500/50 canvas-mode-card" data-mode="static" style="background: var(--input-bg); border-color: var(--card-border);">
+                        <input type="radio" name="canvas_perf_mode" value="static" class="sr-only">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🖼️</span>
+                                <span class="text-xs font-bold" style="color: var(--text-primary);">Statis (0% GPU)</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">0% GPU Load</span>
+                        </div>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
+                            Jaring neural digambar 1 kali saja saat halaman dibuka. Visual tetap estetik tanpa ada looping animasi sama sekali.
+                        </p>
+                    </label>
+
+                    <!-- Option 3: Full 60 FPS -->
+                    <label class="relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all hover:border-purple-500/50 canvas-mode-card" data-mode="full" style="background: var(--input-bg); border-color: var(--card-border);">
+                        <input type="radio" name="canvas_perf_mode" value="full" class="sr-only">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">⚡</span>
+                                <span class="text-xs font-bold" style="color: var(--text-primary);">Penuh (60 FPS)</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-400 border border-purple-500/30">Visual Maksimal</span>
+                        </div>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
+                            Animasi 60 FPS dengan partikel penuh (40 partikel). Untuk laptop/PC berspesifikasi tinggi atau dedicated GPU.
+                        </p>
+                    </label>
+
+                    <!-- Option 4: Disabled -->
+                    <label class="relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all hover:border-slate-500/50 canvas-mode-card" data-mode="off" style="background: var(--input-bg); border-color: var(--card-border);">
+                        <input type="radio" name="canvas_perf_mode" value="off" class="sr-only">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🚫</span>
+                                <span class="text-xs font-bold" style="color: var(--text-primary);">Nonaktif</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-500/20 text-slate-400 border border-slate-500/30">Tanpa Canvas</span>
+                        </div>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
+                            Sembunyikan background canvas sepenuhnya untuk latar belakang solid murni tanpa efek visual grafis.
+                        </p>
+                    </label>
+
+                </div>
+
+                <!-- Granular UX Motion Reduction Toggle -->
+                <div class="flex items-center justify-between gap-4 p-3.5 rounded-xl border mt-3 transition-colors" style="background: var(--input-bg); border-color: var(--card-border);">
+                    <div class="space-y-0.5 pr-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold" style="color: var(--text-primary);">Kurangi Efek Animasi UI (CSS Glow & Infinite Pulses)</span>
+                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">UX Motion</span>
+                        </div>
+                        <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
+                            Hentikan animasi CSS looping seperti glowing box-shadow, pulse alert, dan efek sparkle agar GPU laptop tidak bekerja di latar belakang.
                         </p>
                     </div>
-                    
-                    <div class="flex items-center gap-3 flex-shrink-0 self-start sm:self-center">
-                        <span id="canvas-status-text" class="text-xs font-bold text-emerald-500">Aktif</span>
-                        <label class="relative inline-flex items-center cursor-pointer select-none">
-                            <input type="checkbox" id="toggle-canvas-anim" class="sr-only peer" checked>
-                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer select-none flex-shrink-0">
+                        <input type="checkbox" id="toggle-reduce-motion" class="sr-only peer">
+                        <div class="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
                 </div>
             </div>
         </div>
@@ -236,118 +303,80 @@ $user = $_SESSION['user_details'];
     </main>
 
     <script>
-        // Background neural particles with resource-saving pause/resume
-        (function() {
-            const canvas = document.getElementById('neural-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            let w, h, particles = [], animId = null;
-
-            function resize() {
-                w = canvas.width = window.innerWidth;
-                h = canvas.height = window.innerHeight;
-            }
-            window.addEventListener('resize', resize);
-            resize();
-
-            const count = Math.min(30, Math.floor((w * h) / 35000));
-            for (let i = 0; i < count; i++) {
-                particles.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    vx: (Math.random() - 0.5) * 0.4,
-                    vy: (Math.random() - 0.5) * 0.4,
-                    radius: Math.random() * 1.5 + 0.8
-                });
-            }
-
-            function draw() {
-                if (document.documentElement.classList.contains('disable-canvas-animation')) {
-                    animId = null;
-                    return;
-                }
-                ctx.clearRect(0, 0, w, h);
-                const isLight = document.documentElement.classList.contains('light');
-                const pColor = isLight ? 'rgba(59, 130, 246, 0.25)' : 'rgba(96, 165, 250, 0.25)';
-                const lColor = isLight ? 'rgba(59, 130, 246, 0.05)' : 'rgba(96, 165, 250, 0.05)';
-
-                for (let i = 0; i < particles.length; i++) {
-                    const p = particles[i];
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    if (p.x < 0) p.x = w;
-                    if (p.x > w) p.x = 0;
-                    if (p.y < 0) p.y = h;
-                    if (p.y > h) p.y = 0;
-
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = pColor;
-                    ctx.fill();
-
-                    for (let j = i + 1; j < particles.length; j++) {
-                        const p2 = particles[j];
-                        const dx = p.x - p2.x;
-                        const dy = p.y - p2.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < 120) {
-                            ctx.beginPath();
-                            ctx.moveTo(p.x, p.y);
-                            ctx.lineTo(p2.x, p2.y);
-                            ctx.strokeStyle = lColor;
-                            ctx.lineWidth = 1;
-                            ctx.stroke();
-                        }
-                    }
-                }
-                animId = requestAnimationFrame(draw);
-            }
-
-            if (!document.documentElement.classList.contains('disable-canvas-animation')) {
-                draw();
-            }
-
-            window.addEventListener('canvasanimationchanged', function(e) {
-                if (!e.detail.disabled) {
-                    if (!animId) draw();
-                } else {
-                    if (animId) cancelAnimationFrame(animId);
-                    animId = null;
-                    ctx.clearRect(0, 0, w, h);
-                }
-            });
-        })();
-
         document.addEventListener('DOMContentLoaded', function () {
-            // Canvas Animation Toggle Controller
-            const canvasToggle = document.getElementById('toggle-canvas-anim');
-            const canvasStatusText = document.getElementById('canvas-status-text');
+            // Multi-Tier Canvas Performance Mode Controller
+            var modeCards = document.querySelectorAll('.canvas-mode-card');
+            var activeBadge = document.getElementById('canvas-active-badge');
+            var reduceMotionToggle = document.getElementById('toggle-reduce-motion');
 
-            function updateCanvasToggleUI(isDisabled) {
-                if (canvasToggle) canvasToggle.checked = !isDisabled;
-                if (canvasStatusText) {
-                    if (isDisabled) {
-                        canvasStatusText.textContent = 'Nonaktif (Hemat Daya)';
-                        canvasStatusText.className = 'text-xs font-bold text-amber-500';
+            function getActiveCanvasMode() {
+                var saved = localStorage.getItem('canvas_performance_mode');
+                if (!saved) {
+                    if (localStorage.getItem('disable_canvas_animation') === 'true') return 'off';
+                    return 'eco';
+                }
+                return saved;
+            }
+
+            function updateModeUI(selectedMode) {
+                modeCards.forEach(function(card) {
+                    var mode = card.getAttribute('data-mode');
+                    var radio = card.querySelector('input[type="radio"]');
+                    if (mode === selectedMode) {
+                        radio.checked = true;
+                        card.style.borderColor = (mode === 'eco' ? '#10b981' : (mode === 'static' ? '#3b82f6' : (mode === 'full' ? '#a855f7' : '#94a3b8')));
+                        card.style.boxShadow = '0 0 0 2px ' + (mode === 'eco' ? 'rgba(16,185,129,0.3)' : (mode === 'static' ? 'rgba(59,130,246,0.3)' : (mode === 'full' ? 'rgba(168,85,247,0.3)' : 'rgba(148,163,184,0.3)')));
                     } else {
-                        canvasStatusText.textContent = 'Aktif (Normal)';
-                        canvasStatusText.className = 'text-xs font-bold text-emerald-500';
+                        radio.checked = false;
+                        card.style.borderColor = 'var(--card-border)';
+                        card.style.boxShadow = 'none';
+                    }
+                });
+
+                if (activeBadge) {
+                    if (selectedMode === 'eco') {
+                        activeBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Eco (18 FPS)';
+                        activeBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 flex items-center gap-1.5';
+                    } else if (selectedMode === 'static') {
+                        activeBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Statis (0% GPU)';
+                        activeBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 border border-blue-500/30 flex items-center gap-1.5';
+                    } else if (selectedMode === 'full') {
+                        activeBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Full 60 FPS';
+                        activeBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-500 border border-purple-500/30 flex items-center gap-1.5';
+                    } else {
+                        activeBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> Nonaktif';
+                        activeBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400 border border-slate-500/30 flex items-center gap-1.5';
                     }
                 }
             }
 
-            const isCanvasDisabled = localStorage.getItem('disable_canvas_animation') === 'true';
-            updateCanvasToggleUI(isCanvasDisabled);
+            var currentMode = getActiveCanvasMode();
+            updateModeUI(currentMode);
 
-            if (canvasToggle) {
-                canvasToggle.addEventListener('change', function() {
-                    const disabled = !this.checked;
-                    localStorage.setItem('disable_canvas_animation', disabled ? 'true' : 'false');
-                    document.documentElement.classList.toggle('disable-canvas-animation', disabled);
-                    updateCanvasToggleUI(disabled);
-                    window.dispatchEvent(new CustomEvent('canvasanimationchanged', { detail: { disabled: disabled } }));
+            // Initialize reduce motion toggle
+            var savedReduceMotion = localStorage.getItem('reduce_ui_motion');
+            if (reduceMotionToggle) {
+                reduceMotionToggle.checked = savedReduceMotion === 'true';
+                reduceMotionToggle.addEventListener('change', function() {
+                    var enabled = this.checked;
+                    localStorage.setItem('reduce_ui_motion', enabled ? 'true' : 'false');
+                    document.documentElement.classList.toggle('reduce-ui-motion', enabled);
+                    window.dispatchEvent(new CustomEvent('reducemotionchanged', { detail: { enabled: enabled } }));
                 });
             }
+
+            modeCards.forEach(function(card) {
+                card.addEventListener('click', function() {
+                    var mode = this.getAttribute('data-mode');
+                    localStorage.setItem('canvas_performance_mode', mode);
+                    localStorage.setItem('disable_canvas_animation', mode === 'off' ? 'true' : 'false');
+                    
+                    updateModeUI(mode);
+
+                    // Real-time notify canvas engine in header.php
+                    window.dispatchEvent(new CustomEvent('canvasperformancechanged', { detail: { mode: mode } }));
+                });
+            });
 
             // URL Cleanup
             if (window.location.search.includes('success=') || window.location.search.includes('error=')) {

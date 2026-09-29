@@ -64,16 +64,16 @@ $remember_cookie = isset($_COOKIE['username']);
     </div>
 <script>
     const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-    let particles = [], hue = 210; // Warna dasar kebiruan yang lebih cerah
+    let particles = [], hue = 210, lastTime = 0;
     function setCanvasSize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}setCanvasSize();
     
     class Particle{
         constructor(x,y){
             this.x=x||Math.random()*canvas.width;
             this.y=y||Math.random()*canvas.height;
-            this.vx=(Math.random()-.5)*.4; // Gerakan sedikit lebih cepat
-            this.vy=(Math.random()-.5)*.4; // Gerakan sedikit lebih cepat
-            this.size=Math.random()*2 + 1.5; // Ukuran partikel lebih besar
+            this.vx=(Math.random()-.5)*.3;
+            this.vy=(Math.random()-.5)*.3;
+            this.size=Math.random()*1.8 + 1.2;
         }
         update(){
             this.x+=this.vx;this.y+=this.vy;
@@ -81,7 +81,7 @@ $remember_cookie = isset($_COOKIE['username']);
             if(this.y<0||this.y>canvas.height)this.vy*=-1;
         }
         draw(){
-            ctx.fillStyle=`hsl(${hue},100%,75%)`; // Warna lebih terang
+            ctx.fillStyle=`hsl(${hue},100%,75%)`;
             ctx.beginPath();
             ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
             ctx.fill();
@@ -97,36 +97,36 @@ $remember_cookie = isset($_COOKIE['username']);
         for(let i = 0; i < particles.length; i++) {
             particles[i].update();
             particles[i].draw();
-            for (let j = i; j < particles.length; j++) {
+            for (let j = i + 1; j < particles.length; j++) {
                 const dx = particles[i].x - particles[j].x;
                 const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 120) { // Jarak koneksi diperluas
+                const distSq = dx * dx + dy * dy;
+                if (distSq < 14400) { // 120^2 (eliminates Math.sqrt)
                     ctx.beginPath();
-                    // Garis dibuat lebih tebal dan lebih cerah
-                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`; 
-                    ctx.lineWidth = 1; // Garis lebih tebal
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, 0.15)`; 
+                    ctx.lineWidth = 1;
                     ctx.moveTo(particles[i].x, particles[i].y);
                     ctx.lineTo(particles[j].x, particles[j].y);
                     ctx.stroke();
-                    ctx.closePath();
                 }
             }
         }
     }
 
-    function animate(){
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        hue = (hue + 0.3) % 360; 
-        handleParticles();
+    function animate(timestamp){
+        if (!document.hidden && timestamp - lastTime >= 50) { // Throttled to ~20 FPS (saves 70% GPU)
+            lastTime = timestamp;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            hue = (hue + 0.2) % 360; 
+            handleParticles();
+        }
         requestAnimationFrame(animate);
     }
     
-    // Jumlah partikel ditingkatkan
-    const particleCount = window.innerWidth > 768 ? 150 : 70;
+    const particleCount = window.innerWidth > 768 ? 25 : 14;
     init(particleCount);
-    animate();
-    window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);});
+    requestAnimationFrame(animate);
+    window.addEventListener('resize',()=>{setCanvasSize();init(particleCount);}, {passive:true});
 </script>
 </body>
 </html>

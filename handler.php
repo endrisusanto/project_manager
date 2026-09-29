@@ -2,8 +2,10 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-include 'config.php';
-require_once 'sync_helper.php';
+include_once __DIR__ . '/config.php';
+if (file_exists(__DIR__ . '/sync_helper.php')) {
+    @include_once __DIR__ . '/sync_helper.php';
+}
 session_start();
 
 // Cek apakah pengguna sudah login
@@ -807,14 +809,6 @@ switch ($action) {
         $task_id = $data['task_id'];
         $new_status = $data['new_status'];
         $today = date('Y-m-d');
-
-        if ($new_status === 'Approved') {
-            echo json_encode([
-                'success' => false,
-                'error' => "Status 'Approved' diperbarui secara otomatis oleh BAS Sync."
-            ]);
-            exit();
-        }
 
         // 1. Fetch original status and model name for logging
         $get_old_status_stmt = $conn->prepare("SELECT progress_status, model_name, test_plan_type FROM gba_tasks WHERE id = ?");

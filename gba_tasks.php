@@ -1322,16 +1322,16 @@ function getTestPlanBadgeClass($plan) {
                                         </div>
                                     </td>
                                     <td class="py-3 px-3 text-xs text-secondary font-mono">
-                                        <?php if ($task['qb_user']): ?>
-                                            <div>USER: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars($task['qb_user']) ?>" target="_blank" class="qb-link font-medium"><?= htmlspecialchars($task['qb_user']) ?></a></div>
+                                        <?php if (!empty($task['qb_user']) && trim($task['qb_user']) !== '-'): ?>
+                                            <div>USER: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars(trim($task['qb_user'])) ?>" target="_blank" class="qb-link font-medium"><?= htmlspecialchars(trim($task['qb_user'])) ?></a></div>
                                         <?php endif; ?>
-                                        <?php if ($task['qb_userdebug']): ?>
-                                            <div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars($task['qb_userdebug']) ?>" target="_blank" class="qb-link font-medium"><?= htmlspecialchars($task['qb_userdebug']) ?></a></div>
+                                        <?php if (!empty($task['qb_userdebug']) && trim($task['qb_userdebug']) !== '-'): ?>
+                                            <div class="mt-0.5">DEBUG: <a href="https://android.qb.sec.samsung.net/build/<?= htmlspecialchars(trim($task['qb_userdebug'])) ?>" target="_blank" class="qb-link font-medium"><?= htmlspecialchars(trim($task['qb_userdebug'])) ?></a></div>
                                         <?php endif; ?>
                                         <?php if (function_exists('is_userdata_required') && is_userdata_required($task['model_name'])): ?>
                                             <div class="mt-1.5"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30" title="Download QB Build wajib menggunakan USERDATA"><svg class="w-3 h-3 text-rose-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 100-2 1 1 0 000 2zm-1-8a1 1 0 011-1h.008a1 1 0 011 1v3.008a1 1 0 01-1 1H9a1 1 0 01-1-1V5z" clip-rule="evenodd"/></svg>USERDATA Required</span></div>
                                         <?php endif; ?>
-                                        <?php if (!is_admin() && !is_endri_or_admin() && function_exists('render_laundry_badge') && is_laundry_task($task)): ?>
+                                        <?php if (function_exists('render_laundry_badge') && is_laundry_task($task)): ?>
                                             <div class="mt-1.5">
                                                 <?= render_laundry_badge($task) ?>
                                             </div>
@@ -1492,68 +1492,7 @@ function getTestPlanBadgeClass($plan) {
     </div>
 
     <script>
-        const canvas = document.getElementById('neural-canvas'), ctx = canvas.getContext('2d');
-        let particles = [], hue = 210;
-        function setCanvasSize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; } setCanvasSize();
-
-        class Particle {
-            constructor(x, y) {
-                this.x = x || Math.random() * canvas.width;
-                this.y = y || Math.random() * canvas.height;
-                this.vx = (Math.random() - .5) * .4;
-                this.vy = (Math.random() - .5) * .4;
-                this.size = Math.random() * 2 + 1.5;
-            }
-            update() {
-                this.x += this.vx; this.y += this.vy;
-                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
-                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
-            }
-            draw() {
-                ctx.fillStyle = `hsl(${hue},100%,75%)`;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function init(num) {
-            particles = [];
-            for (let i = 0; i < num; i++)particles.push(new Particle())
-        }
-
-        function handleParticles() {
-            for (let i = 0; i < particles.length; i++) {
-                particles[i].update();
-                particles[i].draw();
-                for (let j = i; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    if (distance < 120) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${1 - distance / 120})`;
-                        ctx.lineWidth = 1;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hue = (hue + 0.3) % 360;
-            handleParticles();
-            requestAnimationFrame(animate);
-        }
-
-        const particleCount = window.innerWidth > 768 ? 150 : 70;
-        init(particleCount);
-        animate();
-
+        // Note: #neural-canvas is now managed by the centralized lean engine in header.php
         let quill;
 
         const modal = document.getElementById('task-modal'), modalTitle = document.getElementById('modal-title'), taskForm = document.getElementById('task-form'), formAction = document.getElementById('form-action'), taskId = document.getElementById('task-id');

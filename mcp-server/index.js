@@ -1123,9 +1123,19 @@ Jawab pertanyaan dan buatkan laporan secara profesional, ringkas, dan jelas dala
           body: (targetMethod !== "GET" && targetMethod !== "HEAD") ? targetBody : undefined
         });
 
-        const respText = await basRes.text();
-        res.writeHead(basRes.status, { "Content-Type": "application/json" });
-        res.end(respText);
+        const contentType = basRes.headers.get("content-type") || "application/octet-stream";
+        const headersToSend = {
+          "Content-Type": contentType
+        };
+        const contentDisp = basRes.headers.get("content-disposition");
+        if (contentDisp) headersToSend["Content-Disposition"] = contentDisp;
+        const contentLen = basRes.headers.get("content-length");
+        if (contentLen) headersToSend["Content-Length"] = contentLen;
+
+        const arrayBuf = await basRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuf);
+        res.writeHead(basRes.status, headersToSend);
+        res.end(buffer);
       } catch (err) {
         res.writeHead(500, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: err.message }));
