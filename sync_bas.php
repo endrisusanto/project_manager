@@ -576,8 +576,42 @@ try {
         }
     }
 
-    // Group submissions by AP version - prioritizing XID, Standard/XX & Approved submissions, avoiding TUR/EEA/SER
-    $ap_submission_map = [];
+    if (!function_exists('parse_csc_group_and_suffix')) {
+        function parse_csc_group_and_suffix($csc_or_fp) {
+            $str = strtoupper(trim((string)$csc_or_fp));
+            if (empty($str)) return ['group' => '', 'suffix' => '', 'full' => ''];
+            
+            // If it's a fingerprint, extract the part after AP / after '_' or inside build id
+            if (strpos($str, '/') !== false || strpos($str, ':') !== false) {
+                if (preg_match('/_([A-Z0-9]{3,4}[A-Z0-9]{4,5})(:|$)/i', $str, $m)) {
+                    $str = $m[1];
+                } elseif (preg_match('/([A-Z0-9]{3,8}O[A-Z0-9]{2,4}[A-Z0-9]{4,8})/i', $str, $m)) {
+                    $str = $m[1];
+                }
+            }
+            
+            $group = '';
+            $suffix = '';
+            
+            if (preg_match('/(O[A-Z]{2,3})([A-Z0-9]{4,5})$/i', $str, $m)) {
+                $group = strtoupper($m[1]);
+                $suffix = strtoupper($m[2]);
+            } elseif (preg_match('/([A-Z0-9]{4,5})$/i', $str, $m)) {
+                $suffix = strtoupper($m[1]);
+            }
+            
+            return [
+                'group' => $group,
+                'suffix' => $suffix,
+                'full' => $str
+            ];
+        }
+    }
+
+    // Group submissions by AP version
+    $submissions_by_ap = [];
+    $all_submissions_list = [];
+
     foreach ($submissions as $sub) {
         if (!is_array($sub)) continue;
 
@@ -586,136 +620,103 @@ try {
         $ap_ver = extract_ap_version($fingerprint, $raw_ap);
         $sub_id_val = trim(strval($sub['Id'] ?? $sub['id'] ?? $sub['ID'] ?? $sub['submission_id'] ?? $sub['submissionId'] ?? $sub['Submission ID'] ?? ''), "=\"' \t\n\r\0\x0B");
 
-        $raw_carrier = trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? $sub['Sales Code'] ?? $sub['sales_code'] ?? ''));
-        $raw_csc = trim(strval($sub['CSC'] ?? $sub['csc'] ?? $sub['csc_version'] ?? $sub['cscVersion'] ?? ''));
         $approval_type = trim(strval($sub['Approval Type'] ?? $sub['approvalType'] ?? $sub['approval_type'] ?? ''));
-        $dev_code = strtolower(trim(strval($sub['Device Code'] ?? $sub['deviceCode'] ?? $sub['device_code'] ?? '')));
-
-        // Vendor and SafetyNet are internal/pre-build approval types without carrier binaries, ignore them for carrier sync
         $is_vendor_or_safetynet = (stripos($approval_type, 'Vendor') !== false || stripos($approval_type, 'SafetyNet') !== false);
-
-        // XID must explicitly have 'XID' in Carriers or 'OLE' in CSC (Indonesia Open Line), and must NOT be Vendor/SafetyNet
-        $is_xid_sub = !$is_vendor_or_safetynet && (
-            (!empty($raw_carrier) && preg_match('/\bXID\b/i', $raw_carrier)) ||
-            (!empty($raw_csc) && stripos($raw_csc, 'OLE') !== false)
-        );
-
-        // Valid carrier build for laundry base submission reference
-        $is_valid_carrier_build = !$is_vendor_or_safetynet && (!empty($raw_carrier) || !empty($raw_csc));
-
-        $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
-        $base_rank = get_status_priority_rank($raw_status);
-
-        // Regional filtering: Penalize TUR, EEA, and SER; bonus for standard XX/Global builds
-        $is_disfavored = is_disfavored_regional_build($sub);
-        $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
-
-        // Base rank: Approved=100, Submitted=60. Disfavored builds get -500 penalty, XX gets +200 bonus.
-        $cur_rank = $base_rank + ($is_xx_build ? 200 : 0) - ($is_disfavored ? 500 : 0);
+        if ($is_vendor_or_safetynet) continue;
 
         $key = !empty($ap_ver) ? strtoupper($ap_ver) : (!empty($sub_id_val) ? 'SUB_' . $sub_id_val : uniqid('sub_'));
-
-        if (!isset($ap_submission_map[$key])) {
-            $ap_submission_map[$key] = [
-                'xid_sub' => $is_xid_sub ? $sub : null,
-                'xid_rank' => $is_xid_sub ? $cur_rank : -1000,
-                'all_sub' => $is_valid_carrier_build ? $sub : null,
-                'all_rank' => $is_valid_carrier_build ? $cur_rank : -1000
-            ];
-        } else {
-            if ($is_xid_sub) {
-                if ($ap_submission_map[$key]['xid_sub'] === null || $cur_rank > $ap_submission_map[$key]['xid_rank']) {
-                    $ap_submission_map[$key]['xid_sub'] = $sub;
-                    $ap_submission_map[$key]['xid_rank'] = $cur_rank;
-                }
-            }
-            if ($is_valid_carrier_build) {
-                if ($ap_submission_map[$key]['all_sub'] === null || $cur_rank > $ap_submission_map[$key]['all_rank']) {
-                    $ap_submission_map[$key]['all_sub'] = $sub;
-                    $ap_submission_map[$key]['all_rank'] = $cur_rank;
-                }
-            }
-        }
+        $submissions_by_ap[$key][] = $sub;
+        $all_submissions_list[] = $sub;
     }
 
-    foreach ($ap_submission_map as $ap_key => $entry) {
-        $xid_sub = $entry['xid_sub'];
-        $all_sub = $entry['all_sub'];
+    // Helper to evaluate and rank candidate submissions for a specific task
+    $evaluate_best_subs_for_task = function($candidate_subs, $task) {
+        $best_xid_sub = null;
+        $best_xid_rank = -9999;
+        $best_all_sub = null;
+        $best_all_rank = -9999;
 
-        $primary_sub = $xid_sub ?: $all_sub;
-        if (!is_array($primary_sub)) continue;
+        $task_ap = strtoupper(trim((string)($task['ap'] ?? '')));
+        $task_csc = strtoupper(trim((string)($task['csc'] ?? '')));
+        $task_csc_info = parse_csc_group_and_suffix($task_csc);
+        $task_ap_suffix = strlen($task_ap) >= 5 ? substr($task_ap, -5) : '';
 
-        $raw_ap = trim(strval($primary_sub['AP'] ?? $primary_sub['ap'] ?? $primary_sub['ap_version'] ?? $primary_sub['apVersion'] ?? ''));
-        $raw_csc = trim(strval($primary_sub['CSC'] ?? $primary_sub['csc'] ?? $primary_sub['csc_version'] ?? $primary_sub['cscVersion'] ?? ''));
-        $raw_cp = trim(strval($primary_sub['CP'] ?? $primary_sub['cp'] ?? $primary_sub['cp_version'] ?? $primary_sub['cpVersion'] ?? ''));
-        $fingerprint = trim(strval($primary_sub['Fingerprint'] ?? $primary_sub['fingerprint'] ?? $primary_sub['binaryName'] ?? $primary_sub['binary_name'] ?? $primary_sub['build_number'] ?? ''));
+        foreach ($candidate_subs as $sub) {
+            $raw_carrier = trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? $sub['Sales Code'] ?? $sub['sales_code'] ?? ''));
+            $raw_csc = trim(strval($sub['CSC'] ?? $sub['csc'] ?? $sub['csc_version'] ?? $sub['cscVersion'] ?? ''));
+            $fingerprint = trim(strval($sub['Fingerprint'] ?? $sub['fingerprint'] ?? $sub['binaryName'] ?? $sub['binary_name'] ?? $sub['build_number'] ?? ''));
+            $dev_code = strtolower(trim(strval($sub['Device Code'] ?? $sub['deviceCode'] ?? $sub['device_code'] ?? '')));
 
-        $ap_version = extract_ap_version($fingerprint, $raw_ap);
-        $csc_version = extract_csc_version($fingerprint, $raw_csc);
-        $model_name = trim($primary_sub['Model Name'] ?? $primary_sub['modelName'] ?? $primary_sub['model_name'] ?? $primary_sub['Model'] ?? $primary_sub['model'] ?? '');
+            $is_xid = (
+                (!empty($raw_carrier) && preg_match('/\bXID\b/i', $raw_carrier)) ||
+                (!empty($raw_csc) && stripos($raw_csc, 'OLE') !== false)
+            );
+            $is_valid_carrier = (!empty($raw_carrier) || !empty($raw_csc));
 
-        $xid_sub_id = $xid_sub ? trim(strval($xid_sub['Id'] ?? $xid_sub['id'] ?? $xid_sub['ID'] ?? $xid_sub['submission_id'] ?? $xid_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
-        $all_sub_id = $all_sub ? trim(strval($all_sub['Id'] ?? $all_sub['id'] ?? $all_sub['ID'] ?? $all_sub['submission_id'] ?? $all_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
-        $all_base_sub_id = $all_sub ? trim(strval($all_sub['Base Submission ID'] ?? $all_sub['baseSubmissionId'] ?? $all_sub['base_submission_id'] ?? $all_sub['Base ID'] ?? $all_sub['base_id'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
+            $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
+            $base_rank = get_status_priority_rank($raw_status);
 
-        if (empty($ap_version) && empty($xid_sub_id) && empty($all_sub_id)) {
-            continue;
-        }
+            $is_disfavored = is_disfavored_regional_build($sub);
+            $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
 
-        $target_progress_status = null;
-        $approved_date = null;
-        $sub_date = null;
-        $reviewer = '';
-        $is_urgent = 0;
+            $score = $base_rank + ($is_xx_build ? 200 : 0) - ($is_disfavored ? 500 : 0);
 
-        if ($xid_sub) {
-            $raw_status = trim($xid_sub['Status'] ?? $xid_sub['status'] ?? $xid_sub['progress_status'] ?? $xid_sub['approvalStatus'] ?? $xid_sub['submissionStatus'] ?? '');
-            $reviewer = trim(strval($xid_sub['Reviewer'] ?? $xid_sub['reviewer'] ?? $xid_sub['reviewer_email'] ?? $xid_sub['reviewerEmail'] ?? $xid_sub['reviewed_by'] ?? $xid_sub['PL Email'] ?? $xid_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
-            $urgent_raw = $xid_sub['Urgent'] ?? $xid_sub['urgent'] ?? $xid_sub['is_urgent'] ?? $xid_sub['isUrgent'] ?? false;
-            $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
-
-            $raw_submission_date = $xid_sub['Submission Date'] ?? $xid_sub['submissionDate'] ?? $xid_sub['submission_date'] ?? $xid_sub['submitted_at'] ?? $xid_sub['date'] ?? null;
-            $raw_approval_date = $xid_sub['Approval Date'] ?? $xid_sub['approvalDate'] ?? $xid_sub['approved_date'] ?? $xid_sub['approvedAt'] ?? $xid_sub['Review Completion Time'] ?? $xid_sub['reviewCompletionTime'] ?? null;
-
-            $sub_date = parse_bas_date($raw_submission_date);
-            $approved_date = parse_bas_date($raw_approval_date);
-
-            $norm_status_upper = strtoupper($raw_status);
-            if (strpos($norm_status_upper, 'PENDING') !== false) {
-                $target_progress_status = 'Pending Feedback';
-            } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
-                $target_progress_status = 'Approved';
-                if (empty($approved_date)) {
-                    $approved_date = $sub_date ?: $today_str;
+            // CSC Suffix and Group Matching
+            $cand_csc_info = parse_csc_group_and_suffix($raw_csc ?: $fingerprint);
+            if (!empty($cand_csc_info['suffix'])) {
+                $exp_suffix = !empty($task_csc_info['suffix']) ? $task_csc_info['suffix'] : $task_ap_suffix;
+                if (!empty($exp_suffix)) {
+                    if ($cand_csc_info['suffix'] === $exp_suffix) {
+                        $score += 150;
+                    } else {
+                        $score -= 300;
+                    }
                 }
-            } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
-                $target_progress_status = 'Submitted';
-            } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false || strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
-                $target_progress_status = 'Batal';
-            } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
-                $target_progress_status = 'Test Ongoing';
+            }
+
+            // Multi-CSC Regional Matching (OXM/OLE vs OWO/OJM/OWA)
+            $exp_group = $task_csc_info['group'];
+            if (empty($exp_group) || $exp_group === 'OXM' || $exp_group === 'OLE') {
+                if ($cand_csc_info['group'] === 'OXM' || $cand_csc_info['group'] === 'OLE') {
+                    $score += 300;
+                } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
+                    $score -= 250;
+                }
+            } elseif (!empty($exp_group)) {
+                if ($cand_csc_info['group'] === $exp_group) {
+                    $score += 300;
+                } else {
+                    $score -= 150;
+                }
+            }
+
+            if ($is_xid && $score > $best_xid_rank) {
+                $best_xid_rank = $score;
+                $best_xid_sub = $sub;
+            }
+            if ($is_valid_carrier && $score > $best_all_rank) {
+                $best_all_rank = $score;
+                $best_all_sub = $sub;
             }
         }
+
+        return ['xid_sub' => $best_xid_sub, 'all_sub' => $best_all_sub];
+    };
+
+    foreach ($submissions_by_ap as $ap_key => $ap_candidates) {
+        $lookup_ap = strtoupper(trim((string)$ap_key));
 
         // Fast In-Memory Task Matching
         $matched_task_ids = [];
 
         // Match 1: Exact AP
-        $lookup_ap = strtoupper(trim((string)$ap_version));
         if (!empty($lookup_ap) && isset($local_tasks_by_ap[$lookup_ap])) {
             foreach ($local_tasks_by_ap[$lookup_ap] as $tid) {
                 $matched_task_ids[$tid] = true;
             }
         }
 
-        // Match 2: Submission ID
-        if (!empty($xid_sub_id) && isset($local_tasks_by_subid[$xid_sub_id])) {
-            foreach ($local_tasks_by_subid[$xid_sub_id] as $tid) {
-                $matched_task_ids[$tid] = true;
-            }
-        }
-
-        // Match 3: AP substring fallback
+        // Match 2: AP substring fallback
         if (empty($matched_task_ids) && !empty($lookup_ap) && strlen($lookup_ap) >= 8) {
             foreach ($local_tasks_by_id as $tid => $t_row) {
                 $db_ap = strtoupper(trim((string)($t_row['ap'] ?? '')));
@@ -726,6 +727,63 @@ try {
         }
 
         foreach (array_keys($matched_task_ids) as $task_id) {
+            $matched_task = $local_tasks_by_id[$task_id] ?? null;
+            if (!$matched_task) continue;
+
+            $subs_eval = $evaluate_best_subs_for_task($ap_candidates, $matched_task);
+            $xid_sub = $subs_eval['xid_sub'];
+            $all_sub = $subs_eval['all_sub'];
+
+            $primary_sub = $xid_sub ?: $all_sub;
+            if (!is_array($primary_sub)) continue;
+
+            $raw_ap = trim(strval($primary_sub['AP'] ?? $primary_sub['ap'] ?? $primary_sub['ap_version'] ?? $primary_sub['apVersion'] ?? ''));
+            $raw_csc = trim(strval($primary_sub['CSC'] ?? $primary_sub['csc'] ?? $primary_sub['csc_version'] ?? $primary_sub['cscVersion'] ?? ''));
+            $raw_cp = trim(strval($primary_sub['CP'] ?? $primary_sub['cp'] ?? $primary_sub['cp_version'] ?? $primary_sub['cpVersion'] ?? ''));
+            $fingerprint = trim(strval($primary_sub['Fingerprint'] ?? $primary_sub['fingerprint'] ?? $primary_sub['binaryName'] ?? $primary_sub['binary_name'] ?? $primary_sub['build_number'] ?? ''));
+
+            $ap_version = extract_ap_version($fingerprint, $raw_ap);
+            $csc_version = extract_csc_version($fingerprint, $raw_csc);
+            $model_name = trim($primary_sub['Model Name'] ?? $primary_sub['modelName'] ?? $primary_sub['model_name'] ?? $primary_sub['Model'] ?? $primary_sub['model'] ?? '');
+
+            $xid_sub_id = $xid_sub ? trim(strval($xid_sub['Id'] ?? $xid_sub['id'] ?? $xid_sub['ID'] ?? $xid_sub['submission_id'] ?? $xid_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
+            $all_sub_id = $all_sub ? trim(strval($all_sub['Id'] ?? $all_sub['id'] ?? $all_sub['ID'] ?? $all_sub['submission_id'] ?? $all_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
+            $all_base_sub_id = $all_sub ? trim(strval($all_sub['Base Submission ID'] ?? $all_sub['baseSubmissionId'] ?? $all_sub['base_submission_id'] ?? $all_sub['Base ID'] ?? $all_sub['base_id'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
+
+            $target_progress_status = null;
+            $approved_date = null;
+            $sub_date = null;
+            $reviewer = '';
+            $is_urgent = 0;
+
+            if ($xid_sub) {
+                $raw_status = trim($xid_sub['Status'] ?? $xid_sub['status'] ?? $xid_sub['progress_status'] ?? $xid_sub['approvalStatus'] ?? $xid_sub['submissionStatus'] ?? '');
+                $reviewer = trim(strval($xid_sub['Reviewer'] ?? $xid_sub['reviewer'] ?? $xid_sub['reviewer_email'] ?? $xid_sub['reviewerEmail'] ?? $xid_sub['reviewed_by'] ?? $xid_sub['PL Email'] ?? $xid_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
+                $urgent_raw = $xid_sub['Urgent'] ?? $xid_sub['urgent'] ?? $xid_sub['is_urgent'] ?? $xid_sub['isUrgent'] ?? false;
+                $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
+
+                $raw_submission_date = $xid_sub['Submission Date'] ?? $xid_sub['submissionDate'] ?? $xid_sub['submission_date'] ?? $xid_sub['submitted_at'] ?? $xid_sub['date'] ?? null;
+                $raw_approval_date = $xid_sub['Approval Date'] ?? $xid_sub['approvalDate'] ?? $xid_sub['approved_date'] ?? $xid_sub['approvedAt'] ?? $xid_sub['Review Completion Time'] ?? $xid_sub['reviewCompletionTime'] ?? null;
+
+                $sub_date = parse_bas_date($raw_submission_date);
+                $approved_date = parse_bas_date($raw_approval_date);
+
+                $norm_status_upper = strtoupper($raw_status);
+                if (strpos($norm_status_upper, 'PENDING') !== false) {
+                    $target_progress_status = 'Pending Feedback';
+                } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
+                    $target_progress_status = 'Approved';
+                    if (empty($approved_date)) {
+                        $approved_date = $sub_date ?: $today_str;
+                    }
+                } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
+                    $target_progress_status = 'Submitted';
+                } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false || strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
+                    $target_progress_status = 'Batal';
+                } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
+                    $target_progress_status = 'Test Ongoing';
+                }
+            }
             $matched_task = $local_tasks_by_id[$task_id] ?? null;
             if (!$matched_task) continue;
 

@@ -166,11 +166,43 @@ if (!function_exists('is_disfavored_regional_build')) {
     }
 }
 
+if (!function_exists('parse_csc_group_and_suffix')) {
+    function parse_csc_group_and_suffix($csc_or_fp) {
+        $str = strtoupper(trim((string)$csc_or_fp));
+        if (empty($str)) return ['group' => '', 'suffix' => '', 'full' => ''];
+        
+        // If it's a fingerprint, extract the part after AP / after '_' or inside build id
+        if (strpos($str, '/') !== false || strpos($str, ':') !== false) {
+            if (preg_match('/_([A-Z0-9]{3,4}[A-Z0-9]{4,5})(:|$)/i', $str, $m)) {
+                $str = $m[1];
+            } elseif (preg_match('/([A-Z0-9]{3,8}O[A-Z0-9]{2,4}[A-Z0-9]{4,8})/i', $str, $m)) {
+                $str = $m[1];
+            }
+        }
+        
+        $group = '';
+        $suffix = '';
+        
+        if (preg_match('/(O[A-Z]{2,3})([A-Z0-9]{4,5})$/i', $str, $m)) {
+            $group = strtoupper($m[1]);
+            $suffix = strtoupper($m[2]);
+        } elseif (preg_match('/([A-Z0-9]{4,5})$/i', $str, $m)) {
+            $suffix = strtoupper($m[1]);
+        }
+        
+        return [
+            'group' => $group,
+            'suffix' => $suffix,
+            'full' => $str
+        ];
+    }
+}
+
 /**
- * Lookup preferred non-disfavored submission and fingerprint for a given AP or Base Submission ID.
- * Avoids TUR, EEA, and SER when multiple submissions exist.
+ * Lookup preferred non-disfavored submission and fingerprint for a given AP, Base Submission ID, and Task CSC.
+ * Avoids TUR, EEA, and SER, and matches CSC suffix / group (e.g. OXM vs OWO).
  */
-function resolve_best_submission_for_task($ap, $current_sub_id = '') {
+function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '') {
     $candidate_csv_paths = [
         __DIR__ . '/SearchData_raw.csv',
         '/var/www/html/SearchData_raw.csv',
@@ -181,6 +213,8 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '') {
 
     $clean_ap = strtoupper(trim(strval($ap)));
     $clean_sub_id = trim(strval($current_sub_id), "=\"' \t\n\r\0\x0B");
+    $expected_csc_info = parse_csc_group_and_suffix($expected_csc);
+    $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
 
     $best_sub_id = $clean_sub_id;
     $best_fp = '';
@@ -225,17 +259,48 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '') {
                         }
 
                         if ($is_match) {
+                            $raw_csc_val = $csc_idx >= 0 ? ($row[$csc_idx] ?? '') : '';
                             $sub_data = [
                                 'Fingerprint' => $row_fp,
                                 'Device Code' => $dev_idx >= 0 ? ($row[$dev_idx] ?? '') : '',
                                 'Carriers' => $carrier_idx >= 0 ? ($row[$carrier_idx] ?? '') : '',
-                                'CSC' => $csc_idx >= 0 ? ($row[$csc_idx] ?? '') : ''
+                                'CSC' => $raw_csc_val
                             ];
 
                             $is_disfavored = is_disfavored_regional_build($sub_data);
                             $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
 
                             $score = 100 + ($is_xx ? 200 : 0) - ($is_disfavored ? 500 : 0);
+
+                            // CSC Suffix and Group Matching
+                            $cand_csc_info = parse_csc_group_and_suffix($raw_csc_val ?: $row_fp);
+                            if (!empty($cand_csc_info['suffix'])) {
+                                $exp_suffix = !empty($expected_csc_info['suffix']) ? $expected_csc_info['suffix'] : $ap_suffix;
+                                if (!empty($exp_suffix)) {
+                                    if ($cand_csc_info['suffix'] === $exp_suffix) {
+                                        $score += 150;
+                                    } else {
+                                        $score -= 300;
+                                    }
+                                }
+                            }
+
+                            // Regional Multi-CSC Group Match (OXM/OLE vs OWO/OJM)
+                            $exp_group = $expected_csc_info['group'];
+                            if (empty($exp_group) || $exp_group === 'OXM' || $exp_group === 'OLE') {
+                                if ($cand_csc_info['group'] === 'OXM' || $cand_csc_info['group'] === 'OLE') {
+                                    $score += 300;
+                                } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
+                                    $score -= 250;
+                                }
+                            } elseif (!empty($exp_group)) {
+                                if ($cand_csc_info['group'] === $exp_group) {
+                                    $score += 300;
+                                } else {
+                                    $score -= 150;
+                                }
+                            }
+
                             if ($row_id === $clean_sub_id) {
                                 $score += 10; // Slight preference to existing sub id if equally scored
                             }
@@ -301,7 +366,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     } else {
         $task_id = intval($task_or_id);
         if ($task_id > 0 && isset($conn)) {
-            $stmt = $conn->prepare("SELECT id, model_name, ap, base_submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT id, model_name, ap, csc, base_submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
             $stmt->bind_param("i", $task_id);
             $stmt->execute();
             $task = $stmt->get_result()->fetch_assoc();
@@ -343,12 +408,13 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     }
 
     $ap = trim($task['ap'] ?? '');
+    $csc = trim($task['csc'] ?? '');
     $clean_ap = preg_replace('/[^a-zA-Z0-9_-]/', '', $ap);
     if (empty($clean_ap)) {
         $clean_ap = "Sub_{$base_sub_id}";
     }
 
-    $resolved = resolve_best_submission_for_task($ap, $base_sub_id);
+    $resolved = resolve_best_submission_for_task($ap, $base_sub_id, $csc);
     if (!empty($resolved['submission_id'])) {
         $base_sub_id = $resolved['submission_id'];
     }
