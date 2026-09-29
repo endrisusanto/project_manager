@@ -146,11 +146,11 @@ if (!function_exists('is_disfavored_regional_build')) {
         $carrier = strtoupper(trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? '')));
         $csc = strtoupper(trim(strval($sub['CSC'] ?? $sub['csc'] ?? '')));
 
-        // Match tur, eea, ser in device code (e.g. a15nstur, a15nseea, a15nsser, a33xnseea)
-        if (preg_match('/(tur|eea|ser)($|\/|:|_)/i', $dev)) return true;
+        // Match tur, eea, ser at end of device code (e.g. a55xnstur, a14xmeea, a15nsser, a33xnseea)
+        if (preg_match('/(tur|eea|ser)$/i', $dev) || preg_match('/_(tur|eea|ser)($|_)/i', $dev)) return true;
 
-        // Match in fingerprint product path (e.g. samsung/a15nstur/..., samsung/a15nseea/..., samsung/a15nsser/...)
-        if (preg_match('/samsung\/[a-z0-9_]*(tur|eea|ser)[\/:_]/i', $fp)) return true;
+        // Match in fingerprint product path (e.g. samsung/a55xnstur/..., samsung/a14xmeea/...)
+        if (preg_match('/^samsung\/[a-z0-9_]*(tur|eea|ser)\//i', $fp)) return true;
 
         // Match in carriers or buyer sales code (e.g. TUR, SER, EEA)
         $carriers = preg_split('/[\s,;]+/', $carrier);
@@ -159,8 +159,8 @@ if (!function_exists('is_disfavored_regional_build')) {
             if ($ct === 'TUR' || $ct === 'SER' || $ct === 'EEA') return true;
         }
 
-        // Match in CSC (e.g. TUR, SER, EEA)
-        if (preg_match('/(TUR|SER|EEA)/i', $csc)) return true;
+        // Match in CSC
+        if (preg_match('/\b(TUR|SER|EEA)\b/i', $csc)) return true;
 
         return false;
     }
@@ -216,7 +216,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
     $expected_csc_info = parse_csc_group_and_suffix($expected_csc);
     $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
 
-    $best_sub_id = $clean_sub_id;
+    $best_sub_id = '';
     $best_fp = '';
     $best_score = -9999;
 
@@ -268,9 +268,12 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                             ];
 
                             $is_disfavored = is_disfavored_regional_build($sub_data);
-                            $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
+                            if ($is_disfavored) {
+                                continue; // Hard skip: Never use TUR, EEA, or SER
+                            }
 
-                            $score = 100 + ($is_xx ? 200 : 0) - ($is_disfavored ? 500 : 0);
+                            $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
+                            $score = 100 + ($is_xx ? 200 : 0);
 
                             // CSC Suffix and Group Matching
                             $cand_csc_info = parse_csc_group_and_suffix($raw_csc_val ?: $row_fp);
@@ -319,21 +322,55 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
     }
 
     return [
-        'submission_id' => $best_sub_id ?: $clean_sub_id,
+        'submission_id' => $best_sub_id,
         'fingerprint' => $best_fp
     ];
 }
 
 /**
- * Lookup fingerprint string by Submission ID.
- * Searches SearchData_raw.csv cache first, then BAS API fallback.
+ * Lookup fingerprint string by Submission ID directly from CSV or API.
  */
 function get_submission_fingerprint($submission_id) {
     if (empty($submission_id)) return '';
     $clean_sub_id = trim(strval($submission_id), "=\"' \t\n\r\0\x0B");
 
-    $res = resolve_best_submission_for_task('', $clean_sub_id);
-    return $res['fingerprint'] ?? '';
+    $candidate_csv_paths = [
+        __DIR__ . '/SearchData_raw.csv',
+        '/var/www/html/SearchData_raw.csv',
+        '/home/endri-pro/dev/App/project_manager/SearchData_raw.csv',
+        'C:/xampp/htdocs/tkdn/SearchData_raw.csv',
+        'C:/xampp/htdocs/project_manager/SearchData_raw.csv'
+    ];
+
+    foreach ($candidate_csv_paths as $csv_file) {
+        if (file_exists($csv_file) && is_readable($csv_file)) {
+            $fp = @fopen($csv_file, 'r');
+            if ($fp) {
+                $header = fgetcsv($fp);
+                $col_map = [];
+                if ($header) {
+                    foreach ($header as $idx => $col) {
+                        $col_map[strtolower(trim($col))] = $idx;
+                    }
+                }
+                $id_idx = $col_map['id'] ?? $col_map['submission_id'] ?? -1;
+                $fp_idx = $col_map['fingerprint'] ?? $col_map['binaryname'] ?? -1;
+                if ($id_idx >= 0 && $fp_idx >= 0) {
+                    while (($row = fgetcsv($fp)) !== false) {
+                        $row_id = trim(strval($row[$id_idx] ?? ''), "=\"' \t\n\r\0\x0B");
+                        if ($row_id === $clean_sub_id) {
+                            $row_fp = trim(strval($row[$fp_idx] ?? ''), "=\"' \t\n\r\0\x0B");
+                            fclose($fp);
+                            return $row_fp;
+                        }
+                    }
+                }
+                fclose($fp);
+            }
+        }
+    }
+
+    return '';
 }
 
 /**
@@ -415,24 +452,44 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     }
 
     $resolved = resolve_best_submission_for_task($ap, $base_sub_id, $csc);
-    if (!empty($resolved['submission_id'])) {
-        $base_sub_id = $resolved['submission_id'];
+    if (empty($resolved['submission_id'])) {
+        return [
+            'success' => false,
+            'skipped' => true,
+            'task_id' => $task['id'],
+            'message' => "Task #{$task['id']} ({$ap}) dilewati karena tidak ada binary laundry valid (build TUR/EEA/SER dikecualikan)."
+        ];
     }
+    $base_sub_id = $resolved['submission_id'];
     $raw_fp = $resolved['fingerprint'] ?: get_submission_fingerprint($base_sub_id);
-    $safe_fp = sanitize_fingerprint_for_filename($raw_fp);
 
-    if (!empty($safe_fp)) {
-        $filename = "{$clean_ap}_Laundry_{$base_sub_id}_{$safe_fp}.zip";
-    } else {
-        $filename = "{$clean_ap}_Laundry_{$base_sub_id}.zip";
+    if (empty($raw_fp) || is_disfavored_regional_build(['fingerprint' => $raw_fp, 'device_code' => $raw_fp, 'csc' => $csc])) {
+        return [
+            'success' => false,
+            'skipped' => true,
+            'task_id' => $task['id'],
+            'message' => "Task #{$task['id']} ({$ap}) dilewati karena terdeteksi sebagai varian TUR/EEA/SER atau fingerprint kosong."
+        ];
     }
+
+    $safe_fp = sanitize_fingerprint_for_filename($raw_fp);
+    if (empty($safe_fp)) {
+        return [
+            'success' => false,
+            'skipped' => true,
+            'task_id' => $task['id'],
+            'message' => "Task #{$task['id']} ({$ap}) dilewati karena fingerprint string kosong."
+        ];
+    }
+
+    // Always include full fingerprint suffix in filename
+    $filename = "{$clean_ap}_Laundry_{$base_sub_id}_{$safe_fp}.zip";
 
     $dir = get_laundry_download_dir();
     $target_file = $dir . $filename;
     $tmp_file = $dir . $filename . '.tmp.' . uniqid();
 
-    // Check if already downloaded (either with full fingerprint suffix or legacy {clean_ap}_Laundry.zip)
-    $legacy_target_file = $dir . "{$clean_ap}_Laundry.zip";
+    // Check if already downloaded (with full fingerprint suffix)
     if (!$force && file_exists($target_file) && filesize($target_file) > 1024) {
         $size = filesize($target_file);
         return [
@@ -443,24 +500,9 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
             'fingerprint' => $raw_fp,
             'size' => $size,
             'size_formatted' => format_bytes_clean($size),
-            'message' => "File {$filename} already exists (" . format_bytes_clean($size) . ")."
+            'base_submission_id' => $base_sub_id,
+            'message' => "File {$filename} sudah terdownload sebelumnya (" . format_bytes_clean($size) . ")."
         ];
-    } elseif (!$force && file_exists($legacy_target_file) && filesize($legacy_target_file) > 1024) {
-        // Automatically rename legacy filename to the new descriptive filename with fingerprint
-        @rename($legacy_target_file, $target_file);
-        if (file_exists($target_file)) {
-            $size = filesize($target_file);
-            return [
-                'success' => true,
-                'skipped' => true,
-                'filename' => $filename,
-                'path' => $target_file,
-                'fingerprint' => $raw_fp,
-                'size' => $size,
-                'size_formatted' => format_bytes_clean($size),
-                'message' => "Renamed existing file to {$filename} (" . format_bytes_clean($size) . ")."
-            ];
-        }
     }
 
     $session = get_bas_active_session($conn);

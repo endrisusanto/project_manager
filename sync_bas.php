@@ -556,11 +556,11 @@ try {
             $carrier = strtoupper(trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? '')));
             $csc = strtoupper(trim(strval($sub['CSC'] ?? $sub['csc'] ?? '')));
 
-            // Match tur, eea, ser in device code (e.g. a15nstur, a15nseea, a15nsser, a33xnseea)
-            if (preg_match('/(tur|eea|ser)($|\/|:|_)/i', $dev)) return true;
+            // Match tur, eea, ser at end of device code (e.g. a55xnstur, a14xmeea, a15nsser, a33xnseea)
+            if (preg_match('/(tur|eea|ser)$/i', $dev) || preg_match('/_(tur|eea|ser)($|_)/i', $dev)) return true;
 
-            // Match in fingerprint product path (e.g. samsung/a15nstur/..., samsung/a15nseea/..., samsung/a15nsser/...)
-            if (preg_match('/samsung\/[a-z0-9_]*(tur|eea|ser)[\/:_]/i', $fp)) return true;
+            // Match in fingerprint product path (e.g. samsung/a55xnstur/..., samsung/a14xmeea/...)
+            if (preg_match('/^samsung\/[a-z0-9_]*(tur|eea|ser)\//i', $fp)) return true;
 
             // Match in carriers or buyer sales code (e.g. TUR, SER, EEA)
             $carriers = preg_split('/[\s,;]+/', $carrier);
@@ -569,8 +569,8 @@ try {
                 if ($ct === 'TUR' || $ct === 'SER' || $ct === 'EEA') return true;
             }
 
-            // Match in CSC (e.g. TUR, SER, EEA)
-            if (preg_match('/(TUR|SER|EEA)/i', $csc)) return true;
+            // Match in CSC
+            if (preg_match('/\b(TUR|SER|EEA)\b/i', $csc)) return true;
 
             return false;
         }
@@ -657,9 +657,12 @@ try {
             $base_rank = get_status_priority_rank($raw_status);
 
             $is_disfavored = is_disfavored_regional_build($sub);
-            $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
+            if ($is_disfavored) {
+                continue; // Hard skip: Never use TUR, EEA, or SER
+            }
 
-            $score = $base_rank + ($is_xx_build ? 200 : 0) - ($is_disfavored ? 500 : 0);
+            $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
+            $score = $base_rank + ($is_xx_build ? 200 : 0);
 
             // CSC Suffix and Group Matching
             $cand_csc_info = parse_csc_group_and_suffix($raw_csc ?: $fingerprint);
