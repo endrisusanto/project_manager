@@ -572,7 +572,7 @@ try {
     function get_status_priority_rank($status) {
         if (empty($status)) return 0;
         $s = strtoupper(trim(strval($status)));
-        if (strpos($s, 'APPROV') !== false || strpos($s, 'PASS') !== false || strpos($s, 'COMPLET') !== false || strpos($s, 'HOLD') !== false) {
+        if (strpos($s, 'APPROV') !== false || strpos($s, 'COMPLET') !== false || strpos($s, 'HOLD') !== false) {
             return 100;
         }
         if (strpos($s, 'PENDING') !== false) {
@@ -827,10 +827,15 @@ try {
             $sub_date = parse_bas_date($raw_submission_date);
             $approved_date = parse_bas_date($raw_approval_date);
 
+            $target_progress_status = null;
             $norm_status_upper = strtoupper($raw_status);
-            if (strpos($norm_status_upper, 'PENDING') !== false) {
+
+            // ponytail: jika di BAS statusnya 'Passed', ignore / jangan ubah status task di project manager
+            if (strpos($norm_status_upper, 'PASS') !== false) {
+                $target_progress_status = null;
+            } elseif (strpos($norm_status_upper, 'PENDING') !== false) {
                 $target_progress_status = 'Pending Feedback';
-            } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
+            } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
                 $target_progress_status = 'Approved';
                 if (empty($approved_date)) {
                     $approved_date = $sub_date ?: $today_str;
@@ -848,7 +853,7 @@ try {
             $is_rejected_or_batal = in_array($target_progress_status, ['Batal', 'Rejected']);
 
             if ($target_progress_status !== null && $target_progress_status !== $old_status && !$is_rejected_or_batal) {
-                if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
+                if ($target_status_rank >= $old_status_rank || $old_status !== 'Approved') {
                     $updates[] = "progress_status = ?";
                     $types .= "s";
                     $params[] = $target_progress_status;
