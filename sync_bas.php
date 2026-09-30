@@ -373,20 +373,48 @@ try {
     $res_search = $execute_bas_request($search_url, 'POST', $search_payload, 35);
     if (!empty($res_search['body'])) {
         $found_items = $extract_items_from_response($res_search['body']);
-        foreach ($found_items as $it) {
-            if (is_array($it)) {
-                $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
-                if (!empty($sub_id_val)) {
-                    $all_raw_submissions[$sub_id_val] = $it;
-                } else {
-                    $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
-                    $all_raw_submissions[$sub_key] = $it;
+        if (!empty($found_items)) {
+            foreach ($found_items as $it) {
+                if (is_array($it)) {
+                    $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
+                    if (!empty($sub_id_val)) {
+                        $all_raw_submissions[$sub_id_val] = $it;
+                    } else {
+                        $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
+                        $all_raw_submissions[$sub_key] = $it;
+                    }
+                }
+            }
+
+            // Auto-update SearchData_raw.csv whenever fresh items are retrieved from live API
+            if (!empty($all_raw_submissions) && count($all_raw_submissions) > 0) {
+                $first_item = reset($all_raw_submissions);
+                if (is_array($first_item)) {
+                    $headers = array_keys($first_item);
+                    $csv_out = fopen('php://memory', 'r+');
+                    fputcsv($csv_out, $headers);
+                    foreach ($all_raw_submissions as $row_data) {
+                        $csv_row = [];
+                        foreach ($headers as $h) {
+                            $csv_row[] = $row_data[$h] ?? '';
+                        }
+                        fputcsv($csv_out, $csv_row);
+                    }
+                    rewind($csv_out);
+                    $new_csv_content = stream_get_contents($csv_out);
+                    fclose($csv_out);
+                    if (!empty($new_csv_content)) {
+                        @file_put_contents(__DIR__ . '/SearchData_raw.csv', $new_csv_content);
+                        $debug_logs[] = "Auto-updated SearchData_raw.csv (" . count($all_raw_submissions) . " records saved)";
+                    }
                 }
             }
         }
     }
 
-    // Fallback: If Search API returned empty, check local SearchData_raw.csv cache
+    $is_fallback_cache = false;
+
+    // Fallback: If Search API returned empty or failed, check local SearchData_raw.csv cache
     if (empty($all_raw_submissions) && file_exists(__DIR__ . '/SearchData_raw.csv')) {
         $cached_csv = @file_get_contents(__DIR__ . '/SearchData_raw.csv');
         if (!empty($cached_csv)) {
@@ -403,7 +431,9 @@ try {
                 }
             }
             if (!empty($all_raw_submissions)) {
-                $debug_logs[] = "Loaded " . count($all_raw_submissions) . " submissions from local SearchData_raw.csv cache";
+                $is_fallback_cache = true;
+                $debug_logs[] = "[PERINGATAN] Gagal koneksi langsung ke portal BAS dengan SID saat ini (Timeout/HTTP {$res_search['code']}).";
+                $debug_logs[] = "Menggunakan fallback cache lokal SearchData_raw.csv (" . count($all_raw_submissions) . " submissions dimuat).";
             }
         }
     }
@@ -647,11 +677,15 @@ try {
             $fingerprint = trim(strval($sub['Fingerprint'] ?? $sub['fingerprint'] ?? $sub['binaryName'] ?? $sub['binary_name'] ?? $sub['build_number'] ?? ''));
             $dev_code = strtolower(trim(strval($sub['Device Code'] ?? $sub['deviceCode'] ?? $sub['device_code'] ?? '')));
 
-            $is_xid = (
-                (!empty($raw_carrier) && preg_match('/\bXID\b/i', $raw_carrier)) ||
-                (!empty($raw_csc) && stripos($raw_csc, 'OLE') !== false)
-            );
-            $is_valid_carrier = (!empty($raw_carrier) || !empty($raw_csc));
+            // Strict XID check: must have carrier XID (regardless of CSC being OXM, OLE, etc.)
+            $is_xid = (!empty($raw_carrier) && preg_match('/\bXID\b/i', $raw_carrier));
+
+            $cand_csc_info = parse_csc_group_and_suffix($raw_csc ?: $fingerprint);
+
+            // Multi-CSC group registry for regional scoring
+            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP'];
+            $cand_is_xid_group = in_array($cand_csc_info['group'], $xid_groups);
+            $is_valid_carrier = (!empty($raw_carrier) || !empty($raw_csc) || !empty($fingerprint));
 
             $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
             $base_rank = get_status_priority_rank($raw_status);
@@ -664,8 +698,11 @@ try {
             $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
             $score = $base_rank + ($is_xx_build ? 200 : 0);
 
+            if ($is_xid) {
+                $score += 500;
+            }
+
             // CSC Suffix and Group Matching
-            $cand_csc_info = parse_csc_group_and_suffix($raw_csc ?: $fingerprint);
             if (!empty($cand_csc_info['suffix'])) {
                 $exp_suffix = !empty($task_csc_info['suffix']) ? $task_csc_info['suffix'] : $task_ap_suffix;
                 if (!empty($exp_suffix)) {
@@ -677,10 +714,10 @@ try {
                 }
             }
 
-            // Multi-CSC Regional Matching (OXM/OLE vs OWO/OJM/OWA)
+            // Multi-CSC Regional Matching (OXM/OLE/OXT/OLP vs OWO/OJM/OWA)
             $exp_group = $task_csc_info['group'];
-            if (empty($exp_group) || $exp_group === 'OXM' || $exp_group === 'OLE') {
-                if ($cand_csc_info['group'] === 'OXM' || $cand_csc_info['group'] === 'OLE') {
+            if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
+                if ($cand_is_xid_group) {
                     $score += 300;
                 } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
                     $score -= 250;
@@ -753,20 +790,36 @@ try {
             $all_sub_id = $all_sub ? trim(strval($all_sub['Id'] ?? $all_sub['id'] ?? $all_sub['ID'] ?? $all_sub['submission_id'] ?? $all_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
             $all_base_sub_id = $all_sub ? trim(strval($all_sub['Base Submission ID'] ?? $all_sub['baseSubmissionId'] ?? $all_sub['base_submission_id'] ?? $all_sub['Base ID'] ?? $all_sub['base_id'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
 
+            $old_status = $matched_task['progress_status'];
+            $old_reviewer = $matched_task['reviewer_email'];
+            $old_urgent = (int)$matched_task['is_urgent'];
+            $old_sub_id = $matched_task['submission_id'];
+            $old_base_sub_id = $matched_task['base_submission_id'] ?? '';
+            $old_sub_date = $matched_task['submission_date'];
+
+            $need_update = false;
+            $updates = [];
+            $types = "";
+            $params = [];
+            $final_status = $old_status;
+
             $target_progress_status = null;
             $approved_date = null;
             $sub_date = null;
             $reviewer = '';
             $is_urgent = 0;
-
-            if ($xid_sub) {
-                $raw_status = trim($xid_sub['Status'] ?? $xid_sub['status'] ?? $xid_sub['progress_status'] ?? $xid_sub['approvalStatus'] ?? $xid_sub['submissionStatus'] ?? '');
-                $reviewer = trim(strval($xid_sub['Reviewer'] ?? $xid_sub['reviewer'] ?? $xid_sub['reviewer_email'] ?? $xid_sub['reviewerEmail'] ?? $xid_sub['reviewed_by'] ?? $xid_sub['PL Email'] ?? $xid_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
-                $urgent_raw = $xid_sub['Urgent'] ?? $xid_sub['urgent'] ?? $xid_sub['is_urgent'] ?? $xid_sub['isUrgent'] ?? false;
+            
+            // 1. Task progress, dates, reviewer, and urgent updates from best available submission
+            //    Priority: xid_sub (strict XID carrier) > all_sub (Open Market multi-CSC fallback non-TUR/EEA/SER)
+            $effective_sub = $xid_sub ?: $all_sub;
+            if ($effective_sub) {
+                $raw_status = trim($effective_sub['Status'] ?? $effective_sub['status'] ?? $effective_sub['progress_status'] ?? $effective_sub['approvalStatus'] ?? $effective_sub['submissionStatus'] ?? '');
+                $reviewer = trim(strval($effective_sub['Reviewer'] ?? $effective_sub['reviewer'] ?? $effective_sub['reviewer_email'] ?? $effective_sub['reviewerEmail'] ?? $effective_sub['reviewed_by'] ?? $effective_sub['PL Email'] ?? $effective_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
+                $urgent_raw = $effective_sub['Urgent'] ?? $effective_sub['urgent'] ?? $effective_sub['is_urgent'] ?? $effective_sub['isUrgent'] ?? false;
                 $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
 
-                $raw_submission_date = $xid_sub['Submission Date'] ?? $xid_sub['submissionDate'] ?? $xid_sub['submission_date'] ?? $xid_sub['submitted_at'] ?? $xid_sub['date'] ?? null;
-                $raw_approval_date = $xid_sub['Approval Date'] ?? $xid_sub['approvalDate'] ?? $xid_sub['approved_date'] ?? $xid_sub['approvedAt'] ?? $xid_sub['Review Completion Time'] ?? $xid_sub['reviewCompletionTime'] ?? null;
+                $raw_submission_date = $effective_sub['Submission Date'] ?? $effective_sub['submissionDate'] ?? $effective_sub['submission_date'] ?? $effective_sub['submitted_at'] ?? $effective_sub['date'] ?? null;
+                $raw_approval_date = $effective_sub['Approval Date'] ?? $effective_sub['approvalDate'] ?? $effective_sub['approved_date'] ?? $effective_sub['approvedAt'] ?? $effective_sub['Review Completion Time'] ?? $effective_sub['reviewCompletionTime'] ?? null;
 
                 $sub_date = parse_bas_date($raw_submission_date);
                 $approved_date = parse_bas_date($raw_approval_date);
@@ -786,26 +839,7 @@ try {
                 } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
                     $target_progress_status = 'Test Ongoing';
                 }
-            }
-            $matched_task = $local_tasks_by_id[$task_id] ?? null;
-            if (!$matched_task) continue;
 
-            $old_status = $matched_task['progress_status'];
-            $old_reviewer = $matched_task['reviewer_email'];
-            $old_urgent = (int)$matched_task['is_urgent'];
-            $old_sub_id = $matched_task['submission_id'];
-            $old_base_sub_id = $matched_task['base_submission_id'] ?? '';
-            $old_sub_date = $matched_task['submission_date'];
-
-            $need_update = false;
-            $updates = [];
-            $types = "";
-            $params = [];
-
-            $final_status = $old_status;
-
-            // 1. Task progress, dates, reviewer, urgent, and submission_id updates apply when XID submission exists
-            if ($xid_sub) {
                 $old_status_rank = get_status_priority_rank($old_status);
                 $target_status_rank = get_status_priority_rank($target_progress_status);
 
@@ -856,6 +890,7 @@ try {
                     $need_update = true;
                 }
 
+                // Strict XID submission ID: only stored in submission_id if explicit XID submission exists
                 if (!empty($xid_sub_id) && trim($xid_sub_id) !== trim(strval($old_sub_id))) {
                     $updates[] = "submission_id = ?";
                     $types .= "s";
@@ -982,11 +1017,16 @@ if (file_exists(__DIR__ . '/laundry_downloader.php')) {
 $total_submissions = count($submissions);
 $total_updated = count($updated_tasks);
 
-$message = "Sinkronisasi BAS berhasil: {$total_submissions} submission dicek, {$total_updated} task di-update.";
+if ($is_fallback_cache) {
+    $message = "Gagal terhubung ke BAS dengan SID saat ini (menggunakan cache lokal): {$total_submissions} submission dicek, {$total_updated} task di-update. Silakan refresh session BAS di browser.";
+} else {
+    $message = "Sinkronisasi BAS berhasil: {$total_submissions} submission dicek, {$total_updated} task di-update.";
+}
 
 respond_output([
     'success' => true,
     'message' => $message,
+    'is_fallback_cache' => $is_fallback_cache,
     'total_submissions_found' => $total_submissions,
     'synced_count' => $total_submissions,
     'updated_count' => $total_updated,

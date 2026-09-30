@@ -2378,11 +2378,11 @@ if (isset($_GET['chat_popup'])) {
         pointer-events: auto;
     }
 
-    /* Modal Main Card (Concentric 16px radius, solid matte surfaces) */
+    /* Modal Main Card (Concentric 16px radius, wide layout for inline logs) */
     #bas-sync-modal-card {
-        width: 100%;
-        max-width: 640px;
-        max-height: 88vh;
+        width: 95vw;
+        max-width: 980px;
+        max-height: 90vh;
         display: flex;
         flex-direction: column;
         background: #0f172a;
@@ -2469,7 +2469,7 @@ if (isset($_GET['chat_popup'])) {
     /* Stepper / Breadcrumb Track */
     .bas-breadcrumb-container {
         position: relative;
-        padding: 14px 16px 16px;
+        padding: 14px 20px 16px;
         background: #090d16;
         border-bottom: 1px solid #1e293b;
     }
@@ -2482,8 +2482,8 @@ if (isset($_GET['chat_popup'])) {
     .bas-track-line {
         position: absolute;
         top: 30px;
-        left: 42px;
-        right: 42px;
+        left: 48px;
+        right: 48px;
         height: 2px;
         background: #1e293b;
         border-radius: 9999px;
@@ -2508,7 +2508,7 @@ if (isset($_GET['chat_popup'])) {
         z-index: 2;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
+        gap: 8px;
     }
 
     .bas-step-item {
@@ -2563,7 +2563,7 @@ if (isset($_GET['chat_popup'])) {
 
     .bas-step-title {
         margin-top: 6px;
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: 500;
         color: #94a3b8;
         line-height: 1.2;
@@ -2591,10 +2591,10 @@ if (isset($_GET['chat_popup'])) {
     }
 
     .bas-step-sub {
-        font-size: 10px;
+        font-size: 10.5px;
         color: #64748b;
         margin-top: 2px;
-        max-width: 105px;
+        max-width: 180px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2609,7 +2609,7 @@ if (isset($_GET['chat_popup'])) {
         background: #090d16;
         border: 1px solid #1e293b;
         border-radius: 10px;
-        padding: 10px 12px;
+        padding: 10px 14px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -2675,39 +2675,52 @@ if (isset($_GET['chat_popup'])) {
     }
 
     #bas-console-box {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        font-size: 11px;
-        line-height: 1.5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 11.5px;
+        line-height: 1.6;
         background: #090d16;
         color: #cbd5e1;
         border-radius: 10px;
-        padding: 10px 12px;
+        padding: 10px 14px;
         border: 1px solid #1e293b;
-        max-height: 160px;
+        max-height: 220px;
         overflow-y: auto;
+        overflow-x: auto;
+        white-space: nowrap;
     }
 
     .bas-log-entry {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 8px;
         margin-bottom: 4px;
+        white-space: nowrap;
+        min-width: max-content;
     }
 
     .bas-log-ts {
         color: #64748b;
-        font-size: 10px;
+        font-size: 10.5px;
         font-variant-numeric: tabular-nums;
         flex-shrink: 0;
     }
 
     .bas-log-tag {
-        font-size: 9px;
+        font-size: 9.5px;
         font-weight: 600;
-        padding: 1px 4px;
+        padding: 1px 5px;
         border-radius: 4px;
         text-transform: uppercase;
         flex-shrink: 0;
+    }
+
+    .bas-log-msg {
+        white-space: nowrap;
+        color: #e2e8f0;
+    }
+
+    html.light .bas-log-msg {
+        color: #1e293b;
     }
 
     .bas-tag-session { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
@@ -2937,7 +2950,7 @@ if (isset($_GET['chat_popup'])) {
                     <div class="bas-log-entry">
                         <span class="bas-log-ts">[Ready]</span>
                         <span class="bas-log-tag bas-tag-info">SYSTEM</span>
-                        <span>Klik tombol "Mulai Sinkronisasi" untuk menjalankan proses sinkronisasi BAS.</span>
+                        <span class="bas-log-msg">Klik tombol "Mulai Sinkronisasi" untuk menjalankan proses sinkronisasi BAS.</span>
                     </div>
                 </div>
             </div>
@@ -2972,6 +2985,13 @@ if (isset($_GET['chat_popup'])) {
             </div>
             
             <div class="flex items-center gap-2">
+                <input type="file" id="bas-csv-file-input" accept=".csv" class="hidden" onchange="handleBasCsvUpload(event)">
+                <button type="button" onclick="document.getElementById('bas-csv-file-input').click()" class="bas-btn-dismiss flex items-center gap-1.5" title="Import file SearchData.csv langsung dari hasil download browser">
+                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Import CSV</span>
+                </button>
                 <button type="button" onclick="closeBasSyncModal()" class="bas-btn-dismiss">
                     Tutup
                 </button>
@@ -2990,6 +3010,34 @@ if (isset($_GET['chat_popup'])) {
 <script>
 (function() {
     var isSyncing = false;
+
+    window.handleBasCsvUpload = function(event) {
+        var file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        appendBasLog('UPLOAD', 'fetch', 'Mengunggah file CSV: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)...');
+        var formData = new FormData();
+        formData.append('csv_file', file);
+        formData.append('action', 'upload_csv');
+
+        fetch('api_bas_bridge.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.success) {
+                appendBasLog('SUCCESS', 'success', res.message || 'File CSV berhasil di-update.');
+                // Automatically run sync with the new CSV
+                runBasSyncProcess();
+            } else {
+                appendBasLog('ERROR', 'error', res.message || 'Gagal mengunggah file CSV.');
+            }
+        })
+        .catch(function(err) {
+            appendBasLog('ERROR', 'error', 'Upload error: ' + err.message);
+        });
+    };
 
     window.openBasSyncModal = function() {
         var modal = document.getElementById('bas-sync-modal');
@@ -3027,7 +3075,7 @@ if (isset($_GET['chat_popup'])) {
         row.className = 'bas-log-entry';
         row.innerHTML = '<span class="bas-log-ts">' + ts + '</span>' +
                         '<span class="bas-log-tag ' + tagClass + '">' + tag + '</span>' +
-                        '<span>' + message + '</span>';
+                        '<span class="bas-log-msg">' + message + '</span>';
 
         consoleBox.appendChild(row);
         consoleBox.scrollTop = consoleBox.scrollHeight;

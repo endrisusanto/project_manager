@@ -181,13 +181,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-// Handle POST request to save session token
+// Handle POST request to save session token or import CSV
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input_json = file_get_contents('php://input');
     $payload = json_decode($input_json, true);
-
     if (!$payload) {
         $payload = $_POST;
+    }
+
+    // Handle CSV Import / Upload from Extension or UI
+    $action = $_GET['action'] ?? ($payload['action'] ?? '');
+    if ($action === 'upload_csv' || $action === 'import_csv' || !empty($_FILES['csv_file']) || !empty($payload['csv_content'])) {
+        $csv_text = '';
+        if (!empty($_FILES['csv_file']['tmp_name']) && is_uploaded_file($_FILES['csv_file']['tmp_name'])) {
+            $csv_text = @file_get_contents($_FILES['csv_file']['tmp_name']);
+        } elseif (!empty($payload['csv_content'])) {
+            $csv_text = $payload['csv_content'];
+        }
+
+        if (empty($csv_text)) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Konten CSV kosong atau gagal diunggah.'
+            ]);
+            exit;
+        }
+
+        $target_paths = [
+            __DIR__ . '/SearchData_raw.csv',
+            '/var/www/html/SearchData_raw.csv',
+            '/home/endri-pro/dev/App/project_manager/SearchData_raw.csv'
+        ];
+        $written_any = false;
+        foreach ($target_paths as $tp) {
+            if (@file_put_contents($tp, $csv_text) !== false) {
+                $written_any = true;
+            }
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', trim($csv_text));
+        $row_count = max(0, count($lines) - 1);
+
+        echo json_encode([
+            'success' => true,
+            'message' => "SearchData_raw.csv berhasil diperbarui ({$row_count} baris data).",
+            'row_count' => $row_count
+        ]);
+        exit;
     }
 
     $sid = trim($payload['sid'] ?? '');
@@ -199,7 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         http_response_code(400);
         echo json_encode([
             'success' => false,
-            'message' => 'Parameter `sid` is required.'
+            'message' => 'Parameter `sid` atau file CSV diperlukan.'
         ]);
         exit;
     }

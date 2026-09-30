@@ -288,10 +288,11 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                                 }
                             }
 
-                            // Regional Multi-CSC Group Match (OXM/OLE vs OWO/OJM)
+                            // Regional Multi-CSC Group Match (OXM/OLE/OXT/OLP vs OWO/OJM/OWA)
+                            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP'];
                             $exp_group = $expected_csc_info['group'];
-                            if (empty($exp_group) || $exp_group === 'OXM' || $exp_group === 'OLE') {
-                                if ($cand_csc_info['group'] === 'OXM' || $cand_csc_info['group'] === 'OLE') {
+                            if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
+                                if (in_array($cand_csc_info['group'], $xid_groups)) {
                                     $score += 300;
                                 } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
                                     $score -= 250;
