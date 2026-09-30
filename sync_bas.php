@@ -159,26 +159,21 @@ try {
         }
     }
 
-    // 2. Fetch submissions from BAS (Search Submissions from last 90 days with exact KST payload)
+    // ponytail: Batch Fetch 2x 2 Minggu (Total 1 Bulan) to prevent BAS gateway timeout
     $today_str = date('Y-m-d');
     $month_start_ts = strtotime(date('Y-m-01 00:00:00'));
-    
-    // Exact KST ISO-8601 timestamps (+09:00) as used by BAS portal search (Covering last 90 days)
-    $start_iso = date('Y-m-d\T00:00:00.000000+09:00', strtotime('-90 days'));
-    $end_iso = date('Y-m-d\T23:59:59.000000+09:00', strtotime('+1 day'));
 
-    $debug_logs = [];
-
-    // Single comprehensive search covering all carriers and all groups over the last 90 days
-    $search_payload = [
-        'startDate' => $start_iso,
-        'endDate' => $end_iso,
-        'approvalType' => 'All',
-        'carriers' => '',
-        'lastUpdateCheck' => 'false',
-        'legacy' => true,
-        'pageSize' => 1000,
-        'count' => true
+    $search_batches = [
+        [
+            'name' => 'Batch 1 (14 Hari Terakhir)',
+            'startDate' => date('Y-m-d\T00:00:00.000000+09:00', strtotime('-14 days')),
+            'endDate' => date('Y-m-d\T23:59:59.000000+09:00', strtotime('+1 day')),
+        ],
+        [
+            'name' => 'Batch 2 (15 s/d 30 Hari Lalu)',
+            'startDate' => date('Y-m-d\T00:00:00.000000+09:00', strtotime('-30 days')),
+            'endDate' => date('Y-m-d\T23:59:59.000000+09:00', strtotime('-14 days')),
+        ]
     ];
 
     $search_url = "https://buildapprovalsystem.com/submission/search/createExcel";
@@ -186,6 +181,7 @@ try {
 
     $all_raw_submissions = [];
     $auth_error = null;
+    $debug_logs = [];
 
     $req_headers = [
         "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
@@ -369,45 +365,68 @@ try {
         return $items;
     };
 
-    // Execute Search across All Carriers (Includes XID & Non-XID in one request)
-    $res_search = $execute_bas_request($search_url, 'POST', $search_payload, 35);
-    if (!empty($res_search['body'])) {
-        $found_items = $extract_items_from_response($res_search['body']);
-        if (!empty($found_items)) {
-            foreach ($found_items as $it) {
-                if (is_array($it)) {
-                    $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
-                    if (!empty($sub_id_val)) {
-                        $all_raw_submissions[$sub_id_val] = $it;
-                    } else {
-                        $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
-                        $all_raw_submissions[$sub_key] = $it;
-                    }
-                }
-            }
+    // Execute Batch Fetch: 2x 2 Minggu across all carriers to prevent timeout
+    $last_http_code = 0;
+    $live_fetched_count = 0;
 
-            // Auto-update SearchData_raw.csv whenever fresh items are retrieved from live API
-            if (!empty($all_raw_submissions) && count($all_raw_submissions) > 0) {
-                $first_item = reset($all_raw_submissions);
-                if (is_array($first_item)) {
-                    $headers = array_keys($first_item);
-                    $csv_out = fopen('php://memory', 'r+');
-                    fputcsv($csv_out, $headers);
-                    foreach ($all_raw_submissions as $row_data) {
-                        $csv_row = [];
-                        foreach ($headers as $h) {
-                            $csv_row[] = $row_data[$h] ?? '';
+    foreach ($search_batches as $b) {
+        $batch_payload = [
+            'startDate' => $b['startDate'],
+            'endDate' => $b['endDate'],
+            'approvalType' => 'All',
+            'carriers' => '',
+            'lastUpdateCheck' => 'false',
+            'legacy' => true,
+            'pageSize' => 1000,
+            'count' => true
+        ];
+
+        $res_search = $execute_bas_request($search_url, 'POST', $batch_payload, 30);
+        $last_http_code = $res_search['code'];
+
+        if (!empty($res_search['body'])) {
+            $found_items = $extract_items_from_response($res_search['body']);
+            if (!empty($found_items)) {
+                $batch_count = 0;
+                foreach ($found_items as $it) {
+                    if (is_array($it)) {
+                        $sub_id_val = strval($it['Id'] ?? $it['id'] ?? $it['ID'] ?? $it['submission_id'] ?? $it['submissionId'] ?? '');
+                        if (!empty($sub_id_val)) {
+                            $all_raw_submissions[$sub_id_val] = $it;
+                            $batch_count++;
+                        } else {
+                            $sub_key = ($it['AP'] ?? '') . '_' . ($it['CSC'] ?? '') . '_' . rand();
+                            $all_raw_submissions[$sub_key] = $it;
+                            $batch_count++;
                         }
-                        fputcsv($csv_out, $csv_row);
-                    }
-                    rewind($csv_out);
-                    $new_csv_content = stream_get_contents($csv_out);
-                    fclose($csv_out);
-                    if (!empty($new_csv_content)) {
-                        @file_put_contents(__DIR__ . '/SearchData_raw.csv', $new_csv_content);
-                        $debug_logs[] = "Auto-updated SearchData_raw.csv (" . count($all_raw_submissions) . " records saved)";
                     }
                 }
+                $live_fetched_count += $batch_count;
+                $debug_logs[] = "{$b['name']}: Mengambil {$batch_count} records (Total unik: " . count($all_raw_submissions) . ").";
+            }
+        }
+    }
+
+    // Auto-update SearchData_raw.csv whenever fresh items are retrieved from live API
+    if ($live_fetched_count > 0 && !empty($all_raw_submissions)) {
+        $first_item = reset($all_raw_submissions);
+        if (is_array($first_item)) {
+            $headers = array_keys($first_item);
+            $csv_out = fopen('php://memory', 'r+');
+            fputcsv($csv_out, $headers);
+            foreach ($all_raw_submissions as $row_data) {
+                $csv_row = [];
+                foreach ($headers as $h) {
+                    $csv_row[] = $row_data[$h] ?? '';
+                }
+                fputcsv($csv_out, $csv_row);
+            }
+            rewind($csv_out);
+            $new_csv_content = stream_get_contents($csv_out);
+            fclose($csv_out);
+            if (!empty($new_csv_content)) {
+                @file_put_contents(__DIR__ . '/SearchData_raw.csv', $new_csv_content);
+                $debug_logs[] = "Auto-updated SearchData_raw.csv (" . count($all_raw_submissions) . " records saved)";
             }
         }
     }
@@ -432,7 +451,7 @@ try {
             }
             if (!empty($all_raw_submissions)) {
                 $is_fallback_cache = true;
-                $debug_logs[] = "[PERINGATAN] Gagal koneksi langsung ke portal BAS dengan SID saat ini (Timeout/HTTP {$res_search['code']}).";
+                $debug_logs[] = "[PERINGATAN] Gagal koneksi langsung ke portal BAS dengan SID saat ini (Timeout/HTTP {$last_http_code}).";
                 $debug_logs[] = "Menggunakan fallback cache lokal SearchData_raw.csv (" . count($all_raw_submissions) . " submissions dimuat).";
             }
         }
@@ -575,8 +594,8 @@ try {
     }
 
     /**
-     * Check if a submission belongs to disfavored regional variants (TUR = Turkey, EEA = Europe, SER = Russia).
-     * When multiple submissions exist for the same AP, we must NOT use tur, eea, or ser builds.
+     * Check if a submission belongs to disfavored regional variants (TUR = Turkey, EEA = Europe, SER = Russia, INS = India, etc.).
+     * When multiple submissions exist for the same AP, we must NOT use single-region foreign builds.
      */
     if (!function_exists('is_disfavored_regional_build')) {
         function is_disfavored_regional_build($sub) {
@@ -586,21 +605,23 @@ try {
             $carrier = strtoupper(trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? '')));
             $csc = strtoupper(trim(strval($sub['CSC'] ?? $sub['csc'] ?? '')));
 
-            // Match tur, eea, ser at end of device code (e.g. a55xnstur, a14xmeea, a15nsser, a33xnseea)
-            if (preg_match('/(tur|eea|ser)$/i', $dev) || preg_match('/_(tur|eea|ser)($|_)/i', $dev)) return true;
+            // Match disfavored region suffix in device code
+            if (preg_match('/(tur|eea|ser|ins|nser|nins|ntur)$/i', $dev) || preg_match('/_(tur|eea|ser|ins)($|_)/i', $dev)) return true;
 
-            // Match in fingerprint product path (e.g. samsung/a55xnstur/..., samsung/a14xmeea/...)
-            if (preg_match('/^samsung\/[a-z0-9_]*(tur|eea|ser)\//i', $fp)) return true;
+            // Match in fingerprint product path
+            if (preg_match('/^samsung\/[a-z0-9_]*(tur|eea|ser|ins|owo|ojm)\//i', $fp)) return true;
 
-            // Match in carriers or buyer sales code (e.g. TUR, SER, EEA)
+            // Match non-SEA regional CSC groups (e.g. Latin America, Middle East, India)
+            if (preg_match('/(OWO|OJM|OWA|OWE|OXE|ODM)/i', $csc)) return true;
+
+            // Match single-country non-Indonesia carrier code when only that single non-XID carrier is present
             $carriers = preg_split('/[\s,;]+/', $carrier);
-            foreach ($carriers as $c) {
-                $ct = trim($c);
-                if ($ct === 'TUR' || $ct === 'SER' || $ct === 'EEA') return true;
+            if (count($carriers) <= 2 && !preg_match('/\b(XID|OXM|OXT)\b/i', $carrier)) {
+                $disfavored_singles = ['TUR', 'SER', 'EEA', 'EUX', 'INS', 'CAU', 'NPB', 'BKD', 'PNG', 'BNG'];
+                foreach ($carriers as $c) {
+                    if (in_array(trim($c), $disfavored_singles)) return true;
+                }
             }
-
-            // Match in CSC
-            if (preg_match('/\b(TUR|SER|EEA)\b/i', $csc)) return true;
 
             return false;
         }
@@ -660,11 +681,10 @@ try {
     }
 
     // Helper to evaluate and rank candidate submissions for a specific task
+    // ponytail: strictly match ONLY submissions whose carrier contains XID
     $evaluate_best_subs_for_task = function($candidate_subs, $task) {
         $best_xid_sub = null;
         $best_xid_rank = -9999;
-        $best_all_sub = null;
-        $best_all_rank = -9999;
 
         $task_ap = strtoupper(trim((string)($task['ap'] ?? '')));
         $task_csc = strtoupper(trim((string)($task['csc'] ?? '')));
@@ -675,34 +695,41 @@ try {
             $raw_carrier = trim(strval($sub['Carriers'] ?? $sub['Carrier'] ?? $sub['carrier'] ?? $sub['carriers'] ?? $sub['Buyer'] ?? $sub['buyer'] ?? $sub['Sales Code'] ?? $sub['sales_code'] ?? ''));
             $raw_csc = trim(strval($sub['CSC'] ?? $sub['csc'] ?? $sub['csc_version'] ?? $sub['cscVersion'] ?? ''));
             $fingerprint = trim(strval($sub['Fingerprint'] ?? $sub['fingerprint'] ?? $sub['binaryName'] ?? $sub['binary_name'] ?? $sub['build_number'] ?? ''));
-            $dev_code = strtolower(trim(strval($sub['Device Code'] ?? $sub['deviceCode'] ?? $sub['device_code'] ?? '')));
 
-            // Strict XID check: must have carrier XID (regardless of CSC being OXM, OLE, etc.)
+            // 100% Strict Carrier XID: must have carrier XID
             $is_xid = (!empty($raw_carrier) && preg_match('/\bXID\b/i', $raw_carrier));
+            if (!$is_xid) {
+                continue; // Hard skip any submission that does not have carrier XID
+            }
+
+            // Filter by Test Plan Type vs BAS Approval Type (Normal MR = NormalException, SMR = SMR)
+            $task_plan = strtoupper(trim((string)($task['test_plan_type'] ?? '')));
+            $cand_approval = strtoupper(trim(strval($sub['Approval Type'] ?? $sub['approvalType'] ?? $sub['approval_type'] ?? '')));
+
+            if (!empty($task_plan) && !empty($cand_approval)) {
+                if (strpos($task_plan, 'NORMAL') !== false) {
+                    // Normal MR in GBA must strictly match NormalException in BAS (Regular is NOT Normal MR)
+                    if (strpos($cand_approval, 'NORMAL') === false) {
+                        continue;
+                    }
+                } elseif (strpos($task_plan, 'SMR') !== false) {
+                    // SMR in GBA must match SMR in BAS
+                    if (strpos($cand_approval, 'SMR') === false) {
+                        continue;
+                    }
+                } elseif (strpos($task_plan, 'REGULAR') !== false) {
+                    if (strpos($cand_approval, 'REGULAR') === false) {
+                        continue;
+                    }
+                }
+            }
 
             $cand_csc_info = parse_csc_group_and_suffix($raw_csc ?: $fingerprint);
-
-            // Multi-CSC group registry for regional scoring
-            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP'];
-            $cand_is_xid_group = in_array($cand_csc_info['group'], $xid_groups);
-            $is_valid_carrier = (!empty($raw_carrier) || !empty($raw_csc) || !empty($fingerprint));
-
             $raw_status = trim($sub['Status'] ?? $sub['status'] ?? $sub['progress_status'] ?? $sub['approvalStatus'] ?? $sub['submissionStatus'] ?? '');
             $base_rank = get_status_priority_rank($raw_status);
+            $score = $base_rank;
 
-            $is_disfavored = is_disfavored_regional_build($sub);
-            if ($is_disfavored) {
-                continue; // Hard skip: Never use TUR, EEA, or SER
-            }
-
-            $is_xx_build = (stripos($dev_code, 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($fingerprint)));
-            $score = $base_rank + ($is_xx_build ? 200 : 0);
-
-            if ($is_xid) {
-                $score += 500;
-            }
-
-            // CSC Suffix and Group Matching
+            // CSC Suffix Matching
             if (!empty($cand_csc_info['suffix'])) {
                 $exp_suffix = !empty($task_csc_info['suffix']) ? $task_csc_info['suffix'] : $task_ap_suffix;
                 if (!empty($exp_suffix)) {
@@ -714,33 +741,13 @@ try {
                 }
             }
 
-            // Multi-CSC Regional Matching (OXM/OLE/OXT/OLP vs OWO/OJM/OWA)
-            $exp_group = $task_csc_info['group'];
-            if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
-                if ($cand_is_xid_group) {
-                    $score += 300;
-                } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
-                    $score -= 250;
-                }
-            } elseif (!empty($exp_group)) {
-                if ($cand_csc_info['group'] === $exp_group) {
-                    $score += 300;
-                } else {
-                    $score -= 150;
-                }
-            }
-
-            if ($is_xid && $score > $best_xid_rank) {
+            if ($score > $best_xid_rank) {
                 $best_xid_rank = $score;
                 $best_xid_sub = $sub;
             }
-            if ($is_valid_carrier && $score > $best_all_rank) {
-                $best_all_rank = $score;
-                $best_all_sub = $sub;
-            }
         }
 
-        return ['xid_sub' => $best_xid_sub, 'all_sub' => $best_all_sub];
+        return ['xid_sub' => $best_xid_sub];
     };
 
     foreach ($submissions_by_ap as $ap_key => $ap_candidates) {
@@ -771,12 +778,12 @@ try {
             if (!$matched_task) continue;
 
             $subs_eval = $evaluate_best_subs_for_task($ap_candidates, $matched_task);
-            $xid_sub = $subs_eval['xid_sub'];
-            $all_sub = $subs_eval['all_sub'];
+            $xid_sub = $subs_eval['xid_sub'] ?? null;
 
-            $primary_sub = $xid_sub ?: $all_sub;
-            if (!is_array($primary_sub)) continue;
+            // Strict XID only: If no XID submission exists in BAS, do not touch or update this task
+            if (!$xid_sub || !is_array($xid_sub)) continue;
 
+            $primary_sub = $xid_sub;
             $raw_ap = trim(strval($primary_sub['AP'] ?? $primary_sub['ap'] ?? $primary_sub['ap_version'] ?? $primary_sub['apVersion'] ?? ''));
             $raw_csc = trim(strval($primary_sub['CSC'] ?? $primary_sub['csc'] ?? $primary_sub['csc_version'] ?? $primary_sub['cscVersion'] ?? ''));
             $raw_cp = trim(strval($primary_sub['CP'] ?? $primary_sub['cp'] ?? $primary_sub['cp_version'] ?? $primary_sub['cpVersion'] ?? ''));
@@ -786,9 +793,8 @@ try {
             $csc_version = extract_csc_version($fingerprint, $raw_csc);
             $model_name = trim($primary_sub['Model Name'] ?? $primary_sub['modelName'] ?? $primary_sub['model_name'] ?? $primary_sub['Model'] ?? $primary_sub['model'] ?? '');
 
-            $xid_sub_id = $xid_sub ? trim(strval($xid_sub['Id'] ?? $xid_sub['id'] ?? $xid_sub['ID'] ?? $xid_sub['submission_id'] ?? $xid_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
-            $all_sub_id = $all_sub ? trim(strval($all_sub['Id'] ?? $all_sub['id'] ?? $all_sub['ID'] ?? $all_sub['submission_id'] ?? $all_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
-            $all_base_sub_id = $all_sub ? trim(strval($all_sub['Base Submission ID'] ?? $all_sub['baseSubmissionId'] ?? $all_sub['base_submission_id'] ?? $all_sub['Base ID'] ?? $all_sub['base_id'] ?? ''), "=\"' \t\n\r\0\x0B") : '';
+            $xid_sub_id = trim(strval($xid_sub['Id'] ?? $xid_sub['id'] ?? $xid_sub['ID'] ?? $xid_sub['submission_id'] ?? $xid_sub['submissionId'] ?? ''), "=\"' \t\n\r\0\x0B");
+            $xid_base_sub_id = trim(strval($xid_sub['Base Submission ID'] ?? $xid_sub['baseSubmissionId'] ?? $xid_sub['base_submission_id'] ?? $xid_sub['Base ID'] ?? $xid_sub['base_id'] ?? ''), "=\"' \t\n\r\0\x0B");
 
             $old_status = $matched_task['progress_status'];
             $old_reviewer = $matched_task['reviewer_email'];
@@ -809,109 +815,89 @@ try {
             $reviewer = '';
             $is_urgent = 0;
             
-            // 1. Task progress, dates, reviewer, and urgent updates from best available submission
-            //    Priority: xid_sub (strict XID carrier) > all_sub (Open Market multi-CSC fallback non-TUR/EEA/SER)
-            $effective_sub = $xid_sub ?: $all_sub;
-            if ($effective_sub) {
-                $raw_status = trim($effective_sub['Status'] ?? $effective_sub['status'] ?? $effective_sub['progress_status'] ?? $effective_sub['approvalStatus'] ?? $effective_sub['submissionStatus'] ?? '');
-                $reviewer = trim(strval($effective_sub['Reviewer'] ?? $effective_sub['reviewer'] ?? $effective_sub['reviewer_email'] ?? $effective_sub['reviewerEmail'] ?? $effective_sub['reviewed_by'] ?? $effective_sub['PL Email'] ?? $effective_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
-                $urgent_raw = $effective_sub['Urgent'] ?? $effective_sub['urgent'] ?? $effective_sub['is_urgent'] ?? $effective_sub['isUrgent'] ?? false;
-                $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
+            // 1. Task progress, dates, reviewer, and urgent updates strictly from XID submission
+            $raw_status = trim($xid_sub['Status'] ?? $xid_sub['status'] ?? $xid_sub['progress_status'] ?? $xid_sub['approvalStatus'] ?? $xid_sub['submissionStatus'] ?? '');
+            $reviewer = trim(strval($xid_sub['Reviewer'] ?? $xid_sub['reviewer'] ?? $xid_sub['reviewer_email'] ?? $xid_sub['reviewerEmail'] ?? $xid_sub['reviewed_by'] ?? $xid_sub['PL Email'] ?? $xid_sub['Reviewer Group'] ?? ''), "=\"' \t\n\r\0\x0B");
+            $urgent_raw = $xid_sub['Urgent'] ?? $xid_sub['urgent'] ?? $xid_sub['is_urgent'] ?? $xid_sub['isUrgent'] ?? false;
+            $is_urgent = ($urgent_raw === true || $urgent_raw === 1 || $urgent_raw === '1' || strtolower(strval($urgent_raw)) === 'true' || strtolower(strval($urgent_raw)) === 'urgent' || strtolower(strval($urgent_raw)) === 'y') ? 1 : 0;
 
-                $raw_submission_date = $effective_sub['Submission Date'] ?? $effective_sub['submissionDate'] ?? $effective_sub['submission_date'] ?? $effective_sub['submitted_at'] ?? $effective_sub['date'] ?? null;
-                $raw_approval_date = $effective_sub['Approval Date'] ?? $effective_sub['approvalDate'] ?? $effective_sub['approved_date'] ?? $effective_sub['approvedAt'] ?? $effective_sub['Review Completion Time'] ?? $effective_sub['reviewCompletionTime'] ?? null;
+            $raw_submission_date = $xid_sub['Submission Date'] ?? $xid_sub['submissionDate'] ?? $xid_sub['submission_date'] ?? $xid_sub['submitted_at'] ?? $xid_sub['date'] ?? null;
+            $raw_approval_date = $xid_sub['Approval Date'] ?? $xid_sub['approvalDate'] ?? $xid_sub['approved_date'] ?? $xid_sub['approvedAt'] ?? $xid_sub['Review Completion Time'] ?? $xid_sub['reviewCompletionTime'] ?? null;
 
-                $sub_date = parse_bas_date($raw_submission_date);
-                $approved_date = parse_bas_date($raw_approval_date);
+            $sub_date = parse_bas_date($raw_submission_date);
+            $approved_date = parse_bas_date($raw_approval_date);
 
-                $norm_status_upper = strtoupper($raw_status);
-                if (strpos($norm_status_upper, 'PENDING') !== false) {
-                    $target_progress_status = 'Pending Feedback';
-                } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
-                    $target_progress_status = 'Approved';
-                    if (empty($approved_date)) {
-                        $approved_date = $sub_date ?: $today_str;
-                    }
-                } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
-                    $target_progress_status = 'Submitted';
-                } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false || strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
-                    $target_progress_status = 'Batal';
-                } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
-                    $target_progress_status = 'Test Ongoing';
+            $norm_status_upper = strtoupper($raw_status);
+            if (strpos($norm_status_upper, 'PENDING') !== false) {
+                $target_progress_status = 'Pending Feedback';
+            } elseif (strpos($norm_status_upper, 'APPROV') !== false || strpos($norm_status_upper, 'PASS') !== false || strpos($norm_status_upper, 'COMPLET') !== false || strpos($norm_status_upper, 'HOLD') !== false) {
+                $target_progress_status = 'Approved';
+                if (empty($approved_date)) {
+                    $approved_date = $sub_date ?: $today_str;
                 }
+            } elseif (strpos($norm_status_upper, 'SUBMIT') !== false || strpos($norm_status_upper, 'WAITING') !== false || strpos($norm_status_upper, 'REVIEW') !== false) {
+                $target_progress_status = 'Submitted';
+            } elseif (strpos($norm_status_upper, 'REJECT') !== false || strpos($norm_status_upper, 'FAIL') !== false || strpos($norm_status_upper, 'DROP') !== false || strpos($norm_status_upper, 'BATAL') !== false || strpos($norm_status_upper, 'CANCEL') !== false) {
+                $target_progress_status = 'Batal';
+            } elseif (strpos($norm_status_upper, 'ONGOING') !== false || strpos($norm_status_upper, 'PROGRESS') !== false || strpos($norm_status_upper, 'TEST') !== false) {
+                $target_progress_status = 'Test Ongoing';
+            }
 
-                $old_status_rank = get_status_priority_rank($old_status);
-                $target_status_rank = get_status_priority_rank($target_progress_status);
+            $old_status_rank = get_status_priority_rank($old_status);
+            $target_status_rank = get_status_priority_rank($target_progress_status);
+            $is_rejected_or_batal = in_array($target_progress_status, ['Batal', 'Rejected']);
 
-                $is_rejected_or_batal = in_array($target_progress_status, ['Batal', 'Rejected']);
-
-                if ($target_progress_status !== null && $target_progress_status !== $old_status && !$is_rejected_or_batal) {
-                    if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
-                        $updates[] = "progress_status = ?";
-                        $types .= "s";
-                        $params[] = $target_progress_status;
-                        $final_status = $target_progress_status;
-                        $need_update = true;
-                    }
-                }
-
-                if ($approved_date && $approved_date !== $matched_task['approved_date']) {
-                    $updates[] = "approved_date = ?";
+            if ($target_progress_status !== null && $target_progress_status !== $old_status && !$is_rejected_or_batal) {
+                if ($target_status_rank >= $old_status_rank || ($old_status !== 'Approved' && $old_status !== 'Passed')) {
+                    $updates[] = "progress_status = ?";
                     $types .= "s";
-                    $params[] = $approved_date;
-                    $need_update = true;
-                }
-
-                if (($target_progress_status === 'Approved' || $old_status === 'Approved' || $old_status === 'Passed') && $approved_date && $approved_date !== $matched_task['sign_off_date']) {
-                    $updates[] = "sign_off_date = ?";
-                    $types .= "s";
-                    $params[] = $approved_date;
-                    $need_update = true;
-                }
-
-                if ($sub_date && $sub_date !== $matched_task['submission_date']) {
-                    $updates[] = "submission_date = ?";
-                    $types .= "s";
-                    $params[] = $sub_date;
-                    $need_update = true;
-                }
-
-                if (!empty($reviewer) && trim($reviewer) !== trim(strval($old_reviewer))) {
-                    $updates[] = "reviewer_email = ?";
-                    $types .= "s";
-                    $params[] = $reviewer;
-                    $need_update = true;
-                }
-
-                if ($is_urgent !== $old_urgent) {
-                    $updates[] = "is_urgent = ?";
-                    $types .= "i";
-                    $params[] = $is_urgent;
-                    $need_update = true;
-                }
-
-                // Strict XID submission ID: only stored in submission_id if explicit XID submission exists
-                if (!empty($xid_sub_id) && trim($xid_sub_id) !== trim(strval($old_sub_id))) {
-                    $updates[] = "submission_id = ?";
-                    $types .= "s";
-                    $params[] = $xid_sub_id;
+                    $params[] = $target_progress_status;
+                    $final_status = $target_progress_status;
                     $need_update = true;
                 }
             }
 
-            // 2. Laundry feature checks all carriers: if non-XID build exists, populate base_submission_id
-            $target_base_id = !empty($all_base_sub_id) ? $all_base_sub_id : ((!$xid_sub && !empty($all_sub_id)) ? $all_sub_id : '');
-            if (!empty($target_base_id) && trim($target_base_id) !== trim(strval($old_base_sub_id))) {
-                $updates[] = "base_submission_id = ?";
+            if ($approved_date && $approved_date !== $matched_task['approved_date']) {
+                $updates[] = "approved_date = ?";
                 $types .= "s";
-                $params[] = $target_base_id;
+                $params[] = $approved_date;
                 $need_update = true;
             }
 
-            if (empty($old_sub_id) && empty($xid_sub_id) && !empty($all_sub_id) && empty($target_base_id)) {
+            if ($sub_date && $sub_date !== $matched_task['submission_date']) {
+                $updates[] = "submission_date = ?";
+                $types .= "s";
+                $params[] = $sub_date;
+                $need_update = true;
+            }
+
+            if (!empty($reviewer) && trim($reviewer) !== trim(strval($old_reviewer))) {
+                $updates[] = "reviewer_email = ?";
+                $types .= "s";
+                $params[] = $reviewer;
+                $need_update = true;
+            }
+
+            if ($is_urgent !== $old_urgent) {
+                $updates[] = "is_urgent = ?";
+                $types .= "i";
+                $params[] = $is_urgent;
+                $need_update = true;
+            }
+
+            // Strict XID submission ID: only stored in submission_id
+            if (!empty($xid_sub_id) && trim($xid_sub_id) !== trim(strval($old_sub_id))) {
+                $updates[] = "submission_id = ?";
+                $types .= "s";
+                $params[] = $xid_sub_id;
+                $need_update = true;
+            }
+
+            // Base submission ID from XID submission's Base ID field
+            if (!empty($xid_base_sub_id) && trim($xid_base_sub_id) !== trim(strval($old_base_sub_id))) {
                 $updates[] = "base_submission_id = ?";
                 $types .= "s";
-                $params[] = $all_sub_id;
+                $params[] = $xid_base_sub_id;
                 $need_update = true;
             }
 

@@ -2674,6 +2674,7 @@ if (isset($_GET['chat_popup'])) {
         color: #0f172a;
     }
 
+    /* ponytail: responsive live console box with clean vertical resize and high-contrast light mode */
     #bas-console-box {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         font-size: 11.5px;
@@ -2683,10 +2684,48 @@ if (isset($_GET['chat_popup'])) {
         border-radius: 10px;
         padding: 10px 14px;
         border: 1px solid #1e293b;
-        max-height: 220px;
+        min-height: 120px;
+        height: clamp(140px, 30vh, 380px);
+        max-height: 55vh;
         overflow-y: auto;
         overflow-x: auto;
         white-space: nowrap;
+        resize: vertical;
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    #bas-console-box::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    #bas-console-box::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    #bas-console-box::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 9999px;
+    }
+    #bas-console-box::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+    }
+
+    /* Light Mode: Bright, Crisp & High-Contrast Live Console */
+    html.light #bas-console-box {
+        background: #ffffff;
+        color: #0f172a;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+    html.light #bas-console-box::-webkit-scrollbar-track {
+        background: #f8fafc;
+        border-radius: 9999px;
+    }
+    html.light #bas-console-box::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 9999px;
+    }
+    html.light #bas-console-box::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
 
     .bas-log-entry {
@@ -2705,13 +2744,19 @@ if (isset($_GET['chat_popup'])) {
         flex-shrink: 0;
     }
 
+    html.light .bas-log-ts {
+        color: #475569;
+        font-weight: 500;
+    }
+
     .bas-log-tag {
         font-size: 9.5px;
-        font-weight: 600;
-        padding: 1px 5px;
+        font-weight: 700;
+        padding: 1.5px 6px;
         border-radius: 4px;
         text-transform: uppercase;
         flex-shrink: 0;
+        letter-spacing: 0.03em;
     }
 
     .bas-log-msg {
@@ -2720,15 +2765,35 @@ if (isset($_GET['chat_popup'])) {
     }
 
     html.light .bas-log-msg {
-        color: #1e293b;
+        color: #0f172a;
+        font-weight: 500;
     }
 
+    /* Dark Mode Tags */
     .bas-tag-session { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
     .bas-tag-fetch { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
     .bas-tag-match { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
     .bas-tag-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
     .bas-tag-error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
     .bas-tag-info { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+
+    /* Light Mode Tags - Cerah, High Contrast & Clean */
+    html.light .bas-tag-session { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    html.light .bas-tag-fetch { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+    html.light .bas-tag-match { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    html.light .bas-tag-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    html.light .bas-tag-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    html.light .bas-tag-info { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+
+    /* Responsive adjustments for smaller screens */
+    @media (max-width: 640px) {
+        #bas-console-box {
+            min-height: 110px;
+            height: 190px;
+            padding: 8px 10px;
+            font-size: 11px;
+        }
+    }
 
     /* Updated Tasks Preview List */
     #bas-tasks-summary-box {

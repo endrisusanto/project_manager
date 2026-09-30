@@ -202,7 +202,7 @@ if (!function_exists('parse_csc_group_and_suffix')) {
  * Lookup preferred non-disfavored submission and fingerprint for a given AP, Base Submission ID, and Task CSC.
  * Avoids TUR, EEA, and SER, and matches CSC suffix / group (e.g. OXM vs OWO).
  */
-function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '') {
+function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '', $test_plan_type = '') {
     $candidate_csv_paths = [
         __DIR__ . '/SearchData_raw.csv',
         '/var/www/html/SearchData_raw.csv',
@@ -215,6 +215,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
     $clean_sub_id = trim(strval($current_sub_id), "=\"' \t\n\r\0\x0B");
     $expected_csc_info = parse_csc_group_and_suffix($expected_csc);
     $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
+    $clean_plan = strtoupper(trim(strval($test_plan_type)));
 
     $best_sub_id = '';
     $best_fp = '';
@@ -249,6 +250,17 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
 
                         if (stripos($row_type, 'Vendor') !== false || stripos($row_type, 'SafetyNet') !== false) {
                             continue;
+                        }
+
+                        // Approval type matching: Normal MR = NormalException, SMR = SMR
+                        if (!empty($clean_plan) && !empty($row_type)) {
+                            if (strpos($clean_plan, 'NORMAL') !== false) {
+                                if (stripos($row_type, 'Normal') === false) continue;
+                            } elseif (strpos($clean_plan, 'SMR') !== false) {
+                                if (stripos($row_type, 'SMR') === false) continue;
+                            } elseif (strpos($clean_plan, 'REGULAR') !== false) {
+                                if (stripos($row_type, 'Regular') === false) continue;
+                            }
                         }
 
                         $is_match = false;
@@ -404,7 +416,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     } else {
         $task_id = intval($task_or_id);
         if ($task_id > 0 && isset($conn)) {
-            $stmt = $conn->prepare("SELECT id, model_name, ap, csc, base_submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT id, model_name, ap, csc, test_plan_type, base_submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
             $stmt->bind_param("i", $task_id);
             $stmt->execute();
             $task = $stmt->get_result()->fetch_assoc();
@@ -452,7 +464,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
         $clean_ap = "Sub_{$base_sub_id}";
     }
 
-    $resolved = resolve_best_submission_for_task($ap, $base_sub_id, $csc);
+    $resolved = resolve_best_submission_for_task($ap, $base_sub_id, $csc, $task['test_plan_type'] ?? '');
     if (empty($resolved['submission_id'])) {
         return [
             'success' => false,
