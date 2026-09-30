@@ -240,6 +240,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                 $carrier_idx = $col_map['carriers'] ?? $col_map['carrier'] ?? -1;
                 $csc_idx = $col_map['csc'] ?? $col_map['csc_version'] ?? -1;
                 $type_idx = $col_map['approval type'] ?? $col_map['approval_type'] ?? -1;
+                $build_type_idx = $col_map['build type'] ?? $col_map['build_type'] ?? $col_map['category'] ?? -1;
 
                 if ($id_idx >= 0 && $fp_idx >= 0) {
                     while (($row = fgetcsv($fp)) !== false) {
@@ -247,6 +248,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                         $row_fp = trim(strval($row[$fp_idx] ?? ''), "=\"' \t\n\r\0\x0B");
                         $row_ap = $ap_idx >= 0 ? strtoupper(trim(strval($row[$ap_idx] ?? ''))) : '';
                         $row_type = $type_idx >= 0 ? trim(strval($row[$type_idx] ?? '')) : '';
+                        $row_build_type = $build_type_idx >= 0 ? strtoupper(trim(strval($row[$build_type_idx] ?? ''))) : '';
 
                         if (stripos($row_type, 'Vendor') !== false || stripos($row_type, 'SafetyNet') !== false) {
                             continue;
@@ -300,8 +302,8 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                                 }
                             }
 
-                            // Regional Multi-CSC Group Match (OXM/OLE/OXT/OLP vs OWO/OJM/OWA)
-                            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP'];
+                            // Regional Multi-CSC Group Match (OXM/OLE/OXT/OLP/OLM vs OWO/OJM/OWA)
+                            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP', 'OLM'];
                             $exp_group = $expected_csc_info['group'];
                             if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
                                 if (in_array($cand_csc_info['group'], $xid_groups)) {
@@ -314,6 +316,16 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                                     $score += 300;
                                 } else {
                                     $score -= 150;
+                                }
+                            }
+
+                            // ponytail: Khusus testplan SKU jika Regular type, category Variant, dan CSC prefix/group match (e.g. OLM, OXM) -> tambah scoring untuk laundry
+                            if (strpos($clean_plan, 'SKU') !== false) {
+                                if (stripos($row_type, 'Regular') !== false && stripos($row_build_type, 'VARIANT') !== false) {
+                                    $cand_grp = $cand_csc_info['group'] ?? '';
+                                    if (!empty($cand_grp) && (!empty($exp_group) ? $cand_grp === $exp_group : in_array($cand_grp, $xid_groups))) {
+                                        $score += 400;
+                                    }
                                 }
                             }
 
@@ -428,11 +440,28 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     }
 
     $base_sub_id = trim($task['base_submission_id'] ?? '');
-    if (empty($base_sub_id)) {
+    $sub_id = trim($task['submission_id'] ?? '');
+    $lookup_id = !empty($base_sub_id) ? $base_sub_id : $sub_id;
+
+    $ap = trim($task['ap'] ?? '');
+    $csc = trim($task['csc'] ?? '');
+    $plan_type = trim($task['test_plan_type'] ?? '');
+
+    $resolved = resolve_best_submission_for_task($ap, $lookup_id, $csc, $plan_type);
+    if (empty($resolved['submission_id'])) {
         return [
             'success' => false,
-            'message' => "Task #{$task['id']} does not have a Base Submission ID (Not in laundry mode)."
+            'skipped' => true,
+            'task_id' => $task['id'],
+            'message' => "Task #{$task['id']} ({$ap}) dilewati karena tidak ada binary laundry valid di BAS."
         ];
+    }
+    $target_sub_id = $resolved['submission_id'];
+    $raw_fp = $resolved['fingerprint'] ?: get_submission_fingerprint($target_sub_id);
+
+    $clean_ap = preg_replace('/[^a-zA-Z0-9_-]/', '', $ap);
+    if (empty($clean_ap)) {
+        $clean_ap = "Sub_{$target_sub_id}";
     }
 
     $status = trim($task['progress_status'] ?? '');
@@ -457,25 +486,6 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
         ];
     }
 
-    $ap = trim($task['ap'] ?? '');
-    $csc = trim($task['csc'] ?? '');
-    $clean_ap = preg_replace('/[^a-zA-Z0-9_-]/', '', $ap);
-    if (empty($clean_ap)) {
-        $clean_ap = "Sub_{$base_sub_id}";
-    }
-
-    $resolved = resolve_best_submission_for_task($ap, $base_sub_id, $csc, $task['test_plan_type'] ?? '');
-    if (empty($resolved['submission_id'])) {
-        return [
-            'success' => false,
-            'skipped' => true,
-            'task_id' => $task['id'],
-            'message' => "Task #{$task['id']} ({$ap}) dilewati karena tidak ada binary laundry valid (build TUR/EEA/SER dikecualikan)."
-        ];
-    }
-    $base_sub_id = $resolved['submission_id'];
-    $raw_fp = $resolved['fingerprint'] ?: get_submission_fingerprint($base_sub_id);
-
     if (empty($raw_fp) || is_disfavored_regional_build(['fingerprint' => $raw_fp, 'device_code' => $raw_fp, 'csc' => $csc])) {
         return [
             'success' => false,
@@ -496,7 +506,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     }
 
     // Always include full fingerprint suffix in filename
-    $filename = "{$clean_ap}_Laundry_{$base_sub_id}_{$safe_fp}.zip";
+    $filename = "{$clean_ap}_Laundry_{$target_sub_id}_{$safe_fp}.zip";
 
     $dir = get_laundry_download_dir();
     $target_file = $dir . $filename;
@@ -513,7 +523,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
             'fingerprint' => $raw_fp,
             'size' => $size,
             'size_formatted' => format_bytes_clean($size),
-            'base_submission_id' => $base_sub_id,
+            'base_submission_id' => $target_sub_id,
             'message' => "File {$filename} sudah terdownload sebelumnya (" . format_bytes_clean($size) . ")."
         ];
     }
@@ -540,7 +550,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
         }
     }
 
-    $download_url = "https://buildapprovalsystem.com/download/all?id=" . urlencode($base_sub_id);
+    $download_url = "https://buildapprovalsystem.com/download/all?id=" . urlencode($target_sub_id);
 
     // Open file pointer for stream writing
     $fp = @fopen($tmp_file, 'w+b');

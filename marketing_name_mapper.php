@@ -256,7 +256,25 @@ if (!function_exists('is_laundry_task')) {
         $sub_id = trim((string)($task['submission_id'] ?? ''));
         $base_sub_id = trim((string)($task['base_submission_id'] ?? ''));
         
-        return (!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0');
+        if ((!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0')) {
+            return true;
+        }
+
+        // 3. Fallback: check if valid binary exists in SearchData cache for this AP
+        $ap = trim((string)($task['ap'] ?? ''));
+        if (!empty($ap)) {
+            if (!function_exists('resolve_best_submission_for_task') && file_exists(__DIR__ . '/laundry_downloader.php')) {
+                @require_once __DIR__ . '/laundry_downloader.php';
+            }
+            if (function_exists('resolve_best_submission_for_task')) {
+                $resolved = resolve_best_submission_for_task($ap, '', $task['csc'] ?? '', $tp);
+                if (!empty($resolved['submission_id'])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
 
