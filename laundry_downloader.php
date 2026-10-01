@@ -703,7 +703,8 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
  * Scan database for all active laundry tasks and download missing ZIPs.
  * Only executes auto-downloads when running on the Linux Docker Server.
  */
-function auto_download_all_pending_laundry($force = false) {
+// ponytail: Minimal & robust query fetching all required fields for scoring and optional ID filtering
+function auto_download_all_pending_laundry($force = false, $task_ids = null) {
     global $conn;
 
     if (!is_docker_linux_server() && !$force) {
@@ -719,14 +720,20 @@ function auto_download_all_pending_laundry($force = false) {
         return ['success' => false, 'message' => 'Database connection unavailable.'];
     }
 
-    $sql = "SELECT id, model_name, ap, base_submission_id, progress_status 
+    $where = "(base_submission_id IS NOT NULL AND base_submission_id != '' OR submission_id IS NOT NULL AND submission_id != '')";
+    if (is_array($task_ids) && !empty($task_ids)) {
+        $ids_clean = array_map('intval', $task_ids);
+        $where .= " AND id IN (" . implode(',', $ids_clean) . ")";
+    } else {
+        $where .= " AND progress_status NOT IN ('Approved', 'Passed', 'Batal', 'Cancelled', 'Rejected', 'Pending Feedback', 'Pending', 'Feedback Sent')
+                    AND progress_status NOT LIKE '%Pending%'
+                    AND progress_status NOT LIKE '%Approv%'
+                    AND progress_status NOT LIKE '%Batal%'";
+    }
+
+    $sql = "SELECT id, model_name, ap, csc, test_plan_type, base_submission_id, submission_id, progress_status 
             FROM gba_tasks 
-            WHERE base_submission_id IS NOT NULL 
-              AND base_submission_id != '' 
-              AND progress_status NOT IN ('Approved', 'Passed', 'Batal', 'Cancelled', 'Rejected', 'Pending Feedback', 'Pending', 'Feedback Sent')
-              AND progress_status NOT LIKE '%Pending%'
-              AND progress_status NOT LIKE '%Approv%'
-              AND progress_status NOT LIKE '%Batal%'
+            WHERE {$where} 
             ORDER BY id DESC";
 
     $res = $conn->query($sql);

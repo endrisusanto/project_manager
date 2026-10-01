@@ -388,6 +388,15 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
             </div>
             
             <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                <!-- Bulk Download Laundry Button (ponytail: single click & Alt+L shortcut, auto-skips existing) -->
+                <button id="btn-bulk-laundry" onclick="triggerBulkLaundryDownload()" title="Bulk download file Laundry ZIP task aktif ke ~/Downloads/CUCIAN (skip file yang sudah ada). Shortcut: Alt+L" class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0">
+                    <svg id="bulk-laundry-icon" class="w-4 h-4 text-sky-100 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span id="bulk-laundry-text">Download Laundry</span>
+                    <kbd class="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono bg-sky-800/60 border border-sky-400/30 rounded text-sky-200">Alt+L</kbd>
+                </button>
+
                 <!-- Sync BAS Now Button -->
                 <button id="btn-sync-bas" onclick="triggerBasSync()" class="inline-flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-95 flex-shrink-0">
                     <svg id="sync-bas-icon" class="w-4 h-4 text-emerald-100 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1206,6 +1215,72 @@ $initial_clipboard_data_json = json_encode($clipboard_tasks, JSON_HEX_TAG | JSON
                 if (btn) btn.disabled = false;
             }
         }
+
+        // --- Bulk Laundry Download Action & Shortcut (ponytail) ---
+        let isDownloadingLaundry = false;
+        async function triggerBulkLaundryDownload(force = false) {
+            if (isDownloadingLaundry) return;
+            isDownloadingLaundry = true;
+
+            const btn = document.getElementById('btn-bulk-laundry');
+            const icon = document.getElementById('bulk-laundry-icon');
+            const btnText = document.getElementById('bulk-laundry-text');
+
+            if (icon) icon.classList.add('animate-spin');
+            if (btnText) btnText.textContent = 'Downloading...';
+            if (btn) btn.disabled = true;
+
+            showToast('Memindai & mengunduh Laundry ZIP task aktif (skip jika sudah ada)...', true);
+
+            try {
+                const response = await fetch('api_download_laundry.php?all=1' + (force ? '&force=1' : ''), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const rawText = await response.text();
+                let data = null;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    throw new Error(rawText ? rawText.substring(0, 100) : 'Respon server tidak valid');
+                }
+
+                if (data.success) {
+                    const downloaded = data.downloaded || 0;
+                    const skipped = data.skipped || 0;
+                    const failed = data.failed || 0;
+                    const total = data.total || 0;
+
+                    let msg = `Laundry Sync: ${downloaded} didownload, ${skipped} dilewati (sudah ada).`;
+                    if (failed > 0) {
+                        msg += ` ${failed} gagal/non-eligible.`;
+                    }
+                    showToast(msg, true);
+                } else {
+                    showToast(data.message || 'Gagal download laundry.', false);
+                }
+            } catch (err) {
+                showToast('Laundry Error: ' + err.message, false);
+            } finally {
+                isDownloadingLaundry = false;
+                if (icon) icon.classList.remove('animate-spin');
+                if (btnText) btnText.textContent = 'Download Laundry';
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // Global Keyboard Shortcut: Alt+L for Laundry Download
+        document.addEventListener('keydown', function (e) {
+            const isAltL = (e.altKey || e.metaKey) && (e.key === 'l' || e.key === 'L' || e.code === 'KeyL');
+            if (isAltL) {
+                const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+                if (activeTag === 'input' || activeTag === 'textarea') {
+                    return;
+                }
+                e.preventDefault();
+                triggerBulkLaundryDownload(false);
+            }
+        });
 
         // --- Toast Function ---
         function showToast(message, isSuccess) {

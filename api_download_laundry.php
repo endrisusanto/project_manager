@@ -14,9 +14,14 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/laundry_downloader.php';
 
 $task_id = isset($_GET['task_id']) ? intval($_GET['task_id']) : (isset($_POST['task_id']) ? intval($_POST['task_id']) : 0);
-$all = isset($_GET['all']) || isset($_POST['all']);
+$task_ids_raw = $_REQUEST['task_ids'] ?? null;
+$task_ids = null;
+if (!empty($task_ids_raw)) {
+    $task_ids = is_array($task_ids_raw) ? $task_ids_raw : explode(',', (string)$task_ids_raw);
+}
+$all = isset($_GET['all']) || isset($_POST['all']) || !empty($task_ids);
 $force = isset($_GET['force']) || isset($_POST['force']);
-$stream = isset($_GET['stream']) || (!isset($_GET['json']) && !isset($_POST['json']) && $task_id > 0);
+$stream = isset($_GET['stream']) || (!isset($_GET['json']) && !isset($_POST['json']) && $task_id > 0 && empty($all));
 $wants_json = isset($_GET['json']) || isset($_POST['json']) || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false && !isset($_GET['stream']));
 
 if ($task_id > 0) {
@@ -106,7 +111,8 @@ if ($task_id > 0) {
     exit(0);
 
 } elseif ($all) {
-    $result = auto_download_all_pending_laundry($force);
+    // ponytail: Bulk download all pending or filtered tasks, skipping existing files if $force is false
+    $result = auto_download_all_pending_laundry($force, $task_ids);
     header('Content-Type: application/json; charset=UTF-8');
     echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit(0);
