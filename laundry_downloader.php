@@ -276,8 +276,37 @@ function get_cached_searchdata_rows() {
 }
 
 /**
+ * Fast O(1) in-memory lookup to check if an AP exists in SearchData cache.
+ */
+function is_ap_in_searchdata_cache($ap) {
+    if (empty($ap)) return false;
+    static $ap_map = null;
+    if ($ap_map === null) {
+        $ap_map = [];
+        $rows = get_cached_searchdata_rows();
+        foreach ($rows as $item) {
+            $row_type = $item['approval_type'] ?? '';
+            if (stripos($row_type, 'Vendor') !== false || stripos($row_type, 'SafetyNet') !== false) {
+                continue;
+            }
+            $row_ap = strtoupper(trim($item['ap'] ?? ''));
+            if ($row_ap !== '') {
+                $ap_map[$row_ap] = true;
+            }
+            $row_fp = trim($item['fingerprint'] ?? '');
+            if (preg_match('/\/([A-Z0-9]{8,15}):user/i', $row_fp, $m)) {
+                $ap_map[strtoupper($m[1])] = true;
+            }
+        }
+    }
+    $clean_ap = strtoupper(trim(strval($ap)));
+    return isset($ap_map[$clean_ap]);
+}
+
+/**
  * Lookup preferred non-disfavored submission and fingerprint for a given AP, Base Submission ID, and Task CSC.
- * Avoids TUR, EEA, and SER, and matches CSC suffix / group (e.g. OXM vs OWO).
+ * Strict approval type matching: Normal MR -> NormalException, SMR -> SMR, SKU -> SKU/Variant.
+ * Auto-skips Regular when task is Normal or SMR.
  */
 function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '', $test_plan_type = '') {
     $clean_ap = strtoupper(trim(strval($ap)));
@@ -286,9 +315,16 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
     $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
     $clean_plan = strtoupper(trim(strval($test_plan_type)));
 
+    // In-memory memoization cache per request
+    static $resolve_memo = [];
+    $cache_key = "{$clean_ap}|{$clean_sub_id}|{$expected_csc}|{$clean_plan}";
+    if (isset($resolve_memo[$cache_key])) {
+        return $resolve_memo[$cache_key];
+    }
+
     $best_sub_id = '';
     $best_fp = '';
-    $best_score = -9999;
+    $best_score = -99999;
 
     $rows = get_cached_searchdata_rows();
     foreach ($rows as $item) {
@@ -302,14 +338,26 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
             continue;
         }
 
-        // Approval type matching: Normal MR = NormalException, SMR = SMR
+        // ponytail: Strict approval type filter - auto abaikan regular jika task berjenis Normal atau SMR
         if (!empty($clean_plan) && !empty($row_type)) {
-            if (strpos($clean_plan, 'NORMAL') !== false) {
-                if (stripos($row_type, 'Normal') === false) continue;
-            } elseif (strpos($clean_plan, 'SMR') !== false) {
-                if (stripos($row_type, 'SMR') === false) continue;
+            if (strpos($clean_plan, 'SMR') !== false) {
+                if (stripos($row_type, 'SMR') === false) {
+                    continue; // Strict: Hanya ambil SMR
+                }
+            } elseif (strpos($clean_plan, 'NORMAL') !== false || strpos($clean_plan, 'MR') !== false) {
+                if (stripos($row_type, 'Normal') === false) {
+                    continue; // Strict: Hanya ambil Normal (NormalException), auto-abaikan Regular
+                }
+            } elseif (strpos($clean_plan, 'SKU') !== false) {
+                $is_sku = (stripos($row_type, 'SKU') !== false);
+                $is_var = (stripos($row_type, 'Regular') !== false && stripos($row_build_type, 'VARIANT') !== false);
+                if (!$is_sku && !$is_var) {
+                    continue; // Strict: Hanya ambil SKU / Variant
+                }
             } elseif (strpos($clean_plan, 'REGULAR') !== false) {
-                if (stripos($row_type, 'Regular') === false) continue;
+                if (stripos($row_type, 'Regular') === false) {
+                    continue;
+                }
             }
         }
 
@@ -331,7 +379,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
 
             $is_disfavored = is_disfavored_regional_build($sub_data);
             if ($is_disfavored) {
-                continue; // Hard skip: Never use TUR, EEA, or SER
+                continue; // Hard skip: Jangan pernah gunakan TUR, EEA, atau SER
             }
 
             $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
@@ -367,16 +415,6 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                 }
             }
 
-            // ponytail: Khusus testplan SKU jika Regular type, category Variant, dan CSC prefix/group match (e.g. OLM, OXM) -> tambah scoring untuk laundry
-            if (strpos($clean_plan, 'SKU') !== false) {
-                if (stripos($row_type, 'Regular') !== false && stripos($row_build_type, 'VARIANT') !== false) {
-                    $cand_grp = $cand_csc_info['group'] ?? '';
-                    if (!empty($cand_grp) && (!empty($exp_group) ? $cand_grp === $exp_group : in_array($cand_grp, $xid_groups))) {
-                        $score += 400;
-                    }
-                }
-            }
-
             if ($row_id === $clean_sub_id) {
                 $score += 10; // Slight preference to existing sub id if equally scored
             }
@@ -389,10 +427,12 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
         }
     }
 
-    return [
+    $res = [
         'submission_id' => $best_sub_id,
         'fingerprint' => $best_fp
     ];
+    $resolve_memo[$cache_key] = $res;
+    return $res;
 }
 
 /**
@@ -442,7 +482,7 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
     } else {
         $task_id = intval($task_or_id);
         if ($task_id > 0 && isset($conn)) {
-            $stmt = $conn->prepare("SELECT id, model_name, ap, csc, test_plan_type, base_submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT id, model_name, ap, csc, test_plan_type, base_submission_id, submission_id, progress_status FROM gba_tasks WHERE id = ? LIMIT 1");
             $stmt->bind_param("i", $task_id);
             $stmt->execute();
             $task = $stmt->get_result()->fetch_assoc();
@@ -747,7 +787,7 @@ function auto_download_all_pending_laundry($force = false, $task_ids = null) {
         return ['success' => false, 'message' => 'Database connection unavailable.'];
     }
 
-    $where = "(base_submission_id IS NOT NULL AND base_submission_id != '' OR submission_id IS NOT NULL AND submission_id != '')";
+    $where = "((base_submission_id IS NOT NULL AND base_submission_id != '') OR (submission_id IS NOT NULL AND submission_id != '') OR (ap IS NOT NULL AND ap != ''))";
     if (is_array($task_ids) && !empty($task_ids)) {
         $ids_clean = array_map('intval', $task_ids);
         $where .= " AND id IN (" . implode(',', $ids_clean) . ")";

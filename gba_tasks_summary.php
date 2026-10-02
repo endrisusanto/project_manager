@@ -806,8 +806,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             if ((subId && subId !== '-' && subId !== '0') || (baseSubId && baseSubId !== '-' && baseSubId !== '0')) {
                 return true;
             }
-            const tp = (task.test_plan_type || '').toUpperCase().trim();
-            return tp.includes('NORMAL') || tp.includes('SKU') || tp.includes('SMR') || tp.includes('MR');
+            return Boolean(task.is_laundry);
         }
 
         function renderLaundryBadgeJs(task) {

@@ -243,14 +243,27 @@ if (!function_exists('is_model_dropped')) {
     }
 }
 
-// ponytail: Ultra-fast (0.001ms) laundry check directly from task attributes, zero disk I/O
+// ponytail: Ultra-fast laundry check directly from task attributes and in-memory cache
 if (!function_exists('is_laundry_task')) {
     function is_laundry_task($task) {
         if (!is_array($task)) return false;
         $sub_id = trim((string)($task['submission_id'] ?? ''));
         $base_sub_id = trim((string)($task['base_submission_id'] ?? ''));
-        return (!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || 
-               (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0');
+        if ((!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || 
+            (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0')) {
+            return true;
+        }
+        $ap = trim((string)($task['ap'] ?? ''));
+        if (!empty($ap)) {
+            if (!function_exists('resolve_best_submission_for_task') && file_exists(__DIR__ . '/laundry_downloader.php')) {
+                require_once __DIR__ . '/laundry_downloader.php';
+            }
+            if (function_exists('resolve_best_submission_for_task')) {
+                $res = resolve_best_submission_for_task($ap, '', $task['csc'] ?? '', $task['test_plan_type'] ?? '');
+                return !empty($res['submission_id']);
+            }
+        }
+        return false;
     }
 }
 
