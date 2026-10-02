@@ -2301,8 +2301,9 @@ if (isset($_GET['chat_popup'])) {
             });
         });
 
-        // --- Live BAS Status Polling / Focus Refresh ---
+        // --- Live BAS Status Polling (ponytail: only when visible/active, zero background hammering) ---
         function updateHeaderBasBadge() {
+            if (document.hidden) return;
             fetch('api_bas_bridge.php', { cache: 'no-store' })
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
@@ -2346,7 +2347,7 @@ if (isset($_GET['chat_popup'])) {
         }
 
         window.addEventListener('focus', updateHeaderBasBadge);
-        setInterval(updateHeaderBasBadge, 30000); // 30s auto-refresh
+        setInterval(updateHeaderBasBadge, 120000); // 2 menit auto-refresh (hanya saat tab aktif)
     })();
 </script>
 

@@ -33,12 +33,27 @@ function get_bas_fallback_paths() {
     return array_values(array_unique($paths));
 }
 
+// ponytail: Ultra-light fast path for checking BAS session without disk or DB overhead
 function load_bas_session_data() {
     global $conn;
+
+    // 1. Fast Path: Check local directory file first (0.1ms)
+    $local_file = __DIR__ . '/.bas_session.json';
+    if (file_exists($local_file) && is_readable($local_file)) {
+        $raw = @file_get_contents($local_file);
+        $parsed = json_decode($raw, true);
+        if ($parsed && !empty($parsed['sid'])) {
+            $ts = $parsed['timestamp'] ?? 0;
+            if (time() - $ts < 4 * 3600) {
+                return $parsed;
+            }
+        }
+    }
+
     $best_data = null;
     $best_ts = 0;
 
-    // 1. Scan filesystem candidates
+    // 2. Scan filesystem candidates if local file is missing/stale
     foreach (get_bas_fallback_paths() as $p) {
         if (file_exists($p) && is_readable($p)) {
             $raw = @file_get_contents($p);
@@ -53,16 +68,10 @@ function load_bas_session_data() {
         }
     }
 
-    // 2. Scan database system_settings table if local file missing or expired
+    // 3. Simple DB query fallback without running CREATE TABLE on every read
     if ((!$best_data || (time() - $best_ts > 8 * 3600)) && isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
         try {
-            $conn->query("CREATE TABLE IF NOT EXISTS `system_settings` (
-                `setting_key` VARCHAR(100) PRIMARY KEY,
-                `setting_value` LONGTEXT NOT NULL,
-                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-            $res = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
+            $res = @$conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'bas_session' LIMIT 1");
             if ($res && $row = $res->fetch_assoc()) {
                 $db_data = json_decode($row['setting_value'], true);
                 if ($db_data && !empty($db_data['sid'])) {
@@ -78,13 +87,10 @@ function load_bas_session_data() {
         }
     }
 
-    // Mirror to current dir if found
-    if ($best_data) {
-        $local_file = __DIR__ . '/.bas_session.json';
-        if (!file_exists($local_file)) {
-            @file_put_contents($local_file, json_encode($best_data, JSON_PRETTY_PRINT));
-            @chmod($local_file, 0600);
-        }
+    // Mirror to local dir if found from fallback
+    if ($best_data && !file_exists($local_file)) {
+        @file_put_contents($local_file, json_encode($best_data, JSON_PRETTY_PRINT));
+        @chmod($local_file, 0600);
     }
 
     return $best_data;

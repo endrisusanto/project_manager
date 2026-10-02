@@ -202,7 +202,16 @@ if (!function_exists('parse_csc_group_and_suffix')) {
  * Lookup preferred non-disfavored submission and fingerprint for a given AP, Base Submission ID, and Task CSC.
  * Avoids TUR, EEA, and SER, and matches CSC suffix / group (e.g. OXM vs OWO).
  */
-function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '', $test_plan_type = '') {
+/**
+ * In-memory singleton cache for parsed SearchData CSV records.
+ * Prevents multiple disk re-opens and repetitive parsing on every lookup.
+ */
+function get_cached_searchdata_rows() {
+    static $cached_rows = null;
+    if ($cached_rows !== null) {
+        return $cached_rows;
+    }
+
     $candidate_csv_paths = [
         __DIR__ . '/SearchData_raw.csv',
         __DIR__ . '/SearchData_all_groups.csv',
@@ -220,16 +229,7 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
         '/opt/lampp/htdocs/project_manager/SearchData_all_groups.csv'
     ];
 
-    $clean_ap = strtoupper(trim(strval($ap)));
-    $clean_sub_id = trim(strval($current_sub_id), "=\"' \t\n\r\0\x0B");
-    $expected_csc_info = parse_csc_group_and_suffix($expected_csc);
-    $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
-    $clean_plan = strtoupper(trim(strval($test_plan_type)));
-
-    $best_sub_id = '';
-    $best_fp = '';
-    $best_score = -9999;
-
+    $cached_rows = [];
     foreach ($candidate_csv_paths as $csv_file) {
         if (file_exists($csv_file) && is_readable($csv_file)) {
             $fp = @fopen($csv_file, 'r');
@@ -241,7 +241,6 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
                         $col_map[strtolower(trim($col))] = $idx;
                     }
                 }
-                
                 $id_idx = $col_map['id'] ?? $col_map['submission_id'] ?? -1;
                 $fp_idx = $col_map['fingerprint'] ?? $col_map['binaryname'] ?? -1;
                 $ap_idx = $col_map['ap'] ?? $col_map['ap_version'] ?? -1;
@@ -253,104 +252,139 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
 
                 if ($id_idx >= 0 && $fp_idx >= 0) {
                     while (($row = fgetcsv($fp)) !== false) {
-                        $row_id = trim(strval($row[$id_idx] ?? ''), "=\"' \t\n\r\0\x0B");
-                        $row_fp = trim(strval($row[$fp_idx] ?? ''), "=\"' \t\n\r\0\x0B");
-                        $row_ap = $ap_idx >= 0 ? strtoupper(trim(strval($row[$ap_idx] ?? ''))) : '';
-                        $row_type = $type_idx >= 0 ? trim(strval($row[$type_idx] ?? '')) : '';
-                        $row_build_type = $build_type_idx >= 0 ? strtoupper(trim(strval($row[$build_type_idx] ?? ''))) : '';
-
-                        if (stripos($row_type, 'Vendor') !== false || stripos($row_type, 'SafetyNet') !== false) {
-                            continue;
-                        }
-
-                        // Approval type matching: Normal MR = NormalException, SMR = SMR
-                        if (!empty($clean_plan) && !empty($row_type)) {
-                            if (strpos($clean_plan, 'NORMAL') !== false) {
-                                if (stripos($row_type, 'Normal') === false) continue;
-                            } elseif (strpos($clean_plan, 'SMR') !== false) {
-                                if (stripos($row_type, 'SMR') === false) continue;
-                            } elseif (strpos($clean_plan, 'REGULAR') !== false) {
-                                if (stripos($row_type, 'Regular') === false) continue;
-                            }
-                        }
-
-                        $is_match = false;
-                        if (!empty($clean_sub_id) && $row_id === $clean_sub_id) {
-                            $is_match = true;
-                        } elseif (!empty($clean_ap) && ($row_ap === $clean_ap || stripos($row_fp, $clean_ap) !== false)) {
-                            $is_match = true;
-                        }
-
-                        if ($is_match) {
-                            $raw_csc_val = $csc_idx >= 0 ? ($row[$csc_idx] ?? '') : '';
-                            $sub_data = [
-                                'Fingerprint' => $row_fp,
-                                'Device Code' => $dev_idx >= 0 ? ($row[$dev_idx] ?? '') : '',
-                                'Carriers' => $carrier_idx >= 0 ? ($row[$carrier_idx] ?? '') : '',
-                                'CSC' => $raw_csc_val
-                            ];
-
-                            $is_disfavored = is_disfavored_regional_build($sub_data);
-                            if ($is_disfavored) {
-                                continue; // Hard skip: Never use TUR, EEA, or SER
-                            }
-
-                            $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
-                            $score = 100 + ($is_xx ? 200 : 0);
-
-                            // CSC Suffix and Group Matching
-                            $cand_csc_info = parse_csc_group_and_suffix($raw_csc_val ?: $row_fp);
-                            if (!empty($cand_csc_info['suffix'])) {
-                                $exp_suffix = !empty($expected_csc_info['suffix']) ? $expected_csc_info['suffix'] : $ap_suffix;
-                                if (!empty($exp_suffix)) {
-                                    if ($cand_csc_info['suffix'] === $exp_suffix) {
-                                        $score += 150;
-                                    } else {
-                                        $score -= 300;
-                                    }
-                                }
-                            }
-
-                            // Regional Multi-CSC Group Match (OXM/OLE/OXT/OLP/OLM vs OWO/OJM/OWA)
-                            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP', 'OLM'];
-                            $exp_group = $expected_csc_info['group'];
-                            if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
-                                if (in_array($cand_csc_info['group'], $xid_groups)) {
-                                    $score += 300;
-                                } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
-                                    $score -= 250;
-                                }
-                            } elseif (!empty($exp_group)) {
-                                if ($cand_csc_info['group'] === $exp_group) {
-                                    $score += 300;
-                                } else {
-                                    $score -= 150;
-                                }
-                            }
-
-                            // ponytail: Khusus testplan SKU jika Regular type, category Variant, dan CSC prefix/group match (e.g. OLM, OXM) -> tambah scoring untuk laundry
-                            if (strpos($clean_plan, 'SKU') !== false) {
-                                if (stripos($row_type, 'Regular') !== false && stripos($row_build_type, 'VARIANT') !== false) {
-                                    $cand_grp = $cand_csc_info['group'] ?? '';
-                                    if (!empty($cand_grp) && (!empty($exp_group) ? $cand_grp === $exp_group : in_array($cand_grp, $xid_groups))) {
-                                        $score += 400;
-                                    }
-                                }
-                            }
-
-                            if ($row_id === $clean_sub_id) {
-                                $score += 10; // Slight preference to existing sub id if equally scored
-                            }
-
-                            if ($score > $best_score) {
-                                $best_score = $score;
-                                $best_sub_id = $row_id;
-                                $best_fp = $row_fp;
-                            }
-                        }
+                        $cached_rows[] = [
+                            'id' => trim(strval($row[$id_idx] ?? ''), "=\"' \t\n\r\0\x0B"),
+                            'fingerprint' => trim(strval($row[$fp_idx] ?? ''), "=\"' \t\n\r\0\x0B"),
+                            'ap' => $ap_idx >= 0 ? strtoupper(trim(strval($row[$ap_idx] ?? ''))) : '',
+                            'approval_type' => $type_idx >= 0 ? trim(strval($row[$type_idx] ?? '')) : '',
+                            'build_type' => $build_type_idx >= 0 ? strtoupper(trim(strval($row[$build_type_idx] ?? ''))) : '',
+                            'device_code' => $dev_idx >= 0 ? trim(strval($row[$dev_idx] ?? '')) : '',
+                            'carriers' => $carrier_idx >= 0 ? trim(strval($row[$carrier_idx] ?? '')) : '',
+                            'csc' => $csc_idx >= 0 ? trim(strval($row[$csc_idx] ?? '')) : ''
+                        ];
                     }
                 }
                 fclose($fp);
+                if (!empty($cached_rows)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    return $cached_rows;
+}
+
+/**
+ * Lookup preferred non-disfavored submission and fingerprint for a given AP, Base Submission ID, and Task CSC.
+ * Avoids TUR, EEA, and SER, and matches CSC suffix / group (e.g. OXM vs OWO).
+ */
+function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '', $test_plan_type = '') {
+    $clean_ap = strtoupper(trim(strval($ap)));
+    $clean_sub_id = trim(strval($current_sub_id), "=\"' \t\n\r\0\x0B");
+    $expected_csc_info = parse_csc_group_and_suffix($expected_csc);
+    $ap_suffix = strlen($clean_ap) >= 5 ? substr($clean_ap, -5) : '';
+    $clean_plan = strtoupper(trim(strval($test_plan_type)));
+
+    $best_sub_id = '';
+    $best_fp = '';
+    $best_score = -9999;
+
+    $rows = get_cached_searchdata_rows();
+    foreach ($rows as $item) {
+        $row_id = $item['id'];
+        $row_fp = $item['fingerprint'];
+        $row_ap = $item['ap'];
+        $row_type = $item['approval_type'];
+        $row_build_type = $item['build_type'];
+
+        if (stripos($row_type, 'Vendor') !== false || stripos($row_type, 'SafetyNet') !== false) {
+            continue;
+        }
+
+        // Approval type matching: Normal MR = NormalException, SMR = SMR
+        if (!empty($clean_plan) && !empty($row_type)) {
+            if (strpos($clean_plan, 'NORMAL') !== false) {
+                if (stripos($row_type, 'Normal') === false) continue;
+            } elseif (strpos($clean_plan, 'SMR') !== false) {
+                if (stripos($row_type, 'SMR') === false) continue;
+            } elseif (strpos($clean_plan, 'REGULAR') !== false) {
+                if (stripos($row_type, 'Regular') === false) continue;
+            }
+        }
+
+        $is_match = false;
+        if (!empty($clean_sub_id) && $row_id === $clean_sub_id) {
+            $is_match = true;
+        } elseif (!empty($clean_ap) && ($row_ap === $clean_ap || stripos($row_fp, $clean_ap) !== false)) {
+            $is_match = true;
+        }
+
+        if ($is_match) {
+            $raw_csc_val = $item['csc'];
+            $sub_data = [
+                'Fingerprint' => $row_fp,
+                'Device Code' => $item['device_code'],
+                'Carriers' => $item['carriers'],
+                'CSC' => $raw_csc_val
+            ];
+
+            $is_disfavored = is_disfavored_regional_build($sub_data);
+            if ($is_disfavored) {
+                continue; // Hard skip: Never use TUR, EEA, or SER
+            }
+
+            $is_xx = (stripos($sub_data['Device Code'], 'xx') !== false || preg_match('/samsung\/[a-z0-9_]*xx[\/:_]/i', strtolower($row_fp)));
+            $score = 100 + ($is_xx ? 200 : 0);
+
+            // CSC Suffix and Group Matching
+            $cand_csc_info = parse_csc_group_and_suffix($raw_csc_val ?: $row_fp);
+            if (!empty($cand_csc_info['suffix'])) {
+                $exp_suffix = !empty($expected_csc_info['suffix']) ? $expected_csc_info['suffix'] : $ap_suffix;
+                if (!empty($exp_suffix)) {
+                    if ($cand_csc_info['suffix'] === $exp_suffix) {
+                        $score += 150;
+                    } else {
+                        $score -= 300;
+                    }
+                }
+            }
+
+            // Regional Multi-CSC Group Match (OXM/OLE/OXT/OLP/OLM vs OWO/OJM/OWA)
+            $xid_groups = ['OXM', 'OLE', 'OXT', 'OLP', 'OLM'];
+            $exp_group = $expected_csc_info['group'];
+            if (empty($exp_group) || in_array($exp_group, $xid_groups)) {
+                if (in_array($cand_csc_info['group'], $xid_groups)) {
+                    $score += 300;
+                } elseif (!empty($cand_csc_info['group']) && in_array($cand_csc_info['group'], ['OWO', 'OJM', 'OWA', 'OWE'])) {
+                    $score -= 250;
+                }
+            } elseif (!empty($exp_group)) {
+                if ($cand_csc_info['group'] === $exp_group) {
+                    $score += 300;
+                } else {
+                    $score -= 150;
+                }
+            }
+
+            // ponytail: Khusus testplan SKU jika Regular type, category Variant, dan CSC prefix/group match (e.g. OLM, OXM) -> tambah scoring untuk laundry
+            if (strpos($clean_plan, 'SKU') !== false) {
+                if (stripos($row_type, 'Regular') !== false && stripos($row_build_type, 'VARIANT') !== false) {
+                    $cand_grp = $cand_csc_info['group'] ?? '';
+                    if (!empty($cand_grp) && (!empty($exp_group) ? $cand_grp === $exp_group : in_array($cand_grp, $xid_groups))) {
+                        $score += 400;
+                    }
+                }
+            }
+
+            if ($row_id === $clean_sub_id) {
+                $score += 10; // Slight preference to existing sub id if equally scored
+            }
+
+            if ($score > $best_score) {
+                $best_score = $score;
+                $best_sub_id = $row_id;
+                $best_fp = $row_fp;
             }
         }
     }
@@ -362,54 +396,16 @@ function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_c
 }
 
 /**
- * Lookup fingerprint string by Submission ID directly from CSV or API.
+ * Lookup fingerprint string by Submission ID directly from cached SearchData records.
  */
 function get_submission_fingerprint($submission_id) {
     if (empty($submission_id)) return '';
     $clean_sub_id = trim(strval($submission_id), "=\"' \t\n\r\0\x0B");
 
-    $candidate_csv_paths = [
-        __DIR__ . '/SearchData_raw.csv',
-        __DIR__ . '/SearchData_all_groups.csv',
-        '/var/www/html/SearchData_raw.csv',
-        '/var/www/html/SearchData_all_groups.csv',
-        '/home/endri-pro/dev/App/project_manager/SearchData_raw.csv',
-        '/home/endri-pro/dev/App/project_manager/SearchData_all_groups.csv',
-        'C:/xampp/htdocs/project_manager/SearchData_raw.csv',
-        'C:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
-        'C:/xampp/htdocs/tkdn/SearchData_raw.csv',
-        'C:/xampp/htdocs/tkdn/SearchData_all_groups.csv',
-        'D:/xampp/htdocs/project_manager/SearchData_raw.csv',
-        'D:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
-        '/opt/lampp/htdocs/project_manager/SearchData_raw.csv',
-        '/opt/lampp/htdocs/project_manager/SearchData_all_groups.csv'
-    ];
-
-    foreach ($candidate_csv_paths as $csv_file) {
-        if (file_exists($csv_file) && is_readable($csv_file)) {
-            $fp = @fopen($csv_file, 'r');
-            if ($fp) {
-                $header = fgetcsv($fp);
-                $col_map = [];
-                if ($header) {
-                    foreach ($header as $idx => $col) {
-                        $col_map[strtolower(trim($col))] = $idx;
-                    }
-                }
-                $id_idx = $col_map['id'] ?? $col_map['submission_id'] ?? -1;
-                $fp_idx = $col_map['fingerprint'] ?? $col_map['binaryname'] ?? -1;
-                if ($id_idx >= 0 && $fp_idx >= 0) {
-                    while (($row = fgetcsv($fp)) !== false) {
-                        $row_id = trim(strval($row[$id_idx] ?? ''), "=\"' \t\n\r\0\x0B");
-                        if ($row_id === $clean_sub_id) {
-                            $row_fp = trim(strval($row[$fp_idx] ?? ''), "=\"' \t\n\r\0\x0B");
-                            fclose($fp);
-                            return $row_fp;
-                        }
-                    }
-                }
-                fclose($fp);
-            }
+    $rows = get_cached_searchdata_rows();
+    foreach ($rows as $item) {
+        if ($item['id'] === $clean_sub_id) {
+            return $item['fingerprint'];
         }
     }
 
