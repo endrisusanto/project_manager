@@ -801,12 +801,13 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
 
         function isLaundryTaskJs(task) {
             if (!task) return false;
-            const tp = (task.test_plan_type || '').toUpperCase().trim();
-            const isEligible = tp.includes('NORMAL') || tp.includes('SKU') || tp.includes('SMR') || tp === 'MR';
-            if (!isEligible) return false;
             const subId = (task.submission_id || '').toString().trim();
             const baseSubId = (task.base_submission_id || '').toString().trim();
-            return (subId && subId !== '-' && subId !== '0') || (baseSubId && baseSubId !== '-' && baseSubId !== '0');
+            if ((subId && subId !== '-' && subId !== '0') || (baseSubId && baseSubId !== '-' && baseSubId !== '0')) {
+                return true;
+            }
+            const tp = (task.test_plan_type || '').toUpperCase().trim();
+            return tp.includes('NORMAL') || tp.includes('SKU') || tp.includes('SMR') || tp.includes('MR');
         }
 
         function renderLaundryBadgeJs(task) {

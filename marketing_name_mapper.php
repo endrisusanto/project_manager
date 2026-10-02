@@ -247,21 +247,16 @@ if (!function_exists('is_laundry_task')) {
     function is_laundry_task($task) {
         if (!is_array($task)) return false;
         
-        // 1. Check test plan: Normal, SKU, SMR
-        $tp = strtoupper(trim((string)($task['test_plan_type'] ?? '')));
-        $is_eligible = (strpos($tp, 'NORMAL') !== false || strpos($tp, 'SKU') !== false || strpos($tp, 'SMR') !== false || $tp === 'MR');
-        if (!$is_eligible) return false;
-        
-        // 2. Check if AP version exists in BAS system (has submission_id or base_submission_id)
+        // 1. If task has a verified BAS submission_id or base_submission_id
         $sub_id = trim((string)($task['submission_id'] ?? ''));
         $base_sub_id = trim((string)($task['base_submission_id'] ?? ''));
-        
         if ((!empty($sub_id) && $sub_id !== '-' && $sub_id !== '0') || (!empty($base_sub_id) && $base_sub_id !== '-' && $base_sub_id !== '0')) {
             return true;
         }
 
-        // 3. Fallback: check if valid binary exists in SearchData cache for this AP
+        // 2. Fallback: check if valid binary exists in SearchData cache for this AP
         $ap = trim((string)($task['ap'] ?? ''));
+        $tp = strtoupper(trim((string)($task['test_plan_type'] ?? '')));
         if (!empty($ap)) {
             if (!function_exists('resolve_best_submission_for_task') && file_exists(__DIR__ . '/laundry_downloader.php')) {
                 @require_once __DIR__ . '/laundry_downloader.php';

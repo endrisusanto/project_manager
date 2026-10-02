@@ -205,10 +205,19 @@ if (!function_exists('parse_csc_group_and_suffix')) {
 function resolve_best_submission_for_task($ap, $current_sub_id = '', $expected_csc = '', $test_plan_type = '') {
     $candidate_csv_paths = [
         __DIR__ . '/SearchData_raw.csv',
+        __DIR__ . '/SearchData_all_groups.csv',
         '/var/www/html/SearchData_raw.csv',
+        '/var/www/html/SearchData_all_groups.csv',
         '/home/endri-pro/dev/App/project_manager/SearchData_raw.csv',
+        '/home/endri-pro/dev/App/project_manager/SearchData_all_groups.csv',
+        'C:/xampp/htdocs/project_manager/SearchData_raw.csv',
+        'C:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
         'C:/xampp/htdocs/tkdn/SearchData_raw.csv',
-        'C:/xampp/htdocs/project_manager/SearchData_raw.csv'
+        'C:/xampp/htdocs/tkdn/SearchData_all_groups.csv',
+        'D:/xampp/htdocs/project_manager/SearchData_raw.csv',
+        'D:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
+        '/opt/lampp/htdocs/project_manager/SearchData_raw.csv',
+        '/opt/lampp/htdocs/project_manager/SearchData_all_groups.csv'
     ];
 
     $clean_ap = strtoupper(trim(strval($ap)));
@@ -361,10 +370,19 @@ function get_submission_fingerprint($submission_id) {
 
     $candidate_csv_paths = [
         __DIR__ . '/SearchData_raw.csv',
+        __DIR__ . '/SearchData_all_groups.csv',
         '/var/www/html/SearchData_raw.csv',
+        '/var/www/html/SearchData_all_groups.csv',
         '/home/endri-pro/dev/App/project_manager/SearchData_raw.csv',
+        '/home/endri-pro/dev/App/project_manager/SearchData_all_groups.csv',
+        'C:/xampp/htdocs/project_manager/SearchData_raw.csv',
+        'C:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
         'C:/xampp/htdocs/tkdn/SearchData_raw.csv',
-        'C:/xampp/htdocs/project_manager/SearchData_raw.csv'
+        'C:/xampp/htdocs/tkdn/SearchData_all_groups.csv',
+        'D:/xampp/htdocs/project_manager/SearchData_raw.csv',
+        'D:/xampp/htdocs/project_manager/SearchData_all_groups.csv',
+        '/opt/lampp/htdocs/project_manager/SearchData_raw.csv',
+        '/opt/lampp/htdocs/project_manager/SearchData_all_groups.csv'
     ];
 
     foreach ($candidate_csv_paths as $csv_file) {
