@@ -497,11 +497,18 @@ try {
     // Pre-load all local tasks into memory to avoid 10,000+ DB queries
     $local_tasks_by_id = [];
     $local_tasks_by_ap = [];
-    $local_tasks_by_subid = [];
-
-    $res_tasks = $conn->query("SELECT id, model_name, ap, cp, csc, test_plan_type, progress_status, reviewer_email, is_urgent, submission_id, base_submission_id, approved_date, submission_date, sign_off_date FROM gba_tasks");
+    // ponytail: Abaikan task berstatus Batal/Cancelled agar tidak dicek lagi pencarian SID, reviewer, submission date, approved date
+    $res_tasks = $conn->query("SELECT id, model_name, ap, cp, csc, test_plan_type, progress_status, reviewer_email, is_urgent, submission_id, base_submission_id, approved_date, submission_date, sign_off_date 
+                               FROM gba_tasks 
+                               WHERE progress_status NOT IN ('Batal', 'Cancelled') 
+                                 AND progress_status NOT LIKE '%Batal%' 
+                                 AND progress_status NOT LIKE '%Cancel%'");
     if ($res_tasks) {
         while ($t = $res_tasks->fetch_assoc()) {
+            $st_upper = strtoupper(trim((string)($t['progress_status'] ?? '')));
+            if (strpos($st_upper, 'BATAL') !== false || strpos($st_upper, 'CANCEL') !== false) {
+                continue;
+            }
             $tid = (int)$t['id'];
             $local_tasks_by_id[$tid] = $t;
             $ap_clean = strtoupper(trim((string)($t['ap'] ?? '')));
@@ -776,6 +783,11 @@ try {
         foreach (array_keys($matched_task_ids) as $task_id) {
             $matched_task = $local_tasks_by_id[$task_id] ?? null;
             if (!$matched_task) continue;
+
+            $task_st = strtoupper(trim((string)($matched_task['progress_status'] ?? '')));
+            if (strpos($task_st, 'BATAL') !== false || strpos($task_st, 'CANCEL') !== false) {
+                continue;
+            }
 
             $subs_eval = $evaluate_best_subs_for_task($ap_candidates, $matched_task);
             $xid_sub = $subs_eval['xid_sub'] ?? null;

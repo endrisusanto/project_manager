@@ -439,6 +439,19 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
         return ['success' => false, 'message' => 'Task not found.'];
     }
 
+    // ponytail: Task berstatus Batal / Cancelled langsung diskip dari pengecekan dan download
+    $status = trim($task['progress_status'] ?? '');
+    $status_upper = strtoupper($status);
+    if (strpos($status_upper, 'BATAL') !== false || strpos($status_upper, 'CANCEL') !== false) {
+        return [
+            'success' => false,
+            'skipped' => true,
+            'task_id' => $task['id'],
+            'status' => $status,
+            'message' => "Task #{$task['id']} dilewati karena berstatus '{$status}'."
+        ];
+    }
+
     $base_sub_id = trim($task['base_submission_id'] ?? '');
     $sub_id = trim($task['submission_id'] ?? '');
     $lookup_id = !empty($base_sub_id) ? $base_sub_id : $sub_id;
