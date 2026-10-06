@@ -1043,8 +1043,10 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                 }
             });
 
+            const neuralCanvas = document.getElementById('neural-canvas');
             if (mode === 'coffee') {
-                pauseNeuralAnimation(); // Free up 100% 2D canvas CPU
+                if (neuralCanvas) neuralCanvas.style.display = 'none';
+                if (typeof pauseNeuralAnimation === 'function') pauseNeuralAnimation();
                 if (zoomWrapper) zoomWrapper.style.display = 'none';
                 if (coffeeWrapper) coffeeWrapper.classList.remove('hidden');
                 
@@ -1058,7 +1060,10 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                 // Initialize or resume Three.js scene
                 initOrResumeCoffeePlayground();
             } else {
-                resumeNeuralAnimation();
+                if (neuralCanvas && !document.documentElement.classList.contains('disable-canvas-animation')) {
+                    neuralCanvas.style.display = 'block';
+                }
+                if (typeof resumeNeuralAnimation === 'function') resumeNeuralAnimation();
                 if (coffeeWrapper) coffeeWrapper.classList.add('hidden');
                 if (zoomWrapper) zoomWrapper.style.display = '';
                 
@@ -1161,8 +1166,9 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
         let coffeeCamLookTarget = null;
         let isAutoOrbiting = false;
         let hoveredMesh = null;
-        const coffeeRaycaster = (typeof THREE !== 'undefined') ? new THREE.Raycaster() : null;
-        const coffeeMouse = (typeof THREE !== 'undefined') ? new THREE.Vector2() : null;
+        // ponytail: raycaster & mouse coordinates with fallback initialization
+        let coffeeRaycaster = (typeof THREE !== 'undefined') ? new THREE.Raycaster() : null;
+        let coffeeMouse = (typeof THREE !== 'undefined') ? new THREE.Vector2() : null;
 
         function getStatusBadgeColor(status) {
             switch(status) {
@@ -1775,6 +1781,8 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
             buildCafeEnvironment();
 
             // 7. Event Listeners for Raycasting & Tooltip
+            if (!coffeeRaycaster && typeof THREE !== 'undefined') coffeeRaycaster = new THREE.Raycaster();
+            if (!coffeeMouse && typeof THREE !== 'undefined') coffeeMouse = new THREE.Vector2();
             container.addEventListener('mousemove', onCoffeeMouseMove);
             container.addEventListener('click', onCoffeeMouseClick);
             window.addEventListener('resize', onCoffeeResize);
@@ -2139,7 +2147,12 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
                     const overflowSprite = createBadgeSprite(`+${extraCount} ${statusForDrawer}`, statusColor, '#ffffff', '📋', 'Klik untuk Buka Semua');
                     overflowSprite.position.set(badgePos.x, badgePos.y, badgePos.z);
                     overflowSprite.scale.set(3.0, 1.0, 1);
-                    overflowSprite.userData = { isOverflowBadge: true, status: statusForDrawer };
+                    overflowSprite.userData = { 
+                        isOverflowBadge: true, 
+                        status: statusForDrawer,
+                        baseY: badgePos.y,
+                        bobSpeed: 1.8
+                    };
                     coffeeScene.add(overflowSprite);
                     coffeeCustomers.push(overflowSprite);
                 }
@@ -2218,9 +2231,10 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
 
             // 3. Customer idle breathing
             coffeeCustomers.forEach((c, idx) => {
-                const u = c.userData;
-                // Gentle idle breathing bobbing
-                c.position.y = u.baseY + Math.sin(time * u.bobSpeed + idx) * 0.04;
+                const u = c.userData || {};
+                const baseY = (typeof u.baseY === 'number') ? u.baseY : (c.position.y || 0);
+                const bobSpeed = (typeof u.bobSpeed === 'number') ? u.bobSpeed : 2.0;
+                c.position.y = baseY + Math.sin(time * bobSpeed + idx) * 0.04;
             });
 
             // 4. Steam particles animation
@@ -2843,7 +2857,10 @@ function renderPipelineBox($statusKey, $boxId, $label, $colorClass, $tasks_by_st
 
         // --- 8. INITIALIZERS & CLEANUPS ---
         window.addEventListener('load', () => {
-            let savedMode = localStorage.getItem('roadmap_view_mode') || 'summary';
+            // ponytail: Prioritize URL query param ?view=coffee or ?mode=coffee over localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlMode = urlParams.get('view') || urlParams.get('mode');
+            let savedMode = urlMode || localStorage.getItem('roadmap_view_mode') || 'summary';
             if (savedMode === 'kanban') savedMode = 'summary';
             setViewMode(savedMode);
             
