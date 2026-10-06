@@ -886,6 +886,12 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                     kinerjaHtml += `</div>`;
                 }
 
+                // ponytail: Direct BAS feedback link shortcut
+                const subId = (task.submission_id || task.base_submission_id || '').toString().trim();
+                const feedbackBtn = (subId && subId !== '-')
+                    ? `<a href="https://mobilerndhub.sec.samsung.net/gba/approval/fb/feedback.jsp?submissionid=${encodeURIComponent(subId)}" target="_blank" rel="noopener noreferrer" class="card-action-btn hover:text-emerald-400" title="Buka Feedback BAS (Sub ID: ${subId})"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg></a>`
+                    : '';
+
                 let deleteButton = '';
                 if(isAdmin) {
                     deleteButton = `<form action="handler.php" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini?');" class="inline-block m-0"><input type="hidden" name="action" value="delete_gba_task"><input type="hidden" name="id" value="${task.id}"><button type="submit" class="card-action-btn hover:text-red-500" title="Hapus Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"></path></svg></button></form>`;
@@ -930,6 +936,7 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
                         <td class="py-3 px-3 text-xs whitespace-nowrap">${kinerjaHtml}</td>
                         <td class="py-3 px-3 text-right">
                             <div class="flex items-center justify-end gap-1">
+                                ${feedbackBtn}
                                 <button onclick="openEditModalById(${task.id})" class="card-action-btn hover:text-blue-500" title="Edit Task"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"></path><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd"></path></svg></button>
                                 ${deleteButton}
                             </div>
