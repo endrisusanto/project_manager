@@ -182,7 +182,7 @@ $active_page = 'mcp_features';
                 <div>
                     <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-purple-300 select-all">
                         <span class="truncate font-semibold">http://107.102.39.55:3800/mcp</span>
-                        <button onclick="copyToClipboard('http://107.102.39.55:3800/mcp')" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
+                        <button onclick="copyToClipboard('http://107.102.39.55:3800/mcp', this)" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         </button>
                     </div>
@@ -203,7 +203,7 @@ $active_page = 'mcp_features';
                 <div>
                     <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-blue-300 select-all">
                         <span class="truncate font-semibold">http://107.102.39.55:3800/api/mcp/tools</span>
-                        <button onclick="copyToClipboard('http://107.102.39.55:3800/api/mcp/tools')" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
+                        <button onclick="copyToClipboard('http://107.102.39.55:3800/api/mcp/tools', this)" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         </button>
                     </div>
@@ -224,7 +224,7 @@ $active_page = 'mcp_features';
                 <div>
                     <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs text-emerald-300 select-all">
                         <span class="truncate font-semibold">http://107.102.39.55:3800/api/mcp/chat</span>
-                        <button onclick="copyToClipboard('http://107.102.39.55:3800/api/mcp/chat')" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
+                        <button onclick="copyToClipboard('http://107.102.39.55:3800/api/mcp/chat', this)" class="ml-2 text-slate-400 hover:text-white transition p-1" title="Copy URL">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         </button>
                     </div>
@@ -390,8 +390,8 @@ $active_page = 'mcp_features';
                     <div class="p-4 rounded-2xl sub-box space-y-2">
                         <span class="text-xs font-bold text-purple-800">Form URL / Endpoint:</span>
                         <div class="font-mono text-xs text-purple-200 bg-slate-900 border border-slate-800 p-2.5 rounded-lg select-all flex justify-between items-center">
-                            <span class="font-semibold">http://107.102.39.55:3800/mcp</span>
-                            <button onclick="copyToClipboard('http://107.102.39.55:3800/mcp')" class="text-slate-300 hover:text-white text-xs font-bold px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 transition">Copy</button>
+                            <span class="font-semibold truncate">http://107.102.39.55:3800/mcp</span>
+                            <button onclick="copyToClipboard('http://107.102.39.55:3800/mcp', this)" class="ml-2 text-slate-300 hover:text-white text-xs font-bold px-2.5 py-1 rounded bg-white/15 hover:bg-white/25 transition">Copy</button>
                         </div>
                     </div>
                     <div class="p-4 rounded-2xl sub-box space-y-2">
@@ -413,15 +413,18 @@ $active_page = 'mcp_features';
                     Tambahkan konfigurasi berikut ke file <code class="text-purple-800 font-mono font-bold bg-purple-50 px-1 py-0.5 rounded border border-purple-200">%APPDATA%\Claude\claude_desktop_config.json</code>:
                 </p>
                 <div class="relative">
-                    <pre class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto font-semibold">{
+                    <pre id="claude-config" class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto font-semibold">{
   "mcpServers": {
     "project-manager": {
       "url": "http://107.102.39.55:3800/sse"
     }
   }
 }</pre>
-                    <button onclick="copyToClipboard('{\n  &quot;mcpServers&quot;: {\n    &quot;project-manager&quot;: {\n      &quot;url&quot;: &quot;http://107.102.39.55:3800/sse&quot;\n    }\n  }\n}')"
-                        class="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 transition font-bold">Copy JSON</button>
+                    <button onclick="copyToClipboard(document.getElementById('claude-config').innerText.trim(), this)"
+                        class="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 transition font-bold flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span>Copy JSON</span>
+                    </button>
                 </div>
             </div>
 
@@ -431,7 +434,7 @@ $active_page = 'mcp_features';
                     Tambahkan konfigurasi Stdio transport berikut ke file <code class="text-purple-800 font-mono font-bold bg-purple-50 px-1 py-0.5 rounded border border-purple-200">~/.gemini/config/mcp_config.json</code>:
                 </p>
                 <div class="relative">
-                    <pre class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto font-semibold">{
+                    <pre id="gemini-config" class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto font-semibold">{
   "mcpServers": {
     "project-manager-mcp": {
       "command": "node",
@@ -445,8 +448,11 @@ $active_page = 'mcp_features';
     }
   }
 }</pre>
-                    <button onclick="copyToClipboard('{\n  &quot;mcpServers&quot;: {\n    &quot;project-manager-mcp&quot;: {\n      &quot;command&quot;: &quot;node&quot;,\n      &quot;args&quot;: [&quot;/home/endri-pro/dev/App/project_manager/mcp-server/index.js&quot;],\n      &quot;env&quot;: {\n        &quot;DB_HOST&quot;: &quot;127.0.0.1&quot;,\n        &quot;DB_PORT&quot;: &quot;3306&quot;,\n        &quot;DB_USER&quot;: &quot;root&quot;,\n        &quot;DB_NAME&quot;: &quot;project_manager_db&quot;\n      }\n    }\n  }\n}')"
-                        class="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 transition font-bold">Copy JSON</button>
+                    <button onclick="copyToClipboard(document.getElementById('gemini-config').innerText.trim(), this)"
+                        class="absolute top-3 right-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-100 transition font-bold flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span>Copy JSON</span>
+                    </button>
                 </div>
             </div>
 
@@ -457,8 +463,9 @@ $active_page = 'mcp_features';
                 </p>
                 <div class="p-4 rounded-2xl sub-box space-y-2">
                     <span class="text-xs font-bold text-emerald-800">Chat & Reasoning Endpoint:</span>
-                    <div class="font-mono text-xs text-emerald-300 bg-slate-900 border border-slate-800 p-2.5 rounded-lg select-all font-semibold">
-                        http://107.102.39.55:3800/api/mcp/chat
+                    <div class="font-mono text-xs text-emerald-300 bg-slate-900 border border-slate-800 p-2.5 rounded-lg select-all font-semibold flex justify-between items-center">
+                        <span class="truncate">http://107.102.39.55:3800/api/mcp/chat</span>
+                        <button onclick="copyToClipboard('http://107.102.39.55:3800/api/mcp/chat', this)" class="ml-2 text-slate-300 hover:text-white text-xs font-bold px-2.5 py-1 rounded bg-white/15 hover:bg-white/25 transition">Copy</button>
                     </div>
                 </div>
             </div>
@@ -468,28 +475,77 @@ $active_page = 'mcp_features';
     </main>
 
     <!-- Floating Toast Feedback -->
-    <div id="copy-toast" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 border border-purple-500/40 text-purple-200 text-xs shadow-2xl">
-        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <div id="copy-toast" class="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900/95 border border-purple-500/50 text-purple-100 text-xs font-medium shadow-2xl backdrop-blur-md">
+        <div class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs shrink-0">✓</div>
         <span>Teks berhasil disalin ke clipboard!</span>
     </div>
 
     <script>
-        // Non-intrusive Toast helper
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
+        // ponytail: Universal clipboard copy with document.execCommand fallback for HTTP/non-secure contexts
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.width = "2em";
+            textArea.style.height = "2em";
+            textArea.style.padding = "0";
+            textArea.style.border = "none";
+            textArea.style.outline = "none";
+            textArea.style.boxShadow = "none";
+            textArea.style.background = "transparent";
+            textArea.style.opacity = "0";
+            textArea.style.pointerEvents = "none";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback copy error:', err);
+            }
+            document.body.removeChild(textArea);
+            return success;
+        }
+
+        let toastTimer = null;
+        function copyToClipboard(text, btnElement) {
+            if (!text && typeof text !== 'string') return;
+
+            function onCopied() {
                 showToast();
-            }).catch(err => {
-                console.error('Gagal menyalin:', err);
-            });
+                if (btnElement) {
+                    const originalHtml = btnElement.innerHTML;
+                    btnElement.innerHTML = `<span class="inline-flex items-center gap-1 text-emerald-400 font-bold text-xs"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Copied!</span>`;
+                    btnElement.disabled = true;
+                    setTimeout(() => {
+                        btnElement.innerHTML = originalHtml;
+                        btnElement.disabled = false;
+                    }, 1800);
+                }
+            }
+
+            if (navigator.clipboard && window.isSecureContext && typeof navigator.clipboard.writeText === 'function') {
+                navigator.clipboard.writeText(text).then(onCopied).catch(() => {
+                    fallbackCopy(text);
+                    onCopied();
+                });
+            } else {
+                fallbackCopy(text);
+                onCopied();
+            }
         }
 
         function showToast() {
             const toast = document.getElementById('copy-toast');
             if (!toast) return;
+            if (toastTimer) clearTimeout(toastTimer);
             toast.classList.add('show');
-            setTimeout(() => {
+            toastTimer = setTimeout(() => {
                 toast.classList.remove('show');
-            }, 2200);
+            }, 2000);
         }
 
         // Tab switcher

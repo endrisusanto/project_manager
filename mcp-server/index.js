@@ -360,37 +360,53 @@ async function executeTool(name, args = {}) {
     return { success: res.ok, status: res.status, data };
   }
 
-  // ponytail: minimal SMTP sender using nodemailer
+  // ponytail: minimal SMTP sender with primary & fallback password retry
   if (name === "send_email_smtp") {
     const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
     const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    const passwords = [process.env.SMTP_PASS, process.env.SMTP_PASS_FALLBACK].filter(Boolean);
     const smtpFrom = process.env.SMTP_FROM || `"Project Manager" <${smtpUser || "noreply@samsung.com"}>`;
 
-    if (!smtpUser || !smtpPass) {
+    if (!smtpUser || passwords.length === 0) {
       throw new Error("SMTP_USER dan SMTP_PASS belum dikonfigurasi di file .env");
     }
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: process.env.SMTP_SECURE === "true" || smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
+    let lastError = null;
+    for (let i = 0; i < passwords.length; i++) {
+      const pass = passwords[i];
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: process.env.SMTP_SECURE === "true" || smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: pass
+          }
+        });
+
+        const info = await transporter.sendMail({
+          from: smtpFrom,
+          to: args.to,
+          cc: args.cc || undefined,
+          subject: args.subject,
+          html: args.html
+        });
+
+        return { 
+          success: true, 
+          messageId: info.messageId, 
+          response: info.response,
+          used_fallback: i > 0
+        };
+      } catch (err) {
+        lastError = err;
+        console.warn(`[SMTP] Pengiriman via password #${i + 1} gagal (${err.message}). ${i + 1 < passwords.length ? "Mencoba SMTP_PASS_FALLBACK..." : "Semua password gagal."}`);
       }
-    });
+    }
 
-    const info = await transporter.sendMail({
-      from: smtpFrom,
-      to: args.to,
-      cc: args.cc || undefined,
-      subject: args.subject,
-      html: args.html
-    });
-
-    return { success: true, messageId: info.messageId, response: info.response };
+    throw lastError || new Error("Gagal mengirim email via SMTP.");
   }
 
   // ponytail: Daily Summary Insight Report generator for MCP / AI Assistant
