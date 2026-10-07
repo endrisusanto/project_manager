@@ -183,6 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $file_content .= "}\n\n";
     $file_content .= "if (!function_exists('render_laundry_icon')) {\n";
     $file_content .= "    function render_laundry_icon(\$task, \$extra_classes = '', \$size = 'w-3.5 h-3.5') {\n";
+    $file_content .= "        if ((function_exists('is_admin') && is_admin()) || (isset(\$_SESSION['role']) && strtolower(\$_SESSION['role']) === 'admin')) return '';\n";
     $file_content .= "        if (!is_laundry_task(\$task)) return '';\n";
     $file_content .= "        \$task_id = intval(\$task['id'] ?? 0);\n";
     $file_content .= "        \$unique_id = 'laundry_ico_' . (\$task['id'] ?? '') . '_' . mt_rand(1000, 9999);\n";
@@ -199,6 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $file_content .= "}\n\n";
     $file_content .= "if (!function_exists('render_laundry_badge')) {\n";
     $file_content .= "    function render_laundry_badge(\$task, \$extra_classes = '') {\n";
+    $file_content .= "        if ((function_exists('is_admin') && is_admin()) || (isset(\$_SESSION['role']) && strtolower(\$_SESSION['role']) === 'admin')) return '';\n";
     $file_content .= "        if (!is_laundry_task(\$task)) return '';\n";
     $file_content .= "        \$task_id = intval(\$task['id'] ?? 0);\n";
     $file_content .= "        \$unique_id = 'laundry_' . \$task_id . '_' . mt_rand(1000, 9999);\n";

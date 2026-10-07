@@ -269,6 +269,8 @@ if (!function_exists('is_laundry_task')) {
 
 if (!function_exists('render_laundry_icon')) {
     function render_laundry_icon($task, $extra_classes = '', $size = 'w-3.5 h-3.5') {
+        // ponytail: Sembunyikan icon laundry untuk role admin
+        if ((function_exists('is_admin') && is_admin()) || (isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin')) return '';
         if (!is_laundry_task($task)) return '';
         
         $task_id = intval($task['id'] ?? 0);
@@ -295,6 +297,8 @@ if (!function_exists('render_laundry_icon')) {
 
 if (!function_exists('render_laundry_badge')) {
     function render_laundry_badge($task, $extra_classes = '') {
+        // ponytail: Sembunyikan badge laundry untuk role admin
+        if ((function_exists('is_admin') && is_admin()) || (isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin')) return '';
         if (!is_laundry_task($task)) return '';
         
         $task_id = intval($task['id'] ?? 0);

@@ -809,8 +809,10 @@ $all_statuses = ['Task Baru', 'Downloaded', 'Test Ongoing', 'Pending Feedback', 
             return Boolean(task.is_laundry);
         }
 
+        const isAdminUser = <?= (function_exists('is_admin') && is_admin()) ? 'true' : 'false' ?>;
+
         function renderLaundryBadgeJs(task) {
-            if (!isLaundryTaskJs(task)) return '';
+            if (isAdminUser || !isLaundryTaskJs(task)) return '';
             const taskId = task.id || 0;
             const uniqueId = 'laundry_js_' + taskId + '_' + Math.random().toString(36).substr(2, 6);
             const dlUrl = `api_download_laundry.php?task_id=${taskId}&stream=1`;
