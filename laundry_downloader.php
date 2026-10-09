@@ -33,6 +33,27 @@ function trigger_async_laundry_download() {
 }
 
 /**
+ * Test whether a directory can genuinely be written to.
+ */
+function is_dir_genuinely_writable($dir) {
+    if (!file_exists($dir)) {
+        @mkdir($dir, 0777, true);
+    }
+    @chmod($dir, 0777);
+    if (!is_dir($dir)) {
+        return false;
+    }
+    $test_file = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . '.test_write_' . uniqid();
+    $fp = @fopen($test_file, 'w');
+    if ($fp) {
+        @fclose($fp);
+        @unlink($test_file);
+        return true;
+    }
+    return false;
+}
+
+/**
  * Get or initialize the target storage directory for Laundry ZIP downloads.
  * Default path on Linux Docker Server: /home/endri-pro/Downloads/CUCIAN/
  */
@@ -41,6 +62,7 @@ function get_laundry_download_dir() {
         '/home/endri-pro/Downloads/CUCIAN',
         '/var/www/html/downloads/cucian',
         __DIR__ . '/downloads/cucian',
+        __DIR__ . '/uploads/cucian',
         sys_get_temp_dir() . '/CUCIAN'
     ];
 
@@ -53,10 +75,7 @@ function get_laundry_download_dir() {
     }
 
     foreach ($candidates as $dir) {
-        if (!file_exists($dir)) {
-            @mkdir($dir, 0777, true);
-        }
-        if (file_exists($dir) && is_writable($dir)) {
+        if (is_dir_genuinely_writable($dir)) {
             return rtrim($dir, '/\\') . DIRECTORY_SEPARATOR;
         }
     }
@@ -64,6 +83,7 @@ function get_laundry_download_dir() {
     $fallback = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'CUCIAN' . DIRECTORY_SEPARATOR;
     if (!file_exists($fallback)) {
         @mkdir($fallback, 0777, true);
+        @chmod($fallback, 0777);
     }
     return $fallback;
 }
@@ -621,6 +641,17 @@ function download_laundry_zip($task_or_id, $force = false, $is_auto_scan = false
 
     // Open file pointer for stream writing
     $fp = @fopen($tmp_file, 'w+b');
+    if (!$fp) {
+        $fallback_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'CUCIAN' . DIRECTORY_SEPARATOR;
+        if (!file_exists($fallback_dir)) {
+            @mkdir($fallback_dir, 0777, true);
+            @chmod($fallback_dir, 0777);
+        }
+        $dir = $fallback_dir;
+        $target_file = $dir . $filename;
+        $tmp_file = $dir . $filename . '.tmp.' . uniqid();
+        $fp = @fopen($tmp_file, 'w+b');
+    }
     if (!$fp) {
         return [
             'success' => false,
