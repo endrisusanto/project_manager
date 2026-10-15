@@ -271,6 +271,34 @@ try {
         $stats['user_notes'] = upsert_table_data($conn, 'user_notes', $tables_data['user_notes'], $note_cols, ['id']);
     }
 
+    // ponytail: 7.8 Support Sync Deletions (Explicit deleted IDs)
+    if (!empty($payload['deleted_ids']) && is_array($payload['deleted_ids'])) {
+        foreach ($payload['deleted_ids'] as $tbl => $ids) {
+            if (!in_array($tbl, ['gba_tasks', 'projects', 'users', 'new_tasks', 'activity_log', 'activity_logs', 'user_notes'])) continue;
+            if (is_array($ids) && !empty($ids)) {
+                $idList = implode(',', array_map('intval', $ids));
+                $conn->query("DELETE FROM `$tbl` WHERE id IN ($idList)");
+                $stats["deleted_{$tbl}"] = $conn->affected_rows;
+            }
+        }
+    }
+
+    // ponytail: 7.9 Support Full Reconciliation (Prune records in Docker missing from Source)
+    if (!empty($payload['reconcile_ids']) && is_array($payload['reconcile_ids'])) {
+        foreach ($payload['reconcile_ids'] as $tbl => $ids) {
+            if (!in_array($tbl, ['gba_tasks', 'projects', 'users', 'new_tasks'])) continue;
+            if (is_array($ids)) {
+                if (empty($ids)) {
+                    $conn->query("DELETE FROM `$tbl`");
+                } else {
+                    $idList = implode(',', array_map('intval', $ids));
+                    $conn->query("DELETE FROM `$tbl` WHERE id NOT IN ($idList)");
+                }
+                $stats["pruned_{$tbl}"] = $conn->affected_rows;
+            }
+        }
+    }
+
     $conn->commit();
 
     echo json_encode([
